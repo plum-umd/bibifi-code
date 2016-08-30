@@ -1,0 +1,382 @@
+-- By default this file is used in Model.hs (which is imported by Foundation.hs)
+
+User
+    ident Text
+    UniqueUser ident
+    password Text
+    salt Text
+    email Text
+    -- email Text <Const Admin || Id, Id, _>
+    UniqueEmail email
+    created UTCTime default=now() AT TIME ZONE ‘UTC’
+    admin Bool default=false
+    consentForm StoredFileId Maybe default=null
+    resume StoredFileId Maybe default=null
+    deriving Typeable
+
+
+CourseraUser
+    courseraId Text
+    UniqueCourseraId courseraId
+    user UserId
+    UniqueCourseraUser user
+    token Text
+
+UserInformation
+    user UserId
+    school Text Maybe <Const Admin || Field user, Field user, _>
+    major Text Maybe <Const Admin || Field user, Field user, _>
+    minor Text Maybe <Const Admin || Field user, Field user, _>
+    degreesHeld Text Maybe <Const Admin || Field user, Field user, _>
+    degree Text <Const Admin || Field user, Field user, _>
+    yearsInProgram Int Maybe <Const Admin || Field user, Field user, _>
+    yearsOfExperience Int Maybe <Const Admin || Field user, Field user, _>
+    languages Text Maybe <Const Admin || Field user, Field user, _>
+    favoriteLanguages Text Maybe <Const Admin || Field user, Field user, _>
+    yearsOfWork Int Maybe <Const Admin || Field user, Field user, _>
+    experienceClass Bool Maybe <Const Admin || Field user, Field user, _>
+    experiencePersonal Bool Maybe <Const Admin || Field user, Field user, _>
+    experienceInternship Bool Maybe <Const Admin || Field user, Field user, _>
+    experienceJob Bool Maybe <Const Admin || Field user, Field user, _>
+    securityTraining Bool Maybe <Const Admin || Field user, Field user, _>
+    securityExperience Bool Maybe <Const Admin || Field user, Field user, _>
+    softwareEngineering Bool Maybe <Const Admin || Field user, Field user, _>
+    securityClass Bool Maybe <Const Admin || Field user, Field user, _>
+    previousContest Bool Maybe <Const Admin || Field user, Field user, _>
+    resumePermission Bool default=false <Const Admin || Field user, Field user, _>
+    age Int Maybe default=0 <Const Admin || Field user, Field user, _>
+    nationality Text Maybe default='' <Const Admin || Field user, Field user, _>
+    gender Text Maybe default='' <Const Admin || Field user, Field user, _>
+    agreeToParticipate Bool default=true <Const Admin || Field user, Field user, _>
+    graduationYear Int Maybe default=-1 <Const Admin || Field user, Field user, _>
+    programmerRating Int Maybe default=-1 <Const Admin || Field user, Field user, _>
+    attackerRating Int Maybe default=-1 <Const Admin || Field user, Field user, _>
+    language Text Maybe <Const Admin || Field user, Field user, _>
+    timezone Text Maybe <Const Admin || Field user, Field user, _>
+    UniqueUserInformation user
+    deriving Eq Ord
+    
+
+UserConfirmation
+    user UserId
+    confirmation Text
+    UniqueConfirmation confirmation
+
+Contest
+    url Text
+    title Text
+    buildStart UTCTime
+    buildEnd UTCTime
+    breakStart UTCTime
+    breakEnd UTCTime
+    fixStart UTCTime
+    fixEnd UTCTime
+    UniqueContest url
+
+CourseraContest        -- Absence of this row means a contest isn't a coursera one.
+    contest ContestId
+    UniqueCourseraContest contest
+    courseId Int -- Course id
+    sessionId Int -- Session id
+
+Post
+    title Text <_, Const Admin, Const Admin>
+    contest ContestId
+    timestamp UTCTime default=now() AT TIME ZONE ‘UTC’
+    draft Bool
+--    author UserId
+    content Html <_, Const Admin, Const Admin>
+    markdown Text <_, Const Admin, Const Admin>
+
+PostDependency
+    contest ContestId
+    post PostId
+    dependency PostDependencyType
+
+Judge
+    judge UserId
+    contest ContestId
+    UniqueContestJudge judge contest
+    assignedCount Int default=0
+
+JudgeConflict
+    judge JudgeId
+    team TeamContestId
+    UniqueJudgeConflict judge team
+
+BuildJudgement
+    judge JudgeId
+    submission BuildSubmissionId
+    ruling Bool Maybe <_, Field judge || Const Admin, Const Admin> -- True means pass/accepted
+    comments Text Maybe <_, Field judge || Const Admin, Const Admin>
+    UniqueBuildJudgement submission
+
+BreakJudgement
+    judge JudgeId
+    submission BreakSubmissionId
+    ruling Bool Maybe <_, Field judge || Const Admin, Const Admin>
+    comments Text Maybe <_, Field judge || Const Admin, Const Admin>
+    UniqueBreakJudgement submission
+
+FixJudgement
+    judge JudgeId
+    submission FixSubmissionId
+    ruling Bool Maybe <_, Field judge || Const Admin, Const Admin>
+    comments Text Maybe <_, Field judge || Const Admin, Const Admin>
+    UniqueFixJudgement submission
+
+BreakDispute
+    break BreakSubmissionId
+    justification Text
+    UniqueBreakDispute break
+
+Team
+    name Text
+    leader UserId
+    -- leader UserId < Const Admin || Id, Const Admin || Id, _>
+    UniqueTeam name
+    deriving Eq Ord
+
+TeamContest
+    team TeamId
+    contest ContestId
+    gitUrl Text default=''
+    languages Text default=''
+    -- gitUrl Text default='' <Const Admin || Id, Id, _>
+    -- languages Text default='' <Const Admin || Id, Id, _>
+    UniqueTeamContest team contest
+    professional Bool default=false
+ --     permutationMap PermutationMapId
+ --  -- submission BuildCommitId
+ --     UniquePermutationMap permutationMap
+
+TeamMember
+    team TeamId
+    user UserId
+    UniqueTeamMember team user
+
+TeamInvite
+    invite Text
+    team TeamId
+    email Text
+    UniqueTeamInvite invite
+
+PasswordResetInvite
+    account UserId
+    invite Text <_, _, Const Admin>
+    -- invite Text <_, Const Admin, Const Admin>
+    expiration UTCTime
+    UniquePasswordResetInvite invite
+
+ContestCoreTest
+    contest ContestId
+    name Text
+    inputFile Text
+    outputFile Text
+    testScript Text
+    deriving Show Eq
+
+ContestPerformanceTest
+    contest ContestId
+    name Text
+    inputFile Text
+    outputFile Text
+    testScript Text
+    optional Bool default=FALSE
+    deriving Show Eq
+
+ContestOptionalTest
+    contest ContestId
+    name Text
+    inputFile Text
+    outputFile Text
+    testScript Text
+    deriving Show Eq
+
+-- PerformanceTestRanking
+--     test ContestPerformanceTestId
+--     team TeamContestId
+--     rank Int
+--     UniqueTestRanking test team
+
+TeamBreakScore
+    team TeamContestId
+    buildScore Double Maybe default=0.0
+    breakScore Double Maybe
+    fixScore Double Maybe
+    timestamp UTCTime
+
+TeamBuildScore
+    team TeamContestId
+    buildScore Double Maybe -- Nothing means not qualified
+    breakScore Double Maybe
+    fixScore Double Maybe
+    timestamp UTCTime
+
+OracleSubmission
+    team TeamContestId
+    timestamp UTCTime
+    name Text
+    input Text
+    output Text Maybe
+    status OracleSubmissionStatus
+    deriving Eq
+
+BuildSubmission
+    team TeamContestId
+    timestamp UTCTime
+    commitHash Text
+    status BuildSubmissionStatus
+    stdout Textarea Maybe default=null
+    stderr Textarea Maybe default=null
+
+BreakOracleSubmission
+    team TeamContestId <_, Const Admin, Const Admin>
+    timestamp UTCTime <_, Const Admin, Const Admin>
+    description Text <_, Const Admin, Const Admin>
+    valid Bool <_, Const Admin, Const Admin>
+
+BreakSubmission
+    team TeamContestId
+    targetTeam TeamContestId
+    timestamp UTCTime
+    commitHash Text
+    status BreakSubmissionStatus
+    result BreakSubmissionResult Maybe
+    fixed Bool default=FALSE
+    bayesianScore Double Maybe default=null
+    name Text default=''
+    type BreakType Maybe
+    message String Maybe
+    json Text Maybe default=null
+    stdout Textarea Maybe default=null
+    stderr Textarea Maybe default=null
+
+FixSubmission
+    team TeamContestId
+    timestamp UTCTime
+    commitHash Text
+    diffSize Int
+    status FixSubmissionStatus
+    result FixSubmissionResult Maybe
+    name Text default=''
+    message String Maybe
+    stdout Textarea Maybe default=null
+    stderr Textarea Maybe default=null
+    UniqueFixSubmissionName team name
+
+FixSubmissionBugs
+    fix FixSubmissionId
+    bugId BreakSubmissionId
+
+BuildCoreResult
+    submission BuildSubmissionId
+    test ContestCoreTestId
+    pass Bool
+    message Text Maybe
+    UniqueBuildCoreSubmission submission test
+    deriving Show Eq
+
+BuildPerformanceResult
+    submission BuildSubmissionId
+    test ContestPerformanceTestId
+    time Double Maybe -- pass is implicitly false when Nothing
+    message Text Maybe
+    UniqueBuildPerformanceSubmission submission test
+    deriving Show Eq
+
+BuildOptionalResult
+    submission BuildSubmissionId
+    test ContestOptionalTestId
+    pass Bool
+    message Text Maybe
+    UniqueBuildOptionalSubmission submission test
+    deriving Show Eq
+
+    
+    
+
+ -- 
+ -- PermutationMap
+ --     team TeadId
+ --     permutation Int
+ --     UniquePermutation permutation
+ -- 
+ --  -- Scoreboard
+ -- 
+ --  -- Build it commits
+ -- 
+ -- BuildCommitQueue
+ --     timestamp UTCTime default=now()
+ --     -- github link, hash
+ -- 
+ -- BuildCommit
+ --     timestamp UTCTime default=now()
+ --     score Int
+ --     -- github link, hash
+ --     results BuildTestResultId
+ -- 
+ -- BuildTestResult
+ --     test BuildTestId
+ --     runtime Int -- ms?
+ --     result Result -- where data Result = Pass | Fail | Crash | Exploit | Timeout
+ --     output Text -- be sure workers sanitize!!
+ -- 
+ -- BuildTest
+ --     value Int
+ --     secret Bool
+ --     description Text
+ -- 
+ --  -- Bug submissions
+ -- 
+ -- BugSubmissionQueue
+ --     input DataBlob?
+ -- -- Describe the bug you are exploiting.
+ -- -- target project
+ -- -- output result
+ -- 
+ -- BugSubmission
+ --     
+ --     
+
+Configuration
+    key Text <_, Const Admin, Const Admin>
+    value Text <_, Const Admin, Const Admin>
+    UniqueKey key
+
+CacheExpiration
+    key Text
+    expiration UTCTime default=now() AT TIME ZONE ‘UTC’
+    UniqueCache key
+
+CacheBuildersCode
+    team Text
+    teamId TeamContestId
+    UniqueCacheBuilderCodeTeam teamId
+    languages Text default=''
+    contestId ContestId
+    builderScore Double
+    bugsFound Int
+    vulnerabilitiesFound Int
+
+StoredFile
+    owner UserId Maybe
+    name Text
+    contentType Text
+    content ByteString
+
+Error
+    handlerName Text
+    errorText Text
+    time UTCTime default=now() AT TIME ZONE 'UTC'
+
+RateLimitLog
+    action Int
+    limiter Int
+    time UTCTime default=now() AT TIME ZONE 'UTC'
+
+-- If one of these exists for a contest, a score request is pending.
+ScorePending
+    contest ContestId
+    round ContestRound
+    UniqueScorePending contest round
