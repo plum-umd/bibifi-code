@@ -1,0 +1,109 @@
+<h1>Programming Problem: Secure Log File</h1>
+
+<h2>Changelog</h2>
+
+<ul>
+<li>[5/11/15 9:00PM EST] Command line arguments can appear in any order. If the same argument is provided multiple times, the last value is accepted. </li>
+<li>[5/11/15 9:00PM EST] If the integrity of a logfile cannot be verified in <code>logread</code>, <code>"integrity violation"</code> should be printed to <code>stdout</code>. </li>
+<li>[5/12/15 6:00PM EST] Log file names can include periods. Slashes may be used to reference log files in other directories. </li>
+<li>[5/12/15 8:00PM EST] The log file cannot be present multiple times. </li>
+<li>[5/13/15 11:00AM EST] If a supplied token does not match an existing log in <code>logappend</code>, "invalid" should be printed to <code>stdout</code> and 255 returned. </li>
+<li>[5/19/15 12:00PM EST] An employee and a guest can have the same name. </li>
+<li>[5/19/15 12:00PM EST] Valid times range from 1 to 1073741823 inclusively.</li>
+<li>[5/19/15 12:00PM EST] Valid room ids range from 0 to 1073741823 inclusively.</li>
+<li>[5/19/15 12:00PM EST] If <code>-B</code> is passed, <code>logappend</code> should return 0 as long as the batch file exists and valid arguments are given to the batch command. If the batch file does not exist, print "invalid" to stdout and exit, returning 255. </li>
+<li>[5/19/15 12:00PM EST] The oracle has been updated so that names only contain (a-z, A-Z) and tokens only contain (a-z, A-Z, 0-9). </li>
+</ul>
+
+<h2>Summary</h2>
+
+<p>Players will implement a <em>secure log</em> to describe the <em>state
+of an art gallery</em>: the guests and employees who have entered and left,
+and persons that are in rooms. The log will be used by <em>two
+programs</em>. One program, <code>logappend</code>, will append new information to this file,
+and the other, <code>logread</code>, will read from the file and display the state of the art
+gallery according to a given query over the log.  Both programs will
+use an authentication token, supplied as a command-line argument, to
+authenticate each other; the security model is described in more
+detail below.</p>
+
+<h2>Programs</h2>
+
+<p>Players design the log format and implement both <code>logappend</code> and
+<code>logread</code> to use it.
+These programs can be written in any
+programming language(s) of the contestants' choice as long as they can
+be built and executed on the <a href="VM.html">Linux VM</a> provided by the
+organizers. Each program's description is linked below.</p>
+
+<ul>
+<li>The <a href="LOGAPPEND.html"><code>logappend</code></a> program appends data to a log </li>
+<li>The <a href="LOGREAD.html"><code>logread</code></a> program reads and queries data from the log </li>
+</ul>
+
+<p><code>logread</code> contains a number of features that are optional. If you do not implement an optional feature, be sure to <strong>print <code>unimplemented</code> to standard output</strong>. </p>
+
+<h2>Examples</h2>
+
+<p>Look at the page of <a href="EXAMPLES.html">examples</a> for examples of using the <code>logappend</code> and <code>logread</code> tools together. </p>
+
+<h2>Security Model</h2>
+
+<p>The system as a whole must guarantee the privacy and integrity of the log in
+the presence of an adversary that does not know the authentication token. This token
+is used by both the <code>logappend</code> and <code>logread</code> tools, specified on the command
+line. <em>Without knowledge of the token</em> an attacker should <em>not</em> be able to:</p>
+
+<ul>
+<li>Query the logs via <code>logread</code> or otherwise learn facts
+about the names of guests, employees, room numbers, or times by
+inspecting the log itself</li>
+<li>Modify the log via <code>logappend</code>. </li>
+<li>Fool <code>logread</code> or <code>logappend</code> into accepting a bogus file. In
+particular, modifications made to the log by means other than correct use of <code>logappend</code> should be detected by (subsequent calls to) <code>logread</code> or <code>logappend</code> when the correct token is supplied</li>
+</ul>
+
+<h2>Oracle</h2>
+
+<p>An oracle reference implementation is provided to demonstrate the expected output of a series of commands run on <code>logread</code> and <code>logappend</code>. 
+Contestants may run the reference implementation by going to the team participation page on the website and clicking on "Oracle Submissions". Here is an example of the expected input for the oracle:</p>
+
+<pre><code>[
+    "logappend -T 1 -K secret -A -E Fred log1",
+    "logappend -T 2 -K secret -A -G Jill log1",
+    "logappend -T 3 -K secret -A -E Fred -R 1 log1",
+    "logappend -T 4 -K secret -A -G Jill -R 1 log1",
+    "logread -K secret -S log1"
+]
+</code></pre>
+
+<h2>Details</h2>
+
+<ul>
+<li>Names only contain alphabetical characters (a-z, A-Z).</li>
+<li>Leading zeros in room IDs should be dropped, such that 003, 03, and 3 are all equivalent room IDs.</li>
+<li>If a single line in a batch file is invalid, print the appropriate error message for that line and continue processing the rest of the batch file. </li>
+<li>Log files may contain underscores. </li>
+<li>Integer inputs, like timestamps, are limited to 32 bits. </li>
+<li>Names are case sensitive. Employees and guests cannot have the same name.</li>
+</ul>
+
+<h2>Build-it Round Submission</h2>
+
+<p>Each build-it team should
+initialize a git repository on either <a href="https://github.com/">github</a> or <a href="https://bitbucket.org/">bitbucket</a> and share it 
+with the <code>bibifi</code> user on either of those services. Create a directory 
+named <code>build</code> in the top-level directory of this repository and commit your code into that folder. Your 
+submission will be scored after every push to the repository. (Beware making your
+repository public, or other contestants might be able to see it!)</p>
+
+<p>To score a submission, an automated system will first invoke <code>make</code> in the <code>build</code>
+directory of your submission. The only requirement on <code>make</code> is that it 
+must function without internet connectivity, and that it must return within 
+ten minutes. </p>
+
+<p>Once make finishes, <code>logread</code> and <code>logappend</code> should be executable 
+files within the <code>build</code> directory. An automated system will invoke them with a 
+variety of options and measure their responses. 
+The executables must be able to be run from any working directory. 
+If your executables are bash scripts, you may find the following <a href="http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in">resource</a> helpful. </p>

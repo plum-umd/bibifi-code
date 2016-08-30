@@ -1,0 +1,8 @@
+@font-face {
+    font-family: "langdon";
+    src: url("/static/fonts/langdon.eot");
+    src: local("☺"),
+        url("/static/fonts/langdon.woff"}) format("woff"),
+        url("/static/fonts/langdon.otf") format("opentype"),
+        url("/static/fonts/langdon.svg") format("svg");
+}

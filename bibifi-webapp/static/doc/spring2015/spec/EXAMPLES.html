@@ -1,0 +1,43 @@
+<h1>Examples</h1>
+
+<p>Consider the following 4 invocations of <code>logappend</code> followed by an invocation of <code>logread</code>:</p>
+
+<pre><code>$ ./logappend -T 1 -K secret -A -E Fred log1
+$ ./logappend -T 2 -K secret -A -G Jill log1
+$ ./logappend -T 3 -K secret -A -E Fred -R 1 log1
+$ ./logappend -T 4 -K secret -A -G Jill -R 1 log1
+</code></pre>
+
+<p>These commands have used the key <em>secret</em> to append 4 events to the log <code>log1</code>, recording the arrival of <em>Fred</em> and <em>Jill</em> in room <em>1</em> of the gallery. If <code>logread</code> is then used to print the state of the gallery, the following should be printed: </p>
+
+<pre><code>$ ./logread -K secret -S log1
+Fred
+Jill
+1: Fred,Jill
+</code></pre>
+
+<p>If we continue using <code>log1</code> and record some movements, we can then use <code>logread</code> to get a list of the rooms entered by Fred.</p>
+
+<pre><code>./logappend -T 5 -K secret -L -E Fred -R 1 log1
+./logappend -T 6 -K secret -A -E Fred -R 2 log1
+./logappend -T 7 -K secret -L -E Fred -R 2 log1
+./logappend -T 8 -K secret -A -E Fred -R 3 log1
+./logappend -T 9 -K secret -L -E Fred -R 3 log1
+./logappend -T 10 -K secret -A -E Fred -R 1 log1
+./logread -K secret -R -E Fred log1
+1,2,3,1
+</code></pre>
+
+<p>We can also use <code>logappend</code> in batch mode like so (on a fresh log <code>log2</code>):</p>
+
+<pre><code>$ cat batch 
+-K secret -T 0 -A -E John log2
+-K secret -T 1 -A -R 0 -E John log2
+-K secret -T 2 -A -G James log2
+-K secret -T 3 -A -R 0 -G James log2
+$ ./logappend -B batch 
+$ ./logread -K secret -S log2
+John
+James
+0:James,John
+</code></pre>

@@ -1,0 +1,23 @@
+Docker:
+  certificate: client-cert.pem
+  secretKey: client-key.pem
+  imageId: bibifi:v1
+  address: bibivm01.proxy.umiacs.umd.edu
+  port: 4000
+  leaveRunning: false
+  privateKeyFile: jp.pem
+  publicKeyFile: jp.pub
+  memory: 4000000000
+  cpu: 2
+  caCertificate: ca.crt
+
+EC2:
+  accessKey: AKIAJOAFCL7F6PWCJEGA
+  secretKey: secret_key
+  imageId: ami-1683f07c
+  securityGroup: default
+  leaveRunning: false
+  keyName: jp
+  privateKeyFile: jp.pem
+  publicKeyFile: jp.pub
+  instanceType: c3.large

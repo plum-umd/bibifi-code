@@ -1,0 +1,29 @@
+Default: &defaults
+  user: mc2contest
+  password: PASSWORD
+  host: HOST.COM
+  port: 5432
+  database: mc2contest
+  poolsize: 10
+
+Development:
+  <<: *defaults
+
+Testing:
+  database: bibifi_test
+  <<: *defaults
+
+Staging:
+  database: bibifi_staging
+  poolsize: 100
+  <<: *defaults
+
+Production: &production
+  user: bibifi
+  password: PASSWORD
+  database: bibifi
+  poolsize: 100
+  <<: *defaults
+
+Translator:
+  <<: *production

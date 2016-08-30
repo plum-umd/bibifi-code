@@ -1,0 +1,109 @@
+/static StaticR Static getStatic
+/auth   AuthR   Auth   getAuth
+
+/favicon.ico FaviconR GET
+/robots.txt RobotsR GET
+
+/ SplashR GET
+/announcements AnnouncementsR GET
+/contest/#Text/announcements SpecificAnnouncementsR GET
+
+/contest/#Text/thanks ThanksR GET
+
+/scoreboard ScoreboardR GET
+/contest/#Text/scoreboard SpecificScoreboardR GET
+/scoreboard/#TeamContestId/breakdown ScoreBreakdownR GET
+/contest/#Text/scoreboard/scores.json ScoresR GET
+
+/contest/#Text/rankings PerformanceRankingsR GET
+/contest/#Text/rankings/#ContestPerformanceTestId SpecificPerformanceRankingsR GET
+
+/download/#StoredFileId DownloadFileR GET
+
+/signup ContestSignupR GET
+/contest/#Text/signup ContestSpecificSignupR GET POST
+/contest/#Text/participation ContestParticipationR GET
+
+/contests ContestsR GET
+
+/register RegisterR GET POST
+
+/confirmation/#Text ConfirmationR GET
+
+/profile ProfileR GET
+
+/profile/account ProfileAccountR GET
+/profile/account/edit ProfileAccountEditR GET POST
+/profile/account/consent ProfileAccountConsentR GET POST
+/profile/account/resume ProfileAccountResumeR GET POST
+/profile/teams ProfileTeamsR GET
+
+/team/#TeamId TeamR GET
+/team/#TeamId/information TeamInformationR GET
+/team/#TeamId/leave TeamLeaveR GET POST
+/team/#TeamId/participation TeamParticipationR GET
+/team/#TeamId/addmembers TeamAddMembersR GET POST
+
+/participation ParticipationR GET
+/participation/#TeamContestId/information ParticipationInformationR GET POST
+/participation/#TeamContestId/unregister ParticipationInformationUnregisterR POST
+/participation/#TeamContestId/oraclesubmissions ParticipationOracleSubmissionsR GET
+/participation/#TeamContestId/oraclesubmission/#OracleSubmissionId ParticipationOracleSubmissionR GET
+/participation/#TeamContestId/new/oraclesubmission ParticipationOracleSubmissionCreateR GET POST
+/participation/#TeamContestId/buildsubmissions ParticipationBuildSubmissionsR GET
+/participation/#TeamContestId/buildsubmission/#BuildSubmissionId ParticipationBuildSubmissionR GET
+/participation/#TeamContestId/builderscode ParticipationBuildersCodeR GET
+/participation/#TeamContestId/breaksubmissions ParticipationBreakSubmissionsR GET
+/participation/#TeamContestId/breaksubmission/#BreakSubmissionId ParticipationBreakSubmissionR GET
+/participation/#TeamContestId/breaksubmission/#BreakSubmissionId/delete ParticipationBreakSubmissionDeleteR POST
+/participation/#TeamContestId/breaksubmission/#BreakSubmissionId/dispute ParticipationBreakSubmissionDisputeR POST
+/participation/#TeamContestId/fixsubmissions ParticipationFixSubmissionsR GET
+/participation/#TeamContestId/fixsubmission/#FixSubmissionId ParticipationFixSubmissionR GET
+/participation/#TeamContestId/fixsubmission/#FixSubmissionId/delete ParticipationFixSubmissionDeleteR POST
+
+/createteam CreateTeamR GET POST
+
+/teaminvitation/#Text TeamInvitationR GET POST
+
+/passwordreset/#Text PasswordResetR GET POST
+
+/details DetailsR GET
+
+/support SupportR GET
+/sponsorships SponsorshipR GET
+
+/feedback FeedbackR GET
+
+/construction TodoR GET
+
+/admin AdminR GET
+
+/admin/contests AdminContestsR GET
+
+/admin/contest/#Text AdminContestR GET
+/admin/contest/#Text/judgeinfo AdminContestJudgeEmailsR GET
+/admin/contest/#Text/judgements AdminContestJudgementsR GET
+/admin/contest/#Text/judgements/#BuildSubmissionId/build_assignment AdminContestJudgementsAssignBuildR GET POST
+/admin/contest/#Text/judgements/#BreakSubmissionId/break_assignment AdminContestJudgementsAssignBreakR GET POST
+/admin/contest/#Text/judgements/#FixSubmissionId/fix_assignment AdminContestJudgementsAssignFixR GET POST
+/admin/contest/#Text/default MakeDefaultR GET POST
+/admin/contest/#Text/participant_emails AdminContestParticipantEmailsR GET
+/admin/contest/#Text/oracle_breaks AdminContestOracleBreaksR GET
+/admin/contest/#Text/oracle_breaks/create AdminContestOracleBreaksCreateR GET POST
+/admin/contest/#BreakOracleSubmissionId/oracle_breaks/edit AdminContestOracleBreaksEditR GET POST
+
+/admin/users AdminUsersR GET
+
+/admin/announcements AdminAnnouncementsR GET
+/admin/announcement/add AddAnnouncementR GET POST
+/admin/announcement/modify/#PostId ModifyAnnouncementR GET POST
+/admin/announcement/delete DeleteAnnouncementR POST
+
+/admin/user/#UserId AdminUserR GET
+/admin/user/#UserId/reset AdminUserResetPasswordR GET POST
+
+/judges RedirectJudgesR GET
+/judges/#Text JudgesR GET
+/judges/#Text/buildit/#BuildJudgementId JudgesBuildItR GET POST
+/judges/#Text/breakit/#BreakJudgementId JudgesBreakItR GET POST
+/judges/#Text/fixit/#FixJudgementId JudgesFixItR GET POST

@@ -1,0 +1,42 @@
+<p><a href="SPEC.html">Back</a></p>
+
+<h1>logappend</h1>
+
+<pre><code>logappend -T &lt;timestamp&gt; -K &lt;token&gt; (-E &lt;employee-name&gt; | -G &lt;guest-name&gt;) (-A | -L) [-R &lt;room-id&gt;] &lt;log&gt;
+logappend -B &lt;file&gt;
+</code></pre>
+
+<p>Appends data to the log at the specified timestamp using the authentication token. If the log does not exist, <code>logappend</code> will create it. Otherwise it will append to the existing log. </p>
+
+<p>If the data to be appended to the log is not consistent with the current state of the log, <code>logappend</code> should print "invalid" and leave the state of the log unchanged. </p>
+
+<ul>
+<li><p><code>-T</code> <em>timestamp</em> Time the event is recorded. This timestamp is formatted as the number of seconds since the gallery opened and is a non-negative integer (ranging from 1 to 1073741823 inclusively). Time should always increase, invoking <code>logappend</code> with an event at a time that is prior to the most recent event already recorded is an error. </p></li>
+<li><p><code>-K</code> <em>token</em> Token used to authenticate the log. This token consists of an arbitrary-sized string of alphanumeric (a-z, A-Z, and 0-9) characters. Once a log is created with a specific token, any subsequent appends to that log must use the same token. </p></li>
+<li><p><code>-E</code> <em>employee-name</em> Name of employee. Names are alphabetic characters (a-z, A-Z) in upper and lower case. Names may not contain spaces. Names are case sensitive. Employees and guests can have the same name.</p></li>
+<li><p><code>-G</code> <em>guest-name</em> Name of guest. Names are alphabetic characters (a-z, A-Z) in upper and lower case. Names may not contain spaces. Names are case sensitive. Employees and guests can have the same name.</p></li>
+<li><p><code>-A</code> Specify that the current event is an arrival; can be used with <code>-E</code>, <code>-G</code>, and <code>-R</code>. This option can be used to signify the arrival of an employee or guest to the gallery, or, to a specific room with <code>-R</code>. If <code>-R</code> is not provided, <code>-A</code> indicates an arrival to the gallery as a whole. No employee or guest should enter a room without first entering the gallery. No employee or guest should enter a room without having left a previous room. Violation of either of these conditions implies inconsistency with the current log state and should result in <code>logappend</code> exiting with an error condition.</p></li>
+<li><p><code>-L</code> Specify that the current event is a departure, can be used with <code>-E</code>, <code>-G</code>, and <code>-R</code>.This option can be used to signify the departure of an employee or guest from the gallery, or, from a specific room with <code>-R</code>. If <code>-R</code> is not provided, <code>-L</code> indicates a deparature from the gallery as a whole. No employee or guest should leave the gallery without first leaving the last room they entered. No employee or guest should leave a room without entering it. Violation of either of these conditions implies inconsistency with the current log state and should result in <code>logappend</code> exiting with an error condition.</p></li>
+<li><p><code>-R</code> <em>room-id</em> Specifies the room ID for an event. Room IDs are non-negative integer characters with no spaces (ranging from 0 to 1073741823 inclusively). Leading zeros in room IDs should be dropped, such that <code>003</code>, <code>03</code>, and <code>3</code> are all equivalent room IDs. A gallery is composed of multiple rooms. A complete list of the rooms of the gallery is not available and rooms will only be described when an employee or guest enters or leaves one. A room cannot be left by an employee or guest unless that employee or guest has previously entered that room. An employee or guest may only occupy one room at a time. If a room ID is not specified, the event is for the entire art gallery. </p></li>
+<li><p><code>log</code> The path to the file containing the event log. The log's filename may be specified with a string of alphanumeric characters (including underscores and periods). Slashes and periods may be used to reference log files in other directories. If the log does not exist, <code>logappend</code> should create it. <code>logappend</code> should add data to the log, preserving the history of the log such that queries from <a href="LOGREAD.html">logread</a> can be answered. If the log file cannot be created due to an invalid path, or any other error, <code>logappend</code> should print "invalid" and return 255.</p></li>
+<li><p><code>-B</code> <em>file</em> Specifies a batch file of commands. <em>file</em> contains one or more command lines, not including the <code>logappend</code> command itself (just its options), separated by <code>\n</code> (newlines). These commands should be processed by <code>logappend</code> individually, in order. This allows <code>logappend</code> to add data to the file without forking or re-invoking. Of course, option <code>-B</code> cannot itself appear in one of these command lines. Commands specified in a batch file include the log name. If a single line in a batch file is invalid, print the appropriate error message for that line and continue processing the rest of the batch file. Here is an <a href="EXAMPLES.html">example</a> (the last one).</p></li>
+</ul>
+
+<p>After <code>logappend</code> exits, the log specified by <code>log</code> argument should be updated. The added information should be accessible to the <code>logread</code> tool when the token provided to both programs is the same, and not available (e.g., by inspecting the file directly) otherwise. </p>
+
+<h2>Return values and error conditions</h2>
+
+<p>If <code>logappend</code> must exit due to an error condition, or if the argument combination is incomplete or contradictory, logappend should print "invalid" to stdout and exit, returning a 255. </p>
+
+<p>If the supplied token does not match an existing log, "invalid" should be printed to stdout and 255 returned.</p>
+
+<p>If <code>-B</code> is passed, <code>logappend</code> should return 0 as long as the batch file exists and valid arguments are given to the batch command. If the batch file does not exist, print "invalid" to stdout and exit, returning 255. </p>
+
+<p>Some examples of conditions that would result in printing "invalid" and doing nothing to the log:</p>
+
+<ul>
+<li>The specified datetime on the command line is smaller than the most recent datetime in the existing log </li>
+<li><code>-B</code> is used in a batch file</li>
+<li>The name for an employee or guest, or the room ID, does not correspond to the character constraints</li>
+<li>Conflicting command line arguments are given, for example both <code>-E</code> and <code>-G</code> or <code>-A</code> and <code>-L</code></li>
+</ul>
