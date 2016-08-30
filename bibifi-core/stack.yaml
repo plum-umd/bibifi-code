@@ -8,7 +8,7 @@ packages:
 - '.'
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
-extra-deps: [lmonad-0.1.0.0, lmonad-yesod-0.1.0.0]
+extra-deps: [lmonad-0.1.0.0, lmonad-yesod-1.0.0.0]
 
 # Override default flag values for local packages and extra-deps
 flags: {}

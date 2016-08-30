@@ -27,7 +27,7 @@ import PostDependencyType
 -- http://www.yesodweb.com/book/persistent/
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkLabels "DCLabel Principal", mkLSql]
-    $(lPersistFileWith lowerCaseSettings "config/models")
+    $(lPersistFileWith lowerCaseSettings "../config/models")
 
 data Principal = 
       PrincipalUser UserId 

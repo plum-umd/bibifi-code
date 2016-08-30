@@ -86,7 +86,7 @@ library
                      , containers
                      , esqueleto
                      , lmonad
-                     , lmonad-yesod
+                     , lmonad-yesod >= 1.0.0.0
                      , persistent
                      , persistent-postgresql
                      , persistent-template

@@ -37,7 +37,7 @@ runDB f = do
     runPool (getConfig dbConf) f (getPool dbConf)
 
 productionDatabaseYML :: FilePath
-productionDatabaseYML = "/fs/mc2-application/config/postgresql.yml"
+productionDatabaseYML = "../config/postgresql.yml"
 
 makeDatabaseConf :: FilePath -> Text -> IO DatabaseConf
 makeDatabaseConf databaseYML dbname = do
