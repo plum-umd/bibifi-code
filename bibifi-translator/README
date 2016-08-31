@@ -1,0 +1,88 @@
+Run the script as follows. Map each constructor to the corresponding case insensitive string. Logging (like database transactions) are written to standard error. Output is sent to standard out. 
+
+./translater command
+
+type command = 
+    | Request request -> submissionid option
+    | Submit submit -> success
+    | Retrieve retrieve
+    | Tests tests -> success 
+    | Rescore round -> success
+    | PrepareJudgements round -> (teamid * hash * repoLocation) list
+
+type 'a option = Just 'a | Nothing
+type bool = True | False
+
+type success = bool
+type location = string
+type hash = string
+type name = string
+
+(* Call when a submission request is received (a commit). Returns whether the submission is allowed, and the submission id. Returns Nothing if timestamp is not during the round. *)
+type request = 
+    | ROUND1 teamid timestamp commithash
+    | ROUND2 submitteamid targetteamid timestamp commithash name
+    | ROUND3 teamid timestamp commithash diffsize name (bugid list) (* list the bugids as space separated *)
+
+type timestamp = int (* unix timestamp in UTC *)
+type time = int (* ms *)
+type testid = int
+type pass = bool
+
+type test_type = Core | Performance | Optional
+type test = {
+    type : test_type,
+    name : string,
+    input : string,
+    output : string,
+    script : string
+} (* space separated values in this order *)
+
+(* Can only be run before the contest has started. If tests already exists, the old tests will be deleted before adding the new tests. *)
+type tests = test list
+
+type build_test_result = 
+    | Core pass
+    | Performance (time option) (* Nothing if failed *)
+    | Optional pass
+
+type build_result = 
+    | Built (testid * build_test_result) list (* space separated *)
+    | BuildFail
+    | PullFail
+
+type break_result = 
+    | Incorrect (* not a bug or vulnerability *)
+    | Correct (* a bug *)
+    | Exploit (* a vulnerability *)
+    | PullFail
+    | Rejected
+    | JudgementRequired
+
+type fix_result = 
+    | Fixed
+    | NotFixed
+    | Disqualified
+    | BuildFail
+    | PullFail
+    | JudgementRequired
+
+type submit =
+    | ROUND1 submissionid * build_result
+    | ROUND2 submissionid * break_result
+    | ROUND3 submissionid * fix_result
+    | BAYESIANSCORES (submissionid * score) list
+ 
+type retrieve =
+    | TEAMS () -> (teamId * gitURL * qualifiedBuilder) list
+    | TESTS () -> (test * testid) list (* there is a separate set of testid's for each type of test *)
+    | RESUMES () -> (resumeId * team * buildScore * breakScore) csv
+(*    | PARTICIPANTS () -> email list*)
+    | SCORES () -> (teamName, teamId, programmingLanguage, timestamp, score) list (* Build scores. *)
+		| REMOVETEAM [teamid] -> bool
+
+type round = 
+    | ROUND1
+    | ROUND2
+    | ROUND3
+
