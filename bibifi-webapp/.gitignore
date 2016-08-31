@@ -1,4 +1,5 @@
 static/combined
+static/tmp
 dist
 cabal-dev
 *.o
@@ -10,3 +11,4 @@ cabal-dev
 .cabal-sandbox/
 cabal.sandbox.config
 cabal.config
+yesod-devel

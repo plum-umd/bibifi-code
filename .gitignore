@@ -4,3 +4,4 @@
 .hg
 *.swp
 .stack-work
+client_session_key.aes
