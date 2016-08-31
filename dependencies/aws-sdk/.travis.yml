@@ -1,0 +1,8 @@
+language: haskell
+
+install:
+    - cabal update
+    - cabal install
+
+script:
+    echo success

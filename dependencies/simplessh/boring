@@ -1,0 +1,8 @@
+^dist
+gmon\.out
+a.out
+\.o$
+^.cabal-sandbox
+^cabal.sandbox.config
+~$
+#$
