@@ -7,7 +7,7 @@ Docker:
   leaveRunning: false
   privateKeyFile: jp.pem
   publicKeyFile: jp.pub
-  memory: 4000000000
+  memory: 3221225472
   cpu: 2
   caCertificate: ca.crt
 
