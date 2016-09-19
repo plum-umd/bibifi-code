@@ -24,7 +24,7 @@ module Docker.Client.Types (
     , ContainerState(..)
     , Status(..)
     , Digest
-    , Labels(..)
+    , Label(..)
     , Tag
     , Image(..)
     , dropImagePrefix
@@ -40,24 +40,23 @@ module Docker.Client.Types (
     , LogOpts(..)
     , defaultLogOpts
     , VolumePermission(..)
+    , Bind(..)
     , Volume(..)
-    , Volumes(..)
     , Device(..)
     , ContainerName
     , VolumeFrom(..)
     , Link(..)
     , LogDriverType(..)
-    , LogDriverOptions(..)
+    , LogDriverOption(..)
     , LogDriverConfig(..)
     , NetworkMode(..)
     , PortType(..)
 --    , NetworkInterface(..)
-    , Networks(..)
+    , Network(..)
     , NetworkSettings(..)
     , NetworkOptions(..)
     , Mount(..)
     , PortBinding(..)
-    , PortBindings(..)
     , HostPort(..)
     , RetryCount
     , RestartPolicy(..)
@@ -74,10 +73,18 @@ module Docker.Client.Types (
     , EnvVar(..)
     , ContainerConfig(..)
     , defaultContainerConfig
-    , ExposedPorts(..)
+    , ExposedPort(..)
     , DeviceWeight(..)
     , DeviceRate(..)
     , addPortBinding
+    , addExposedPort
+    , addBind
+    , setCmd
+    , addLink
+    , addVolume
+    , addVolumeFrom
+    , MemoryConstraint(..)
+    , MemoryConstraintSize(..)
     ) where
 
 import           Data.Aeson          (FromJSON, ToJSON, genericParseJSON,
@@ -87,8 +94,8 @@ import qualified Data.Aeson          as JSON
 import           Data.Aeson.Types    (defaultOptions, fieldLabelModifier)
 import           Data.Char           (isAlphaNum, toUpper)
 import qualified Data.HashMap.Strict as HM
-import qualified Data.Map            as M
 import           Data.Monoid         ((<>))
+import           Data.Scientific     (floatingOrInteger)
 import           Data.Text           (Text)
 import qualified Data.Text           as T
 import           Data.Time.Clock     (UTCTime)
@@ -96,11 +103,12 @@ import           GHC.Generics        (Generic)
 import           Prelude             hiding (all, tail)
 import           Text.Read           (readMaybe)
 
+-- | List of Docker Engine API endpoints
 data Endpoint =
         VersionEndpoint
       | ListContainersEndpoint ListOpts
       | ListImagesEndpoint ListOpts
-      | CreateContainerEndpoint CreateOpts
+      | CreateContainerEndpoint CreateOpts (Maybe ContainerName)
       | StartContainerEndpoint StartOpts ContainerID
       | StopContainerEndpoint Timeout ContainerID
       | KillContainerEndpoint Signal ContainerID
@@ -113,14 +121,23 @@ data Endpoint =
       | InspectContainerEndpoint ContainerID
     deriving (Eq, Show)
 
+-- | We should newtype this
 type URL = Text
+
+-- | We should newtype this
 type ApiVersion = Text
+
+
+-- | ID of a contianer
 newtype ContainerID = ContainerID Text
     deriving (Eq, Show)
 
+-- | Used for extracting the id of the container from the newtype
 fromContainerID :: ContainerID -> Text
 fromContainerID (ContainerID t) = t
 
+-- | Used for parsing a Text value into a ContainerID. We apply some basic
+-- validation here.
 toContainerID :: Text -> Maybe ContainerID
 toContainerID t =
     if T.all (\c -> isAlphaNum c || c == ':') t then -- Note: Can we improve this whitelist?
@@ -128,12 +145,16 @@ toContainerID t =
     else
         Nothing
 
+-- ID of an image.
 newtype ImageID = ImageID Text
     deriving (Eq, Show)
 
+-- | Used for extracting the id of the image from the newtype.
 fromImageID :: ImageID -> Text
 fromImageID (ImageID t) = t
 
+-- | Helper function used for parsing a Text value into an ImageID. For now
+-- just basic validation is used.
 toImageID :: Text -> Maybe ImageID
 toImageID t =
     if T.all (\c -> isAlphaNum c || c == ':') t then -- Note: Can we improve this whitelist?
@@ -141,9 +162,12 @@ toImageID t =
     else
         Nothing
 
+-- | Timeout used for stopping a container. DefaultTimeout is 10 seconds.
 data Timeout = Timeout Integer | DefaultTimeout deriving (Eq, Show)
 
 -- TODO: Add more Signals or use an existing lib
+-- | Signal used for sending to the process running in the container.
+-- The default signal is SIGTERM.
 data Signal = SIGHUP
             | SIGINT
             | SIGQUIT
@@ -197,6 +221,8 @@ data ContainerDetails = ContainerDetails {
     }
     deriving (Eq, Show, Generic)
 
+-- | Data type used for parsing the mount information from a container
+-- list.
 data Mount = Mount {
       mountName        :: Text
     , mountSource      :: FilePath
@@ -220,6 +246,8 @@ instance FromJSON Mount where
         return $ Mount name src dest driver mode rw prop
     parseJSON _ = fail "Mount is not an object"
 
+-- | Data type used for parsing the container state from a list of
+-- containers.
 data ContainerState = ContainerState {
       containerError :: Text
     , exitCode       :: Int
@@ -251,23 +279,30 @@ instance FromJSON ContainerState where
         return $ ContainerState err exit finished oomKilled dead paused pid restarting running started st
     parseJSON _ = fail "ContainerState is not an object"
 
+
+-- | Client options used to configure the remote engine we're talking to
 data DockerClientOpts = DockerClientOpts {
       apiVer  :: ApiVersion
     , baseUrl :: URL
     }
     deriving (Eq, Show)
 
+-- | Default "DockerClientOpts" used for talking to the docker engine.
 defaultClientOpts :: DockerClientOpts
 defaultClientOpts = DockerClientOpts {
                   apiVer = "v1.24"
                 , baseUrl = "http://127.0.0.1:2375"
                 }
 
+-- | List options used for filtering the list of container or images.
 data ListOpts = ListOpts { all :: Bool } deriving (Eq, Show)
 
+-- | Default "ListOpts". Doesn't list stopped containers.
 defaultListOpts :: ListOpts
 defaultListOpts = ListOpts { all=False }
 
+-- | Data type used for represneting the version of the docker engine
+-- remote API.
 data DockerVersion = DockerVersion {
                     version       :: Text
                   , apiVersion    :: ApiVersion
@@ -337,6 +372,8 @@ instance FromJSON ImageID where
             return iid
     parseJSON _ = fail "ImageID is not an object."
 
+-- | Data type used for representing the information of various ports that
+-- a contianer may expose.
 data ContainerPortInfo = ContainerPortInfo {
                      ipAddressInfo   :: Maybe Text
                    , privatePortInfo :: Port
@@ -353,6 +390,8 @@ instance FromJSON ContainerPortInfo where
         parseJSON _ = fail "ContainerPortInfo: Not a JSON object."
 
 -- For inspecting container details.
+-- | Data type used for parsing the network information of each container
+-- when listing them.
 data NetworkOptions = NetworkOptions {
 --                       ipamConfig          :: Maybe Text -- Don't see in 1.24
 --                     , links               :: Maybe Text -- Don't see in 1.24
@@ -382,29 +421,28 @@ instance FromJSON NetworkOptions where
         return $ NetworkOptions networkId endpointId gateway ip ipLen ip6Gateway globalIP6 globalIP6Len mac
     parseJSON _ = fail "NetworkOptions is not an object"
 
-newtype Networks = Networks (M.Map NetworkMode NetworkOptions) -- Note: Is it ever possible that there will be duplicates of network modes?
+-- TODO: Not sure what this is used for anymore.
+data Network = Network NetworkMode NetworkOptions
     deriving (Eq, Show)
 
-instance FromJSON Networks where
-    parseJSON (JSON.Object o) = do
-        Networks <$> HM.foldlWithKey' f (return M.empty) o
-
+instance {-# OVERLAPPING #-} FromJSON [Network] where
+    parseJSON (JSON.Object o) = HM.foldlWithKey' f (return []) o
         where
             f accM k' v' = do
                 acc <- accM
                 k <- parseJSON $ JSON.String k'
                 v <- parseJSON v'
-                return $ M.insert k v acc
-
+                return $ (Network k v):acc
     parseJSON _ = fail "Networks is not an object"
 
+-- | Data type reprsenting the various network settings a container can have.
 data NetworkSettings = NetworkSettings {
                        networkSettingsBridge                 :: Text
                      , networkSettingsSandboxId              :: Text
                      , networkSettingsHairpinMode            :: Bool
                      , networkSettingsLinkLocalIPv6Address   :: Text
                      , networkSettingsLinkLocalIPv6PrefixLen :: Int
-                     , networkSettingsPorts                  :: PortBindings
+                     , networkSettingsPorts                  :: [PortBinding]
                      , networkSettingsSandboxKey             :: Text
                      , networkSettingsSecondaryIPAddresses   :: Maybe [Text] -- TODO: 1.24 spec is unclear
                      , networkSettingsSecondaryIPv6Addresses :: Maybe [Text] -- TODO: 1.24 spec is unclear
@@ -416,7 +454,7 @@ data NetworkSettings = NetworkSettings {
                      , networkSettingsIpPrefixLen            :: Int
                      , networkSettingsIpv6Gateway            :: Text
                      , networkSettingsMacAddress             :: Text
-                     , networkSettingsNetworks               :: Networks
+                     , networkSettingsNetworks               :: [Network]
                      }
                      deriving (Eq, Show)
 
@@ -443,6 +481,7 @@ instance FromJSON NetworkSettings where
         return $ NetworkSettings bridge sandbox hairpin localIP6 localIP6Len ports sandboxKey secondaryIP secondayIP6 endpointID gateway globalIP6 globalIP6Len ip ipLen ip6Gateway mac networks
     parseJSON _ = fail "NetworkSettings is not an object."
 
+-- | Data type used for parsing a list of containers.
 data Container = Container
                { containerId        :: ContainerID
                , containerNames     :: [Text]
@@ -452,8 +491,8 @@ data Container = Container
                , containerCreatedAt :: Int
                , containerStatus    :: Status
                , containerPorts     :: [ContainerPortInfo]
-               , containerLabels    :: Labels
-               , containerNetworks  :: Networks
+               , containerLabels    :: [Label]
+               , containerNetworks  :: [Network]
                , containerMounts    :: [Mount]
                } deriving (Show, Eq)
 
@@ -477,6 +516,7 @@ instance FromJSON Container where
 
         parseJSON _ = fail "Container: Not a JSON object."
 
+-- | Represents the status of the container life cycle.
 data Status = Created | Restarting | Running | Paused | Exited | Dead
     deriving (Eq, Show, Generic)
 
@@ -489,36 +529,67 @@ instance FromJSON Status where
     parseJSON (JSON.String "dead") = return Dead
     parseJSON _ = fail "Unknown Status"
 
+-- | Alias for representing a RepoDigest. We could newtype this and add
+-- some validation.
 type Digest = Text
 
-newtype Labels = Labels (M.Map Name Value) deriving (Eq, Show)
+-- | Container and Image Labels.
+data Label = Label Name Value deriving (Eq, Show)
 
-instance FromJSON Labels where
-    parseJSON val = Labels <$> parseJSON val
 
-instance ToJSON Labels where
-    toJSON (Labels kvs) =  object [k .= v | (k,v) <- (M.toList kvs)]
+-- If there are multiple lables with the same Name in the list
+-- then the last one wins.
+instance {-# OVERLAPPING #-} ToJSON [Label] where
+    toJSON [] = emptyJsonObject
+    toJSON (l:ls) = toJsonKeyVal (l:ls) key val
+        where key (Label k _) = T.unpack k
+              val (Label _ v) = v
 
+instance {-# OVERLAPPING #-} FromJSON [Label] where
+    parseJSON (JSON.Object o) = HM.foldlWithKey' f (return []) o
+        where f accM k v = do
+                acc <- accM
+                value <- parseJSON v
+                return $ (Label k value):acc
+    parseJSON JSON.Null = return []
+    parseJSON _ = fail "Failed to parse Labels. Not an object."
+
+-- | Alias for Tags.
 type Tag = Text
 
+-- | Data type used for parsing information from a list of images.
 data Image = DockerImage {
       imageId          :: ImageID
     , imageCreated     :: Integer
     , imageParentId    :: Maybe ImageID
     , imageRepoTags    :: [Tag]
-    , imageRepoDigests :: Maybe [Digest]
+    , imageRepoDigests :: [Digest]
     , imageSize        :: Integer
     , imageVirtualSize :: Integer
-    , imageLabels      :: Maybe Labels
+    , imageLabels      :: [Label]
     } deriving (Show, Eq, Generic)
 
+-- | Helper function used for dropping the "image" prefix when serializing
+-- the Image data type to and from json.
 dropImagePrefix :: [a] -> [a]
 dropImagePrefix = drop 5
 
-instance FromJSON Image where
-    parseJSON = genericParseJSON defaultOptions {
-            fieldLabelModifier = dropImagePrefix}
 
+instance FromJSON Image where
+    parseJSON (JSON.Object o) = do
+        imageId <- o .: "Id"
+        imageCreated <- o .: "Created"
+        imageParentId <- o .:? "ParentId"
+        imageRepoTags <- o .:? "RepoTags" .!= []
+        imageRepoDigests <- o .:? "RepoDigests" .!= []
+        imageSize <- o .: "Size"
+        imageVirtualSize <- o .: "VirtualSize"
+        imageLabels <- o .:? "Labels" .!= []
+        return $ DockerImage imageId imageCreated imageParentId imageRepoTags imageRepoDigests imageSize imageVirtualSize imageLabels
+    parseJSON _ = fail "Failed to parse DockerImage."
+
+
+-- | Options used for creating a Container.
 data CreateOpts = CreateOpts {
                   containerConfig :: ContainerConfig
                 , hostConfig      :: HostConfig
@@ -533,6 +604,8 @@ instance ToJSON CreateOpts where
                 JSON.Object $ HM.insert "HostConfig" hcJSON o
             _ -> error "ContainerConfig is not an object." -- This should never happen.
 
+-- | Container configuration used for creating a container with sensible
+-- defaults.
 defaultContainerConfig :: Text -> ContainerConfig
 defaultContainerConfig imageName = ContainerConfig {
                        hostname=Nothing
@@ -542,28 +615,29 @@ defaultContainerConfig imageName = ContainerConfig {
                      , attachStdout=False
                      , image=imageName
                      , attachStderr=False
-                     , exposedPorts=Nothing -- ExposedPorts M.empty
+                     , exposedPorts=[]
                      , tty=False
                      , openStdin=False
                      , stdinOnce=False
                      , env=[]
                      , cmd=[]
-                     , volumes=Nothing
+                     , volumes=[]
                      , workingDir=Nothing
                      , entrypoint=Nothing
                      , networkDisabled=Nothing
                      , macAddress=Nothing
-                     , labels=Nothing
+                     , labels=[]
                      , stopSignal=SIGTERM
                      }
 
+-- | Default host confiratuon used for creating a container.
 defaultHostConfig :: HostConfig
 defaultHostConfig = HostConfig {
                        binds=[]
                      , containerIDFile=Nothing
-                     , logConfig=LogDriverConfig JsonFile Nothing
+                     , logConfig=LogDriverConfig JsonFile []
                      , networkMode=Bridge
-                     , portBindings=PortBindings []
+                     , portBindings=[]
                      , restartPolicy=RestartOff
                      , volumeDriver=Nothing
                      , volumesFrom=[]
@@ -584,6 +658,7 @@ defaultHostConfig = HostConfig {
                      , resources=defaultContainerResources
                      }
 
+-- Default container resource contstraints (None).
 defaultContainerResources :: ContainerResources
 defaultContainerResources = ContainerResources {
                           cpuShares=Nothing
@@ -605,30 +680,43 @@ defaultContainerResources = ContainerResources {
                         , ulimits=[]
                         }
 
-
+-- | Default create options when creating a container. You only need to
+-- specify an image name and the rest is all sensible defaults.
 defaultCreateOpts :: T.Text -> CreateOpts
 defaultCreateOpts imageName = CreateOpts { containerConfig = defaultContainerConfig imageName, hostConfig = defaultHostConfig }
 
--- detachKeys – Override the key sequence for detaching a container.
+-- | Override the key sequence for detaching a container.
 -- Format is a single character [a-Z] or ctrl-<value> where <value> is one of: a-z, @, ^, [, , or _.
 data DetachKeys = WithCtrl Char | WithoutCtrl Char | DefaultDetachKey deriving (Eq, Show)
 
+-- | Options for starting a container.
 data StartOpts = StartOpts { detachKeys :: DetachKeys } deriving (Eq, Show)
 
+-- | Default options for staring a container.
 defaultStartOpts :: StartOpts
 defaultStartOpts = StartOpts { detachKeys = DefaultDetachKey }
 
+-- | Options for deleting a container.
 data DeleteOpts = DeleteOpts {
                   deleteVolumes :: Bool -- ^ Automatically cleanup volumes that the container created as well.
                 , force         :: Bool -- ^ If the container is still running force deletion anyway.
                 } deriving (Eq, Show)
 
+-- | Default options for deleting a container. Most of the time we DON'T
+-- want to delete the container's volumes or force delete it if it's
+-- running.
 defaultDeleteOpts :: DeleteOpts
 defaultDeleteOpts = DeleteOpts { deleteVolumes = False, force = False }
 
+-- | Timestamp alias.
 type Timestamp = Integer
+
+-- | Used for requesting N number of lines when tailing a containers log
+-- output.
 data TailLogOpt = Tail Integer | All deriving (Eq, Show)
 
+
+-- | Log options used when requesting the log output from a container.
 data LogOpts = LogOpts {
                stdout     :: Bool
              , stderr     :: Bool
@@ -637,6 +725,7 @@ data LogOpts = LogOpts {
              , tail       :: TailLogOpt
              } deriving (Eq, Show)
 
+-- | Sensible default for log options.
 defaultLogOpts :: LogOpts
 defaultLogOpts = LogOpts { stdout = True
                          , stderr = True
@@ -669,29 +758,31 @@ instance FromJSON VolumePermission where
 -- docker run --name app -v \/opt\/data -it myapp:latest
 -- docker run --name app2 --volumes-from app \/bin\/bash -c "ls -l \/opt\/data"
 -- @
-newtype Volumes = Volumes [FilePath] deriving (Eq, Show)
+newtype Volume = Volume FilePath deriving (Eq, Show)
 
-instance FromJSON Volumes where
-    parseJSON (JSON.Object o) = return $ Volumes $ map T.unpack $ HM.keys o
-    parseJSON _ = fail "Volumes is not an object"
+instance {-# OVERLAPPING #-} ToJSON [Volume] where
+    toJSON [] = emptyJsonObject
+    toJSON (v:vs) = toJsonKey (v:vs) getKey
+        where getKey (Volume v) = v
 
-instance ToJSON Volumes where
-    toJSON (Volumes []) = JSON.Object HM.empty
-    toJSON (Volumes (v:vs)) = JSON.Object $ foldl f HM.empty (v:vs)
-        where f acc k = HM.insert (T.pack k) (JSON.Object HM.empty) acc
+instance {-# OVERLAPPING #-} FromJSON [Volume] where
+    parseJSON (JSON.Object o) = return $ map (Volume . T.unpack) $ HM.keys o
+    parseJSON (JSON.Null) = return []
+    parseJSON _ = fail "Volume is not an object"
 
-data Volume = Volume { hostSrc          :: Text
-                     , containerDest    :: Text
-                     , volumePermission :: Maybe VolumePermission
-                     } deriving (Eq, Show)
 
-instance FromJSON Volume where
+data Bind = Bind { hostSrc          :: Text
+                 , containerDest    :: Text
+                 , volumePermission :: Maybe VolumePermission
+                 } deriving (Eq, Show)
+
+instance FromJSON Bind where
     parseJSON (JSON.String t) = case T.split (== ':') t of
-        [src, dest] -> return $ Volume src dest Nothing
-        [src, dest, "rw"] -> return $ Volume src dest $ Just ReadWrite
-        [src, dest, "ro"] -> return $ Volume src dest $ Just ReadOnly
-        _ -> fail "Could not parse Volume"
-    parseJSON _ = fail "Volume is not a string"
+        [src, dest] -> return $ Bind src dest Nothing
+        [src, dest, "rw"] -> return $ Bind src dest $ Just ReadWrite
+        [src, dest, "ro"] -> return $ Bind src dest $ Just ReadOnly
+        _ -> fail "Could not parse Bind"
+    parseJSON _ = fail "Bind is not a string"
 
 data Device = Device {
               pathOnHost        :: FilePath
@@ -724,8 +815,8 @@ instance ToJSON VolumeFrom where
         Nothing -> toJSON $ n <> ":" <> "rw"
         Just per -> toJSON $ n <> ":" <> (T.pack $ show per)
 
-instance ToJSON Volume where
-    toJSON (Volume src dest mode) = toJSON $ case mode of
+instance ToJSON Bind where
+    toJSON (Bind src dest mode) = toJSON $ case mode of
                         Nothing -> T.concat[src, ":", dest]
                         Just m ->  T.concat[src, ":", dest, ":", (T.pack $ show m)]
 
@@ -769,27 +860,27 @@ instance ToJSON LogDriverType where
     toJSON Etwlogs = JSON.String "etwlogs"
     toJSON LoggingDisabled = JSON.String "none"
 
-newtype LogDriverOptions = LogDriverOptions (M.Map Text Text) deriving (Eq, Show)
+data LogDriverOption = LogDriverOption Name Value deriving (Eq, Show)
 
-instance FromJSON LogDriverOptions where
-    parseJSON (JSON.Object o) = do
-        LogDriverOptions <$> HM.foldlWithKey' f (return M.empty) o
+instance {-# OVERLAPPING #-} ToJSON [LogDriverOption] where
+    toJSON [] = emptyJsonObject
+    toJSON (o:os) = toJsonKeyVal (o:os) key val
+        where key (LogDriverOption n _) = T.unpack n
+              val (LogDriverOption _ v) = v
 
-        where
-            f accM k (JSON.String v) = do
+instance {-# OVERLAPPING #-} FromJSON [LogDriverOption] where
+    parseJSON (JSON.Object o) = HM.foldlWithKey' f (return []) o
+        where f accM k v = do
                 acc <- accM
-                return $ M.insert k v acc
-            f _ _ _ = fail "Value of LogDriverOptions is not a string"
+                value <- parseJSON v
+                return $ (LogDriverOption k value):acc
+    parseJSON JSON.Null = return []
+    parseJSON _ = fail "Failed to parse LogDriverOptions"
 
-    parseJSON JSON.Null = return $ LogDriverOptions M.empty
-    parseJSON _ = fail "LogDriverOptions is not an object"
-
-instance ToJSON LogDriverOptions where
-    toJSON (LogDriverOptions mp) = toJSON mp
-
-data LogDriverConfig = LogDriverConfig LogDriverType (Maybe LogDriverOptions) deriving (Eq, Show)
+data LogDriverConfig = LogDriverConfig LogDriverType [LogDriverOption] deriving (Eq, Show)
 
 instance ToJSON LogDriverConfig where
+    toJSON (LogDriverConfig driverType []) = object ["Type" .= driverType]
     toJSON (LogDriverConfig driverType driverOptions) = object ["Type" .= driverType, "Config" .= driverOptions]
 
 instance FromJSON LogDriverConfig where
@@ -845,13 +936,6 @@ instance FromJSON PortType where
 -- interface like `127.0.0.1`.
 -- __NOTE__: We should disallow duplicate port bindings as the ToJSON
 -- instance will only send the last one.
-newtype PortBindings = PortBindings [PortBinding]
-    deriving (Eq, Show)
-
-instance Monoid PortBindings where
-    mempty = PortBindings []
-    mappend (PortBindings p1) (PortBindings p2) = PortBindings (p1 ++ p2)
-
 -- { <port>/<protocol>: [{ "HostPort": "<port>"  }] }
 data PortBinding = PortBinding {
                    containerPort :: Port
@@ -862,24 +946,62 @@ data PortBinding = PortBinding {
 portAndType2Text :: Port -> PortType -> Text
 portAndType2Text p t = (T.pack $ show p) <> "/" <> (T.pack $ show t)
 
+
+-- | A helper function to more easily add a bind mount to existing
+-- "CreateOpts" records.
+addBind :: Bind -> CreateOpts -> CreateOpts
+addBind b c = c{hostConfig=hc{binds=obs <> [b]}}
+    where hc = hostConfig c
+          obs = binds $ hostConfig c
+
+-- | Helper function for adding a Command to and existing
+-- CreateOpts record.
+setCmd :: Text -> CreateOpts -> CreateOpts
+setCmd ccmd c = c{containerConfig=cc{cmd=[ccmd]}}
+    where cc = containerConfig c
+
+-- | Helper function for adding a "Link" to and existing
+-- CreateOpts record.
+addLink :: Link -> CreateOpts -> CreateOpts
+addLink l c =  c{hostConfig=hc{links=ols <> [l]}}
+    where hc = hostConfig c
+          ols = links $ hostConfig c
+
+-- | Helper function for adding a "Volume" to and existing
+-- CreateOpts record.
+addVolume :: Volume -> CreateOpts -> CreateOpts
+addVolume v c = c{containerConfig=cc{volumes=oldvs <> [v]}}
+    where cc = containerConfig c
+          oldvs = volumes cc
+
+-- | Helper function for adding a "VolumeFrom" to and existing
+-- CreateOpts record.
+addVolumeFrom :: VolumeFrom -> CreateOpts -> CreateOpts
+addVolumeFrom vf c = c{hostConfig=hc{volumesFrom=oldvfs <> [vf]}}
+    where hc = hostConfig c
+          oldvfs = volumesFrom hc
+
 -- | A convenience function that adds PortBindings to and exiting
 -- "CreateOpts" record.  Useful with 'defaultCreateOpts'
 -- Example:
 --
 -- >>> let pb = PortBinding 80 TCP [HostPort "0.0.0.0" 8000]
--- >>> addPortBinding (defaultCreateOpts "nginx:latest") pb
-addPortBinding :: CreateOpts -> PortBinding -> CreateOpts
-addPortBinding c pb = c{hostConfig=hc{portBindings=pbs <> PortBindings [pb]}}
+-- >>> addPortBinding pb $ defaultCreateOpts "nginx:latest"
+addPortBinding :: PortBinding -> CreateOpts -> CreateOpts
+addPortBinding pb c = c{hostConfig=hc{portBindings=pbs <> [pb]}}
     where hc = hostConfig c
           pbs = portBindings $ hostConfig c
 
-instance ToJSON PortBinding where
-    toJSON (PortBinding {..}) = object [portAndType2Text containerPort portType .= hostPorts]
+-- | Helper function for adding a "ExposedPort" to and existing
+-- CreateOpts record.
+addExposedPort :: ExposedPort -> CreateOpts -> CreateOpts
+addExposedPort ep c = c{containerConfig=cc{exposedPorts=oldeps <> [ep]}}
+    where cc = containerConfig c
+          oldeps = exposedPorts cc
 
-instance FromJSON PortBindings where
-    parseJSON (JSON.Object o) = do
-        PortBindings <$> HM.foldlWithKey' f (return []) o
 
+instance {-# OVERLAPPING #-} FromJSON [PortBinding] where
+    parseJSON (JSON.Object o) = HM.foldlWithKey' f (return []) o
         where
             f accM k v = case T.split (== '/') k of
                 [port', portType'] -> do
@@ -888,16 +1010,15 @@ instance FromJSON PortBindings where
                     acc <- accM
                     hps <- parseJSON v
                     return $ (PortBinding port portType hps):acc
-                _ ->
-                    fail "Could not parse PortBindings"
+                _ -> fail "Could not parse PortBindings"
+    parseJSON (JSON.Null) = return []
     parseJSON _ = fail "PortBindings is not an object"
 
-instance ToJSON PortBindings where
-    toJSON (PortBindings []) = JSON.Object HM.empty
-    toJSON (PortBindings (p:ps)) = JSON.Object $ foldl f HM.empty (p:ps)
-        where mKey p = portAndType2Text (containerPort p) (portType p)
-              mVal p = toJSON $ hostPorts p
-              f acc p = HM.insert (mKey p) (mVal p) acc
+instance {-# OVERLAPPING #-} ToJSON [PortBinding] where
+    toJSON [] = emptyJsonObject
+    toJSON (p:ps) = toJsonKeyVal (p:ps) key val
+        where key p =  T.unpack $ portAndType2Text (containerPort p) (portType p)
+              val p =  hostPorts p
 
 data HostPort = HostPort {
       hostIp   :: Text
@@ -946,11 +1067,11 @@ newtype UTSMode = UTSMode Text deriving (Eq, Show)
 -- TODO: Add UTSMode : UTS namespace to use for the container
 -- TODO: Sysctls map[string]string `json:",omitempty"` // List of Namespaced sysctls used for the container
 data HostConfig = HostConfig
-                { binds           :: [Volume]
+                { binds           :: [Bind]
                 , containerIDFile :: Maybe FilePath -- 1.24: Only in responses, not create
                 , logConfig       :: LogDriverConfig
                 , networkMode     :: NetworkMode
-                , portBindings    :: PortBindings
+                , portBindings    :: [PortBinding]
                 , restartPolicy   :: RestartPolicy
                 , volumeDriver    :: Maybe Text
                 , volumesFrom     :: [VolumeFrom]
@@ -1109,6 +1230,22 @@ instance ToJSON DeviceRate where
         , "Rate" .= r
         ]
 
+data MemoryConstraintSize = B | MB | GB deriving (Eq, Show)
+
+data MemoryConstraint = MemoryConstraint Integer MemoryConstraintSize deriving (Eq, Show)
+
+instance ToJSON MemoryConstraint where
+    toJSON (MemoryConstraint x B) = toJSON x
+    toJSON (MemoryConstraint x MB) = toJSON $ x * 1024 * 1024
+    toJSON (MemoryConstraint x GB) = toJSON $ x * 1024 * 1024 * 1024
+
+instance FromJSON MemoryConstraint where
+    parseJSON (JSON.Number x) = case (floatingOrInteger x) of
+                                    Left (_ :: Double) -> fail "Failed to parse MemoryConstraint"
+                                    Right i -> return $ MemoryConstraint i B
+                                    -- The docker daemon will always return the number as bytes (integer), regardless of how we set them (using MB or GB)
+    parseJSON _ = fail "Failed to parse MemoryConstraint"
+
 data ContainerResources = ContainerResources {
                           cpuShares            :: Maybe Integer
                         -- , cgroupParent      :: Text -- 1.24: Missing from inspecting container details... Going to omit for now.
@@ -1124,10 +1261,10 @@ data ContainerResources = ContainerResources {
                         , cpusetMems           :: Maybe Text
                         , devices              :: [Device]
                         -- , diskQuota         :: Integer -- Don't see this ins 1.24.
-                        , kernelMemory         :: Maybe Integer
-                        , memory               :: Maybe Integer
-                        , memoryReservation    :: Maybe Integer
-                        , memorySwap           :: Maybe Integer
+                        , kernelMemory         :: Maybe MemoryConstraint
+                        , memory               :: Maybe MemoryConstraint
+                        , memoryReservation    :: Maybe MemoryConstraint
+                        , memorySwap           :: Maybe MemoryConstraint
                         -- , memorySwappiness  :: Integer -- 1.24: Missing from inspecting container details... Going to omit for now.
                         , oomKillDisable       :: Bool
                         -- , pidsLimit         :: Integer -- 1.24: Missing from inspecting container details... Going to omit for now.
@@ -1169,44 +1306,43 @@ instance FromJSON EnvVar where
 instance ToJSON EnvVar where
     toJSON (EnvVar n v) = object [n .= v]
 
--- | ExposedPorts represent a enumeraton of all the ports (and their type)
+-- | ExposedPort represents a port (and it's type)
 -- that a container should expose to other containers or the host system.
--- `NOTE`: This does not automatically expose the ports onto the host
--- system but rather it just tags them. It's best to be used with
+-- `NOTE`: This does not automatically expose the port onto the host
+-- system but rather it just tags it. It's best to be used with
 -- the PublishAllPorts flag. It is also useful for
 -- the daemon to know which Environment variables to
 -- inject into a container linking to our container.
 -- Example linking a Postgres container named db would inject the following
 -- environment variables automatically if we set the corresponding
 --
--- ExposedPorts:
+-- ExposedPort:
 --
 -- @
 -- DB_PORT_5432_TCP_PORT="5432"
 -- DB_PORT_5432_TCP_PROTO="tcp"
 -- DB_PORT_5432_TCP="tcp://172.17.0.1:5432"
 -- @
-newtype ExposedPorts = ExposedPorts (M.Map Port PortType) deriving (Eq, Show)
--- JP: Should this be ExposedPorts [(Port, PortType)]?
+data ExposedPort = ExposedPort Port PortType deriving (Eq, Show)
 
-instance FromJSON ExposedPorts where
-    parseJSON (JSON.Object o) = do
-        ExposedPorts <$> HM.foldlWithKey' f (return M.empty) o
-
+instance {-# OVERLAPPING #-} FromJSON [ExposedPort] where
+    parseJSON (JSON.Object o) = HM.foldlWithKey' f (return []) o
         where
             f accM k _ = case T.split (== '/') k of
                 [port', portType'] -> do
                     port <- parseIntegerText port'
                     portType <- parseJSON $ JSON.String portType'
                     acc <- accM
-                    return $ M.insert port portType acc
-                _ ->
-                    fail "Could not parse ExposedPorts"
-    parseJSON _  = fail "ExposedPorts is not an object."
+                    return $ (ExposedPort port portType):acc
+                _ -> fail "Could not parse ExposedPorts"
+    parseJSON (JSON.Null) = return []
+    parseJSON _ = fail "ExposedPorts is not an object"
 
-instance ToJSON ExposedPorts where
-    toJSON (ExposedPorts kvs) =  object [((T.pack $ show p) <> "/" <> (T.pack $ show t)) .= JSON.Object HM.empty | (p,t) <- (M.toList kvs)]
-
+instance {-# OVERLAPPING #-} ToJSON [ExposedPort] where
+    toJSON [] = emptyJsonObject
+    toJSON (p:ps) = toJsonKey (p:ps) key
+        where key (ExposedPort p t) = show p <> slash <> show t
+              slash = T.unpack "/"
 
 data ContainerConfig = ContainerConfig {
                        hostname        :: Maybe Text
@@ -1215,7 +1351,7 @@ data ContainerConfig = ContainerConfig {
                      , attachStdin     :: Bool
                      , attachStdout    :: Bool
                      , attachStderr    :: Bool
-                     , exposedPorts    :: Maybe ExposedPorts -- Note: Should we expand the JSON instance and take away the Maybe?
+                     , exposedPorts    :: [ExposedPort]
                      -- , publishService  :: Text -- Don't see this in 1.24
                      , tty             :: Bool
                      , openStdin       :: Bool
@@ -1224,13 +1360,13 @@ data ContainerConfig = ContainerConfig {
                      , cmd             :: [Text]
                      -- , argsEscaped     :: Bool -- Don't see this in 1.24
                      , image           :: Text
-                     , volumes         :: Maybe Volumes
+                     , volumes         :: [Volume]
                      , workingDir      :: Maybe FilePath
                      , entrypoint      :: Maybe Text -- Can be null?
                      , networkDisabled :: Maybe Bool -- Note: Should we expand the JSON instance and take away the Maybe? Null is False?
                      , macAddress      :: Maybe Text
                      -- , onBuild         :: Maybe Text -- For 1.24, only see this in the inspect response.
-                     , labels          :: Maybe Labels
+                     , labels          :: [Label]
                      , stopSignal      :: Signal
                      } deriving (Eq, Show, Generic)
 
@@ -1239,8 +1375,30 @@ instance ToJSON ContainerConfig where
          fieldLabelModifier = (\(x:xs) -> toUpper x : xs)}
 
 instance FromJSON ContainerConfig where
-    parseJSON = genericParseJSON defaultOptions {
-         fieldLabelModifier = (\(x:xs) -> toUpper x : xs)}
+    parseJSON (JSON.Object o) = do
+        hostname <- o .:? "Hostname"
+        domainname <- o .:? "Domainname"
+        user <- o .:? "User"
+        attachStdin <- o .: "AttachStdin"
+        attachStdout <- o .: "AttachStdout"
+        attachStderr <- o .: "AttachStderr"
+        exposedPorts <- o .:? "ExposedPorts" .!= []
+        tty <- o .: "Tty"
+        openStdin <- o .: "OpenStdin"
+        stdinOnce <- o .: "StdinOnce"
+        env <- o .: "Env"
+        cmd <- o .: "Cmd"
+        image <- o .: "Image"
+        volumes <- o .: "Volumes"
+        workingDir <- o .:? "WorkingDir"
+        entrypoint <- o .:? "Entrypoint"
+        networkDisabled <- o .:? "networkDisabled"
+        macAddress <- o .:? "MacAddress"
+        labels <- o .:? "Labels" .!= []
+        stopSignal <- o .: "StopSignal"
+        return $ ContainerConfig hostname domainname user attachStdin attachStdout attachStderr exposedPorts tty openStdin stdinOnce env cmd image volumes workingDir entrypoint networkDisabled
+            macAddress labels stopSignal
+    parseJSON _ = fail "NetworkSettings is not an object."
 
 parseIntegerText :: (Monad m) => Text -> m Integer
 parseIntegerText t = case readMaybe $ T.unpack t of
@@ -1248,3 +1406,20 @@ parseIntegerText t = case readMaybe $ T.unpack t of
         fail "Could not parse Integer"
     Just i ->
         return i
+
+-- | Helper function for converting a data type [a] to a json dictionary
+-- like so {"something": {}, "something2": {}}
+toJsonKey :: Foldable t => t a -> (a -> String) -> JSON.Value
+toJsonKey vs getKey = JSON.Object $ foldl f HM.empty vs
+        where f acc x = HM.insert (T.pack $ getKey x) (JSON.Object HM.empty) acc
+
+-- | Helper function for converting a data type [a] to a json dictionary
+-- like so {"something": "val1", "something2": "val2"}
+toJsonKeyVal :: (Foldable t, JSON.ToJSON r) => t a -> (a -> String) -> (a -> r) -> JSON.Value
+toJsonKeyVal vs getKey getVal = JSON.Object $ foldl f HM.empty vs
+        where f acc x = HM.insert (T.pack $ getKey x) (toJSON $ getVal x) acc
+
+-- | Helper function that return an empty dictionary "{}"
+emptyJsonObject :: JSON.Value
+emptyJsonObject = JSON.Object HM.empty
+
