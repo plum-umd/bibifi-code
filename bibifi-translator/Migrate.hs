@@ -137,6 +137,7 @@ migrate args = do
             printSQL $ "INSERT INTO \"user\" (ident, password, salt, email) VALUES ( '" ++ ident ++ "', '" ++ pass ++ "', '" ++ salt ++  "', '" ++ email ++ "') RETURNING id INTO " ++ toSQLVariable uId
 
         sqlText t = "'" ++ Text.unpack (Text.replace "'" "''" t) ++ "'"
+        sqlInt :: Int -> String
         sqlInt = show
         sqlDouble = show
 
@@ -160,37 +161,36 @@ migrate args = do
             -- Get user_information.
             (Just (Entity _ ui)) <- runDB $ selectFirst [UserInformationUser ==. uId] []
             let user = toSQLVariable uId
-            let school = sqlText $ userInformationSchool ui
-            let major = sqlText $ userInformationMajor ui
-            let minor = sqlText $ userInformationMinor ui
-            let degreesHeld = sqlText $ userInformationDegreesHeld ui
+            let school = sqlMaybe sqlText $ userInformationSchool ui
+            let major = sqlMaybe sqlText $ userInformationMajor ui
+            let minor = sqlMaybe sqlText $ userInformationMinor ui
+            let degreesHeld = sqlMaybe sqlText $ userInformationDegreesHeld ui
             let degree = sqlText $ userInformationDegree ui
-            let yearsInProgram = sqlInt $ userInformationYearsInProgram ui
-            let yearsOfExperience = sqlInt $ userInformationYearsOfExperience ui
-            let languages = sqlText $ userInformationLanguages ui
-            let favoriteLanguages = sqlText $ userInformationFavoriteLanguages ui
-            let yearsOfWork = sqlInt $ userInformationYearsOfWork ui
-            let experienceClass = sqlBool $ userInformationExperienceClass ui
-            let experiencePersonal = sqlBool $ userInformationExperiencePersonal ui
-            let experienceInternship = sqlBool $ userInformationExperienceInternship ui
+            let yearsInProgram = sqlMaybe sqlInt $ userInformationYearsInProgram ui
+            let yearsOfExperience = sqlMaybe sqlInt $ userInformationYearsOfExperience ui
+            let languages = sqlMaybe sqlText $ userInformationLanguages ui
+            let favoriteLanguages = sqlMaybe sqlText $ userInformationFavoriteLanguages ui
+            let yearsOfWork = sqlMaybe sqlInt $ userInformationYearsOfWork ui
+            let experienceClass = sqlMaybe sqlBool $ userInformationExperienceClass ui
+            let experiencePersonal = sqlMaybe sqlBool $ userInformationExperiencePersonal ui
+            let experienceInternship = sqlMaybe sqlBool $ userInformationExperienceInternship ui
             let experienceJob = sqlMaybe sqlBool $ userInformationExperienceJob ui
-            let securityTraining = sqlBool $ userInformationSecurityTraining ui
-            let securityExperience = sqlBool $ userInformationSecurityExperience ui
-            let softwareEngineering = sqlBool $ userInformationSoftwareEngineering ui
-            let securityClass = sqlBool $ userInformationSecurityClass ui
-            let previousContest = sqlBool $ userInformationPreviousContest ui
+            let securityTraining = sqlMaybe sqlBool $ userInformationSecurityTraining ui
+            let securityExperience = sqlMaybe sqlBool $ userInformationSecurityExperience ui
+            let softwareEngineering = sqlMaybe sqlBool $ userInformationSoftwareEngineering ui
+            let securityClass = sqlMaybe sqlBool $ userInformationSecurityClass ui
+            let previousContest = userInformationPreviousContest ui
             let resumePermission = sqlBool $ userInformationResumePermission ui
-            let age = sqlInt $ userInformationAge ui
-            let nationality = sqlText $ userInformationNationality ui
-            let gender = sqlText $ userInformationGender ui
+            let age = sqlMaybe sqlInt $ userInformationAge ui
+            let nationality = sqlMaybe sqlText $ userInformationNationality ui
+            let gender = sqlMaybe sqlText $ userInformationGender ui
             let agreeToParticipate = sqlBool $ userInformationAgreeToParticipate ui
-            let graduationYear = sqlInt $ userInformationGraduationYear ui
-            let programmerRating = sqlInt $ userInformationProgrammerRating ui
-            let attackerRating = sqlInt $ userInformationAttackerRating ui
-            let language = sqlText $ userInformationLanguage ui
-            let timezone = sqlText $ userInformationTimezone ui
-            -- let  = userInformation ui
-            let vals = List.intercalate ", " [ user, school, major, minor, degreesHeld, degree, yearsInProgram, yearsOfExperience, languages, favoriteLanguages, yearsOfWork, experienceClass, experiencePersonal, experienceInternship, experienceJob, securityTraining, securityExperience, softwareEngineering, securityClass, previousContest, resumePermission, age, nationality, gender, agreeToParticipate, graduationYear, programmerRating, attackerRating, language, timezone]
+            let graduationYear = sqlMaybe sqlInt $ userInformationGraduationYear ui
+            let programmerRating = sqlMaybe sqlInt $ userInformationProgrammerRating ui
+            let attackerRating = sqlMaybe sqlInt $ userInformationAttackerRating ui
+            let language = sqlMaybe sqlText $ userInformationLanguage ui
+            let timezone = sqlMaybe sqlText $ userInformationTimezone ui
+            let vals = error "TODO: Update this..." -- List.intercalate ", " [ user, school, major, minor, degreesHeld, degree, yearsInProgram, yearsOfExperience, languages, favoriteLanguages, yearsOfWork, experienceClass, experiencePersonal, experienceInternship, experienceJob, securityTraining, securityExperience, softwareEngineering, securityClass, previousContest, resumePermission, age, nationality, gender, agreeToParticipate, graduationYear, programmerRating, attackerRating, language, timezone]
             printSQL $ "INSERT INTO user_information (\"user\", school, major, minor, degrees_held, degree, years_in_program, years_of_experience, languages, favorite_languages, years_of_work, experience_class, experience_personal, experience_internship, experience_job, security_training, security_experience, software_engineering, security_class, previous_contest, resume_permission, age, nationality, gender, agree_to_participate, graduation_year, programmer_rating, attacker_rating, language, timezone) VALUES ( " ++ vals ++ ") "
 
         migrateTeamMember tId (uId, _) = 
