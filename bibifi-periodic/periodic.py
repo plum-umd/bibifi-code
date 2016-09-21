@@ -32,7 +32,7 @@ Constant data
 TRANSLATOR_PATH=".stack-work/dist/x86_64-linux/Cabal-1.22.5.0/build/translator/translator"
 #TRANSLATOR_PATH="/mock_translator"
 
-TRANSLATOR_CWD="../contest/translator/"
+TRANSLATOR_CWD="../bibifi-code/bibifi-translator/"
 #TRANSLATOR_CWD="../dev/translator/"
 REPO_BASE="./repos/"
 ARCHIVE_BASE="./archives/"
@@ -513,12 +513,12 @@ def test_team_loop(teamdata):
       if teamName == curteam.teamName and gitURL != curteam.teamURL:
         curteam = TeamData(teamName, gitURL)
         break
-    #curdatetime = test_team_build(curteam, curdatetime)
-    #changed = test_team_break(curteam, testedset)
-    changed = test_team_fix(curteam, testedset)
+    #old?? curdatetime = test_team_build(curteam, curdatetime)
 
-    #changed = test_team_generic(curteam, testedset)
+    changed = test_team_generic(curteam, testedset)
     #changed = test_team_break(curteam, testedset)
+    #changed = test_team_fix(curteam, testedset)
+
     if changed:
       f = file(".teamdata%s" % curteam.teamName, 'w')
       pickle.dump(testedset, f)
