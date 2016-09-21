@@ -13,7 +13,7 @@ import Cloud.Internal as Export
 import Control.Monad.Trans.Resource
 import Control.Monad.Error
 import Data.Yaml
-import Docker.Http
+import Docker.Client
 import qualified Network.HTTP.Conduit as HTTP
 import Network.Connection (TLSSettings(..))
 import Network.SSH.Client.SimpleSSH

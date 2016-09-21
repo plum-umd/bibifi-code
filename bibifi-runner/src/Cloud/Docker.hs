@@ -3,9 +3,9 @@ module Cloud.Docker (launchOneDockerWithTimeout) where
 import Control.Monad.Error
 import Control.Monad.Trans.Resource
 import qualified Data.Text as Text
-import qualified Docker as Docker
-import Docker.Http (runDockerT)
-import qualified Docker.Types as Docker
+import qualified Docker.Client as Docker
+import Docker.Client.Http (runDockerT)
+import qualified Docker.Client.Types as Docker
 import qualified Network.HTTP.Conduit as HTTP
 import Network.SSH.Client.SimpleSSH
 import Text.Read (readMaybe)
@@ -35,7 +35,7 @@ launchOneDockerWithTimeout conf manager timer f = ErrorT $
                 Right info ->
                     let ns = Docker.networkSettings info in
                     case Docker.networkSettingsPorts ns of
-                        (Docker.PortBindings [(Docker.PortBinding _ _ [(Docker.HostPort ip' port)])]) -> case readMaybe $ Text.unpack ip' of
+                        [(Docker.PortBinding _ _ [(Docker.HostPort ip' port)])] -> case readMaybe $ Text.unpack ip' of
                             Nothing ->
                                 fail $ strMsg $ "Invalid IP returned: " ++ containerIdS
                             Just ip ->
@@ -56,7 +56,7 @@ launchOneDockerWithTimeout conf manager timer f = ErrorT $
         containerOpts = 
             let cont = Docker.defaultContainerConfig (dockerImageId conf) in
             let res = Docker.defaultContainerResources { 
-                    Docker.memory = Just (dockerMemory conf) 
+                    Docker.memory = Just $ Docker.MemoryConstraint (dockerMemory conf) Docker.GB
                   , Docker.cpuShares = Just (dockerCpu conf)
                   }
             in
@@ -72,7 +72,7 @@ launchOneDockerWithTimeout conf manager timer f = ErrorT $
 
         -- withCreateContainer :: (ContainerID -> DockerT (ErrorT e m) a) -> DockerT (ErrorT e m) a
         withCreateContainer f = do
-            containerIdM <- Docker.createContainer containerOpts
+            containerIdM <- Docker.createContainer containerOpts Nothing
             case containerIdM of
                 Left err ->
                     return $ Left $ strMsg $ "Could not create container (" ++ show err ++ ")."

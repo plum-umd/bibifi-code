@@ -29,7 +29,7 @@ import Yesod.Form.Fields (Textarea(..))
 import Cloud
 import Common
 import Core.Modular.Class
-import Core.Modular.Shared
+import Core.Modular.Shared hiding (parseCoreTest, parseOptionalTest, parsePerformanceTest)
 import Core.SSH
 
 newtype ATMSpec = ATMSpec (Entity Contest)
@@ -619,28 +619,6 @@ instance ModularBreakTest ATMBreakTest where
     breakTestToType (ATMBreakIntegrityTest _) = BreakIntegrity
     breakTestToType (ATMBreakConfidentialityTest _) = BreakConfidentiality
 
--- Note: Should be generalizable. 
-data BuildError = 
-      BuildError String -- Error logged. 
-    | BuildFail BS8.ByteString BS8.ByteString  -- Build marked as failed and output shown to user.
-    | BuildErrorTimeout
-
-instance Error BuildError where
-    strMsg = BuildError
-
-instance BackendError BuildError where
-    backendTimeout = BuildErrorTimeout
-
-data OracleErr = 
-      OracleErr String
-    | OracleErrTimeout
-
-instance Error OracleErr where
-    strMsg = OracleErr
-
-instance BackendError OracleErr where
-    backendTimeout = OracleErrTimeout
-
 data ATMTest = 
       ATMCoreTest {
           atmCoreTestId :: ContestCoreTestId
@@ -747,40 +725,14 @@ instance FromJSON ATMBuildTestInput where
         return $ ATMBuildTestInput inputs mitm
     parseJSON _ = mzero
 
-setupFirewall :: (MonadIO m, Error e) => Session -> ErrorT e m ()
-setupFirewall session = do
-    (Result _ _ exit) <- runSSH (strMsg "Could not setup firewall") $ execCommand session "sudo iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT && sudo iptables -A OUTPUT -p tcp --sport 22 -j ACCEPT && sudo iptables -A INPUT -i lo -j ACCEPT && sudo iptables -A OUTPUT -o lo -j ACCEPT && sudo iptables -A OUTPUT -j DROP"
-    when (exit /= ExitSuccess) $
-        throwError $ strMsg "Could not setup firewall"
-
 parseCoreTest :: (Error e, Monad m) => Entity ContestCoreTest -> ErrorT e m (ATMTest, ATMBuildTestInput)
-parseCoreTest = parseTestHelper contestCoreTestTestScript ATMCoreTest
+parseCoreTest = parseTestHelper contestCoreTestTestScript (ATMCoreTest . entityKey)
 
 parsePerformanceTest :: (Error e, Monad m) => Entity ContestPerformanceTest -> ErrorT e m (ATMTest, ATMBuildTestInput)
 parsePerformanceTest t@(Entity _ test) = 
     let req = not $ contestPerformanceTestOptional test in
-    parseTestHelper contestPerformanceTestTestScript (ATMPerformanceTest req) t
+    parseTestHelper contestPerformanceTestTestScript (ATMPerformanceTest req . entityKey) t
 
 parseOptionalTest :: (Monad m, Error e) => Entity ContestOptionalTest -> ErrorT e m (ATMTest, ATMBuildTestInput)
-parseOptionalTest = parseTestHelper contestOptionalTestTestScript ATMOptionalTest
-
-executioner :: (MonadIO m, BackendError e) => Session -> String -> String -> ByteString -> ErrorT e m Result
-executioner session user destProgram args = do
-    let destExecArgs = "/tmp/destExecArgs"
-    uploadString session args destExecArgs
-    executioner' session user destProgram [destExecArgs]
-
-executioner' :: (MonadIO m, BackendError e) => Session -> String -> String -> [String] -> ErrorT e m Result
-executioner' session user destProgram args = do
-    let encodedArgs = B64.encode $ BSL.toStrict $ Aeson.encode args
-    let destArgs = "/tmp/destArgs"
-    uploadString session encodedArgs destArgs
-    res@(Result out _err _exit) <- runSSH (strMsg "Could not execute command on target.") $ execCommand session $ "sudo -i -u " <> user <> " bash -c 'sudo /usr/bin/executioner " <> destProgram <> " " <> destArgs <> "'"
-    case out of
-        "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout" -> 
-            throwError backendTimeout
-        "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout\n" -> 
-            throwError backendTimeout
-        _ ->
-            return res
+parseOptionalTest = parseTestHelper contestOptionalTestTestScript (ATMOptionalTest . entityKey)
 

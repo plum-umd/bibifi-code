@@ -8,7 +8,7 @@ packages:
 - '../bibifi-core'
 - '../dependencies/aws-sdk'
 - '../dependencies/simplessh'
-- '../dependencies/docker-hs' # TODO: remove this once the new library is released
+- '../dependencies/docker-hs-dev' # TODO: remove this once the new library is released
 - '.'
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
@@ -22,7 +22,7 @@ extra-deps:
 - simple-config-1.2.2.1
 - strptime-1.0.10
 - pipes-http-1.0.2
-# - docker-0.2.0.4
+# - docker-0.3.0.1
 
 # Override default flag values for local packages and extra-deps
 flags: {}

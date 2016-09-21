@@ -93,3 +93,9 @@ withSSH ip port keyFiles timer f = do
                 Just r ->
                     return r
 
+setupFirewall :: (MonadIO m, Error e) => Session -> ErrorT e m ()
+setupFirewall session = do
+    (Result _ _ exit) <- runSSH (strMsg "Could not setup firewall") $ execCommand session "sudo iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT && sudo iptables -A OUTPUT -p tcp --sport 22 -j ACCEPT && sudo iptables -A INPUT -i lo -j ACCEPT && sudo iptables -A OUTPUT -o lo -j ACCEPT && sudo iptables -A OUTPUT -j DROP"
+    when (exit /= ExitSuccess) $
+        throwError $ strMsg "Could not setup firewall"
+

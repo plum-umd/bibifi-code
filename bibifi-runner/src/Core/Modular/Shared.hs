@@ -1,14 +1,24 @@
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+
 module Core.Modular.Shared where
 
 import Control.Monad.Error
 import Core (keyToInt)
+import Core.SSH
 import Data.Aeson (FromJSON(..))
+import Data.Aeson ((.=), (.:), (.:?))
 import qualified Data.Aeson as Aeson
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
+import Data.Monoid
+import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified Data.Text.Encoding.Error as Text
+import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
@@ -137,4 +147,140 @@ instance Error BreakError where
 
 instance BackendError BreakError where
     backendTimeout = BreakErrorTimeout
+
+data BuildError = 
+      BuildError String -- Error logged. 
+    | BuildFail BS8.ByteString BS8.ByteString  -- Build marked as failed and output shown to user.
+    | BuildErrorTimeout
+
+instance Error BuildError where
+    strMsg = BuildError
+
+instance BackendError BuildError where
+    backendTimeout = BuildErrorTimeout
+
+data OracleErr = 
+      OracleErr String
+    | OracleErrTimeout
+
+instance Error OracleErr where
+    strMsg = OracleErr
+
+instance BackendError OracleErr where
+    backendTimeout = OracleErrTimeout
+
+data BuildTest = 
+    BuildTestCore (Entity ContestCoreTest)
+  | BuildTestPerformance (Entity ContestPerformanceTest)
+  | BuildTestOptional (Entity ContestOptionalTest)
+
+data BuildResult = BuildResult {
+    buildResult :: Bool
+  , buildResultMessage :: Maybe Text
+  , buildResultTime :: Maybe Double
+  }
+
+instance FromJSON BuildResult where
+    parseJSON (Aeson.Object o) = do
+        res <- o .: "result"
+        message <- o .:? "error"
+        time <- o .:? "time"
+        return $ BuildResult res message time
+    parseJSON _ = fail "BuildResult is not a JSON object."
+
+isBuildTestRequired :: BuildTest -> Bool
+isBuildTestRequired (BuildTestCore _) = True
+isBuildTestRequired (BuildTestPerformance (Entity _ p)) = not $ contestPerformanceTestOptional p
+isBuildTestRequired (BuildTestOptional _) = False
+
+runBuildTest :: (BackendError e, MonadIO m) => Session -> (BuildTest, Aeson.Value) -> ErrorT e m (BuildTest, BuildResult)
+runBuildTest session (test, input) = do
+    let json = BSL.toStrict $ Aeson.encode $ Aeson.object [
+            "type" .= ("build" :: String)
+          , "input" .= input
+          , "target" .= (baseDir ++ "/" ++ exec)
+          , "client_user" .= clientUser
+          ]
+
+    -- Upload json input.
+    uploadString session json destJson
+
+    -- Launch grader
+    (Result resOut' _ _) <- executioner session testUser grader $ BS8.pack destJson
+    putLog "Output received."
+
+    -- Drop newline. 
+    let (resOut, _) = BS.breakSubstring "\n" resOut'
+    putLog $ show resOut
+
+    -- Parse resOut.
+    output <- ErrorT $ case Aeson.decodeStrict' resOut of
+        Nothing ->
+            return $ Left $ strMsg $ "Could not decode test output: " <> BS8.unpack resOut
+        Just r ->
+            return $ Right r
+
+    return (test, output)
+
+    where
+        exec :: String
+        exec = "server" -- Note: Change this depending on the spec.
+
+        clientUser :: String
+        clientUser = "builder"
+        testUser :: String
+        testUser = "ubuntu"
+        baseDir :: String
+        baseDir = "/home/builder/submission/build"
+        destJson :: String
+        destJson = "/tmp/inputjson"
+        grader :: String
+        grader = "/usr/bin/grader"
+
+-- recordBuildResult :: Key BuildSubmission -> (BuildTest, BuildResult) -> DatabaseM (Either String ())
+recordBuildResult submissionId (BuildTestCore (Entity testId _), BuildResult{..}) = do
+    lift $ lift $ runDB $ insert_ $ BuildCoreResult submissionId testId buildResult buildResultMessage
+    return ()
+recordBuildResult submissionId (BuildTestPerformance (Entity testId _), BuildResult False msgM _) = do
+    lift $ lift $ runDB $ insert_ $ BuildPerformanceResult submissionId testId Nothing msgM
+    return ()
+recordBuildResult _ (BuildTestPerformance (Entity _ _), BuildResult True _ Nothing) = 
+    fail "Output did not include time"
+recordBuildResult submissionId (BuildTestPerformance (Entity testId _), BuildResult True msgM (Just time)) = do
+    lift $ lift $ runDB $ insert_ $ BuildPerformanceResult submissionId testId (Just time) msgM
+    return ()
+recordBuildResult submissionId (BuildTestOptional (Entity testId _), BuildResult{..}) = do
+    lift $ lift $ runDB $ insert_ $ BuildOptionalResult submissionId testId buildResult buildResultMessage
+    return ()
+
+executioner :: (MonadIO m, BackendError e) => Session -> String -> String -> ByteString -> ErrorT e m Result
+executioner session user destProgram args = do
+    let destExecArgs = "/tmp/destExecArgs"
+    uploadString session args destExecArgs
+    executioner' session user destProgram [destExecArgs]
+
+    where
+
+        executioner' :: (MonadIO m, BackendError e) => Session -> String -> String -> [String] -> ErrorT e m Result
+        executioner' session user destProgram args = do
+            let encodedArgs = B64.encode $ BSL.toStrict $ Aeson.encode args
+            let destArgs = "/tmp/destArgs"
+            uploadString session encodedArgs destArgs
+            res@(Result out _err _exit) <- runSSH (strMsg "Could not execute command on target.") $ execCommand session $ "sudo -i -u " <> user <> " bash -c 'sudo /usr/bin/executioner " <> destProgram <> " " <> destArgs <> "'"
+            case out of
+                "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout" -> 
+                    throwError backendTimeout
+                "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout\n" -> 
+                    throwError backendTimeout
+                _ ->
+                    return res
+        
+parseCoreTest :: (Error e, Monad m) => Entity ContestCoreTest -> ErrorT e m (BuildTest, Aeson.Value)
+parseCoreTest = parseTestHelper contestCoreTestTestScript BuildTestCore
+
+parsePerformanceTest :: (Error e, Monad m) => Entity ContestPerformanceTest -> ErrorT e m (BuildTest, Aeson.Value)
+parsePerformanceTest = parseTestHelper contestPerformanceTestTestScript BuildTestPerformance
+
+parseOptionalTest :: (Monad m, Error e) => Entity ContestOptionalTest -> ErrorT e m (BuildTest, Aeson.Value)
+parseOptionalTest = parseTestHelper contestOptionalTestTestScript BuildTestOptional
 

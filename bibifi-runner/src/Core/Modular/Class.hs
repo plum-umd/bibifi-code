@@ -100,14 +100,14 @@ instance FromJSON OracleOutput where
 --       BuildErrorInfrastructure String
 --     | BuildErrorBuildFailed
 
-parseTestHelper :: (FromJSON i, Monad m, E.Error e) => (t -> Text) -> (Key t -> a) -> Entity t -> ErrorT e m (a, i)
-parseTestHelper getInput constr (Entity testId test) = ErrorT $ 
+parseTestHelper :: (FromJSON i, Monad m, E.Error e) => (t -> Text) -> (Entity t -> a) -> Entity t -> ErrorT e m (a, i)
+parseTestHelper getInput constr t@(Entity _ test) = ErrorT $ 
     let input' = getInput test in
     case Aeson.decodeStrict' $ Text.encodeUtf8 input' of
         Nothing ->
             return $ Left $ E.strMsg $ "Invalid test input: " <> (show input')
         Just input ->
-            return $ Right $ (constr testId, input)
+            return $ Right $ (constr t, input)
 
 class ModularBreakTest b where
     breakTestToType :: b -> BreakType

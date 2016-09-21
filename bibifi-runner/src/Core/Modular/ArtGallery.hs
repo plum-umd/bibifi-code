@@ -1041,12 +1041,6 @@ instance FromJSON BuildTest where
 
     parseJSON _ = mzero
 
-setupFirewall :: MonadIO m => Session -> ErrorT String m ()
-setupFirewall session = do
-    (Result _ _ exit) <- runSSH "Could not setup firewall" $ execCommand session "sudo iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT && sudo iptables -A OUTPUT -p tcp --sport 22 -j ACCEPT && sudo iptables -A OUTPUT -j DROP"
-    when (exit /= ExitSuccess) $
-        fail "Could not setup firewall"
-
 uploadString' :: (MonadIO m) => Session -> FilePath -> ByteString -> String -> ErrorT String m ()
 uploadString' session uniqueFilename contents targetFile = do
     let tmpFile = "/tmp/bibifi_" <> uniqueFilename

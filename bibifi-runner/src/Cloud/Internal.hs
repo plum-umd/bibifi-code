@@ -14,7 +14,7 @@ import Control.Monad.Trans.Control
 import Data.Aeson (FromJSON(..), (.:?), Value(..), (.:))
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Text
-import qualified Docker.Types as Docker
+import qualified Docker.Client.Types as Docker
 
 data CloudT m a = CloudT { 
       runCloudT :: !(m a)

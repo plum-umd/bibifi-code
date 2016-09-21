@@ -61,6 +61,7 @@ executable runner
                        Core.Modular.ATM
                        Core.Modular.ArtGallery
                        Core.Modular.Class
+                       Core.Modular.EHR
                        Core.Modular.Shared
                        Core.SSH
                        Core.Score
@@ -119,6 +120,7 @@ executable runner
 
   extensions:          FlexibleContexts
                        MultiParamTypeClasses
+                       RecordWildCards
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
