@@ -194,8 +194,41 @@ isBuildTestRequired (BuildTestCore _) = True
 isBuildTestRequired (BuildTestPerformance (Entity _ p)) = not $ contestPerformanceTestOptional p
 isBuildTestRequired (BuildTestOptional _) = False
 
-runBuildTest :: (BackendError e, MonadIO m) => Session -> (BuildTest, Aeson.Value) -> ErrorT e m (BuildTest, BuildResult)
-runBuildTest session (test, input) = do
+-- `exec` is the filepath of the oracle.
+runOracle :: (BackendError e, MonadIO m) => Session -> String -> Aeson.Value -> ErrorT e m (Maybe OracleOutput)
+runOracle session exec input = do
+    let json = BSL.toStrict $ Aeson.encode $ Aeson.object [
+            "type" .= ("oracle" :: String)
+          , "input" .= input
+          , "target" .= exec
+          , "oracle_user" .= oracleUser
+          ]
+
+    -- Upload json input.
+    uploadString session json destJson
+
+    -- Launch grader.
+    (Result resOut' _ _) <- executioner' session testUser grader [destJson]
+    putLog "Output received."
+
+    -- Drop newline. 
+    let (resOut, _) = BS.breakSubstring "\n" resOut'
+    putLog $ show resOut
+
+    -- Parse resOut.
+    return $ Aeson.decodeStrict' resOut
+    -- output <- ErrorT $ case Aeson.decodeStrict' resOut of
+    --     Nothing ->
+    --         return $ Left $ strMsg $ "Could not decode oracle output: " <> BS8.unpack resOut
+    --     Just r ->
+    --         return $ Right r
+
+    -- return output
+
+
+-- `exec` is the name of the target executable.
+runBuildTest :: (BackendError e, MonadIO m) => Session -> String -> (BuildTest, Aeson.Value) -> ErrorT e m (BuildTest, BuildResult)
+runBuildTest session exec (test, input) = do
     let json = BSL.toStrict $ Aeson.encode $ Aeson.object [
             "type" .= ("build" :: String)
           , "input" .= input
@@ -203,13 +236,13 @@ runBuildTest session (test, input) = do
           , "client_user" .= clientUser
           ]
 
-    putLog $ show json
+    -- putLog $ show json
 
     -- Upload json input.
     uploadString session json destJson
 
-    -- Launch grader
-    (Result resOut' _ _) <- executioner session testUser grader $ BS8.pack destJson
+    -- Launch grader.
+    (Result resOut' _ _) <- executioner' session testUser grader [destJson]
     putLog "Output received."
 
     -- Drop newline. 
@@ -226,19 +259,20 @@ runBuildTest session (test, input) = do
     return (test, output)
 
     where
-        exec :: String
-        exec = "server" -- Note: Change this depending on the spec.
-
-        clientUser :: String
-        clientUser = "builder"
-        testUser :: String
-        testUser = "ubuntu"
         baseDir :: String
         baseDir = "/home/builder/submission/build"
-        destJson :: String
-        destJson = "/tmp/inputjson"
-        grader :: String
-        grader = "/usr/bin/grader"
+
+-- Constants used in runOracle and runBuildTest.
+oracleUser :: String
+oracleUser = "client"
+clientUser :: String
+clientUser = "builder"
+testUser :: String
+testUser = "ubuntu"
+destJson :: String
+destJson = "/tmp/inputjson"
+grader :: String
+grader = "/usr/bin/grader"
 
 -- recordBuildResult :: Key BuildSubmission -> (BuildTest, BuildResult) -> DatabaseM (Either String ())
 recordBuildResult submissionId (BuildTestCore (Entity testId _), BuildResult{..}) = do
@@ -262,21 +296,19 @@ executioner session user destProgram args = do
     uploadString session args destExecArgs
     executioner' session user destProgram [destExecArgs]
 
-    where
-
-        executioner' :: (MonadIO m, BackendError e) => Session -> String -> String -> [String] -> ErrorT e m Result
-        executioner' session user destProgram args = do
-            let encodedArgs = B64.encode $ BSL.toStrict $ Aeson.encode args
-            let destArgs = "/tmp/destArgs"
-            uploadString session encodedArgs destArgs
-            res@(Result out _err _exit) <- runSSH (strMsg "Could not execute command on target.") $ execCommand session $ "sudo -i -u " <> user <> " bash -c 'sudo /usr/bin/executioner " <> destProgram <> " " <> destArgs <> "'"
-            case out of
-                "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout" -> 
-                    throwError backendTimeout
-                "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout\n" -> 
-                    throwError backendTimeout
-                _ ->
-                    return res
+executioner' :: (MonadIO m, BackendError e) => Session -> String -> String -> [String] -> ErrorT e m Result
+executioner' session user destProgram args = do
+    let encodedArgs = B64.encode $ BSL.toStrict $ Aeson.encode args
+    let destArgs = "/tmp/destArgs"
+    uploadString session encodedArgs destArgs
+    res@(Result out _err _exit) <- runSSH (strMsg "Could not execute command on target.") $ execCommand session $ "sudo -i -u " <> user <> " bash -c 'sudo /usr/bin/executioner " <> destProgram <> " " <> destArgs <> "'"
+    case out of
+        "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout" -> 
+            throwError backendTimeout
+        "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout\n" -> 
+            throwError backendTimeout
+        _ ->
+            return res
         
 parseCoreTest :: (Error e, Monad m) => Entity ContestCoreTest -> ErrorT e m (BuildTest, Aeson.Value)
 parseCoreTest = parseTestHelper contestCoreTestTestScript BuildTestCore

@@ -1,6 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Core.Modular.EHR where
 
 import Control.Monad.Error
+import qualified Data.Aeson as Aeson
 import qualified Data.IORef.Lifted as IO
 import qualified Data.List as List
 import Data.Monoid
@@ -25,8 +28,49 @@ instance ModularContest EHRSpec where
     scoreContestBreak (EHRSpec (Entity cId _)) _ = defaultScoreBreakRound cId
     scoreContestFix (EHRSpec (Entity cId _)) _ = defaultScoreFixRound cId
 
-    runOracleSubmission (EHRSpec _contest) _opts (Entity _submissionId _submission) = do
-        undefined
+    runOracleSubmission (EHRSpec _contest) opts (Entity submissionId submission) =
+        -- Parse oracle input.
+        let inputObjectM = Aeson.decodeStrict' $ Text.encodeUtf8 $ oracleSubmissionInput submission in
+        case inputObjectM of
+            Nothing -> do
+                -- Invalid input so store as error.
+                runDB $ update submissionId [OracleSubmissionStatus =. OracleError, OracleSubmissionOutput =. Just "Invalid input"]
+
+                -- Return success.
+                return $ Just True
+            Just inputObject -> do
+                
+                -- Start instance.
+                let conf = runnerCloudConfiguration opts
+                let manager = runnerHttpManager opts
+                resultE <- runErrorT $ launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
+                    -- Send oracle.
+                    putLog "Sending oracle files."
+                    let oracleFile = runnerOracleDirectory opts ++ "/server"
+                    let oracleDestFile = "/home/client/server"
+                    _ <- runSSH (OracleErr "Could not send oracle to instance.") $ sendFile session 0o700 oracleFile oracleDestFile
+
+                    -- setupFirewall session
+
+                    runOracle session oracleDestFile inputObject
+
+                -- Return result.
+                case resultE of
+                    Left (OracleErr err) -> do
+                        putLog err
+                        return (Just False)
+                    Left OracleErrTimeout -> do
+                        return Nothing
+                    Right res -> do
+                        let (status, output) = case res of
+                              Nothing ->
+                                (OracleError, Nothing)
+                              Just (OracleOutputError err) ->
+                                (OracleError, Just err)
+                              Just (OracleOutputSuccess out) ->
+                                (OracleFinished, Just out)
+                        runDB $ update submissionId [OracleSubmissionOutput =. output, OracleSubmissionStatus =. status]
+                        return $ Just True
 
     runBuildSubmission (EHRSpec (Entity contestId _contest)) opts (Entity submissionId submission) = do
         -- Retrieve tests from database.
@@ -77,8 +121,7 @@ instance ModularContest EHRSpec where
 
                 -- Map over tests.
                 let (requiredTests, optTests) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests <> optionalTests)
-                requiredResults <- mapM (runBuildTest session) requiredTests
-                -- TODO: deepseq or custom mapM? Flush results?
+                requiredResults <- mapM (runBuildTest session "server") requiredTests
                 mapM_ (recordBuildResult submissionId) requiredResults
 
                 -- Indicate core tests passed. 
@@ -86,7 +129,7 @@ instance ModularContest EHRSpec where
 
                 -- Continue running optional tests.
                 mapM_ (\test -> do
-                    result <- runBuildTest session test
+                    result <- runBuildTest session "server" test 
                     (recordBuildResult submissionId) result
                   ) optTests
 
