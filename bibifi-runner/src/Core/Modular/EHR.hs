@@ -46,9 +46,9 @@ instance ModularContest EHRSpec where
                 resultE <- runErrorT $ launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
                     -- Send oracle.
                     putLog "Sending oracle files."
-                    let oracleFile = runnerOracleDirectory opts ++ "/server"
-                    let oracleDestFile = "/home/client/server"
-                    _ <- runSSH (OracleErr "Could not send oracle to instance.") $ sendFile session 0o700 oracleFile oracleDestFile
+                    let oracleFile = runnerOracleDirectory opts ++ "server"
+                    let oracleDestFile = "/home/ubuntu/server"
+                    _ <- runSSH (OracleErr "Could not send oracle to instance.") $ sendFile session 0o777 oracleFile oracleDestFile
 
                     -- setupFirewall session
 
