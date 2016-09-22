@@ -5,7 +5,7 @@ import Control.Monad.Trans.Resource
 import qualified Data.Text as Text
 import qualified Docker.Client as Docker
 import Docker.Client.Http (runDockerT)
-import qualified Docker.Client.Types as Docker
+-- import qualified Docker.Client.Types as Docker
 import qualified Network.HTTP.Conduit as HTTP
 import Network.SSH.Client.SimpleSSH
 import Text.Read (readMaybe)

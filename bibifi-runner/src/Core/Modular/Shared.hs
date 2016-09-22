@@ -179,6 +179,7 @@ data BuildResult = BuildResult {
   , buildResultMessage :: Maybe Text
   , buildResultTime :: Maybe Double
   }
+  deriving (Show)
 
 instance FromJSON BuildResult where
     parseJSON (Aeson.Object o) = do
@@ -201,6 +202,8 @@ runBuildTest session (test, input) = do
           , "target" .= (baseDir ++ "/" ++ exec)
           , "client_user" .= clientUser
           ]
+
+    putLog $ show json
 
     -- Upload json input.
     uploadString session json destJson

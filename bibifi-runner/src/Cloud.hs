@@ -17,8 +17,8 @@ import Docker.Client
 import qualified Network.HTTP.Conduit as HTTP
 import Network.Connection (TLSSettings(..))
 import Network.SSH.Client.SimpleSSH
-import Network.URI (parseURI, URI(..), URIAuth(..))
-import Text.Read (readMaybe)
+-- import Network.URI (parseURI, URI(..), URIAuth(..))
+-- import Text.Read (readMaybe)
 
 import Common
 
@@ -55,7 +55,7 @@ cloudManagerSettings (CloudDockerConfiguration cfg) = do
             return $ HTTP.mkManagerSettings settings Nothing
     
     where
-        url = dockerUrl cfg
+        -- url = dockerUrl cfg
         privKey = dockerPrivateKeyFile cfg
         cert = dockerCertificateFile cfg
     

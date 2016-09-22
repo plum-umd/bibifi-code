@@ -7,7 +7,7 @@ import Core.Score
 import Control.Monad.Error
 import Data.Aeson (FromJSON(..),(.:),(.=), (.:?), Value(..))
 import qualified Data.Aeson as Aeson
-import Data.ByteString (ByteString)
+-- import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BS8

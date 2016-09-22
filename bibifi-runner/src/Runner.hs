@@ -116,6 +116,7 @@ runJob opts contest (OracleJob os) = do
     where
         runOracle (ATMContest c) = runOracleSubmission c
         runOracle (ArtContest c) = runOracleSubmission c
+        runOracle (EHRContest c) = runOracleSubmission c
 
 runJob opts contest (BuildJob bs) = do
     resM <- runBuild contest
@@ -129,6 +130,7 @@ runJob opts contest (BuildJob bs) = do
     where
         runBuild (ATMContest c) = runBuildSubmission c opts bs
         runBuild (ArtContest c) = runBuildSubmission c opts bs
+        runBuild (EHRContest c) = runBuildSubmission c opts bs
 
 runJob opts contest (BreakJob bs) = do
             resM <- runBreak contest
@@ -142,6 +144,7 @@ runJob opts contest (BreakJob bs) = do
     where
         runBreak (ATMContest c) = runBreakSubmission c opts bs
         runBreak (ArtContest c) = runBreakSubmission c opts bs
+        runBreak (EHRContest c) = runBreakSubmission c opts bs
 
 runJob opts contest (FixJob fs) = do
     resM <- runFix contest
@@ -155,6 +158,7 @@ runJob opts contest (FixJob fs) = do
     where
         runFix (ATMContest c) = runFixSubmission c opts fs
         runFix (ArtContest c) = runFixSubmission c opts fs
+        runFix (EHRContest c) = runFixSubmission c opts fs
 
 -- getBuildTest blockedTeams = 
 --     -- Get next build-it test for non-blocked teams.

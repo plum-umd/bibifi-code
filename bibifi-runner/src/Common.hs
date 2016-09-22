@@ -38,8 +38,9 @@ import System.IO.Error (isDoesNotExistError)
 import Queue
 
 putLog :: MonadIO m => String -> m ()
-putLog message = 
+putLog message = do
     liftIO $ hPutStrLn stderr message
+    liftIO $ hFlush stdout
 
 exitWithError :: MonadIO m => String -> m a
 exitWithError message = liftIO $ do

@@ -39,12 +39,15 @@ checkExit exiting f = do
 scoreModContestBuild :: ModContest -> RunnerOptions -> DatabaseM ()
 scoreModContestBuild (ATMContest contest) = scoreContestBuild contest
 scoreModContestBuild (ArtContest contest) = scoreContestBuild contest
+scoreModContestBuild (EHRContest contest) = scoreContestBuild contest
 
 scoreModContestBreak :: ModContest -> RunnerOptions -> DatabaseM ()
 scoreModContestBreak (ATMContest contest) = scoreContestBreak contest
 scoreModContestBreak (ArtContest contest) = scoreContestBreak contest
+scoreModContestBreak (EHRContest contest) = scoreContestBreak contest
 
 scoreModContestFix :: ModContest -> RunnerOptions -> DatabaseM ()
 scoreModContestFix (ATMContest contest) = scoreContestFix contest
 scoreModContestFix (ArtContest contest) = scoreContestFix contest
+scoreModContestFix (EHRContest contest) = scoreContestFix contest
 

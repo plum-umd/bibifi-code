@@ -126,5 +126,4 @@ executable runner
   default-language:    Haskell2010
   
   ghc-options:
-      -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-name-shadowing -fno-warn-warnings-deprecations -threaded
-  -- -Werror 
+      -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-name-shadowing -fno-warn-warnings-deprecations -threaded -Werror -fno-warn-missing-signatures
