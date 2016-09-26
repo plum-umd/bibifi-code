@@ -20,7 +20,7 @@ import Scheduler
 main :: IO ()
 main = do
     -- Read EC2 configuration file. 
-    ec2 <- loadCloudConfiguration productionCloudYML
+    ec2 <- loadCloudConfiguration "../config/cloud.yml" -- productionCloudYML
 
     -- Create database pool and config.
     db <- makeDatabaseConf productionDatabaseYML "Production" -- "config/postgresql.yml"

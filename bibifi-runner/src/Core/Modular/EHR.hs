@@ -76,7 +76,7 @@ instance ModularContest EHRSpec where
         -- Retrieve tests from database.
         coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
         performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId] []
-        optionalTests' <- runDB $ selectList [ContestOptionalTestContest ==. contestId] []
+        optionalTests' <- runDB $ selectList [ContestOptionalTestContest ==. contestId] [Asc ContestOptionalTestName]
 
         coreDoneRef <- IO.newIORef False
         resultsE <- runErrorT $ do
