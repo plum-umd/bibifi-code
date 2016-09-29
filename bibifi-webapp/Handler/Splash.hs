@@ -48,7 +48,7 @@ jumbotronWidget = do
                     */
                     <p>
                         /*Maryland Cybersecurity Center, AT&T, Cyberpoint, SuprTEK, and Trail of Bits present <strong>Build it Break it Fix it</strong>, a new security-oriented programming contest.*/
-                        <a href="http://www.cyber.umd.edu/">Maryland Cybersecurity Center</a> presents <strong>Build it Break it Fix it</strong>, a new security-oriented programming contest.
+                        <a href="http://www.boozallen.com/">Booz Allen Hamilton</a> and <a href="http://www.cyber.umd.edu/">Maryland Cybersecurity Center</a> present <strong>Build it Break it Fix it</strong>, a new security-oriented programming contest.
                     /*
                     <p>
                         The Build it Break it Fix it contest will be used for the Coursera capstone. Find out more information about the capstone <a href="https://www.coursera.org/specialization/cybersecurity/7?utm_medium=courseDescripTop">here</a>! 
@@ -167,6 +167,14 @@ sponsorWidget = do
         }
     |]
     [whamlet'|
+        <div class="row">
+            <div class="col-md-12 col-lg-offset-2 col-lg-8">
+                <hr class="spacer">
+                <h1 class="text-center">
+                    Platinum Sponsors
+        <div class="row">
+            <div class="sponsors col-md-12 col-lg-offset-2 col-lg-8 text-center">
+                ^{Sponsors.booz}
         <!---
         <div class="row">
             <div class="col-md-12 col-lg-offset-2 col-lg-8">

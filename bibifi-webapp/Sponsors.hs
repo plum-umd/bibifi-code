@@ -2,6 +2,19 @@ module Sponsors where
 
 import Import
 
+booz :: Widget
+booz = do
+    c <- newIdent
+    toWidget [lucius|
+        ##{c} {
+            width: 100%;
+        }
+    |]
+    [whamlet'|
+        <a href="http://www.boozallen.com/">
+            <img id="#{c}" src="@{StaticR img_booz_png}">
+    |]
+
 cigital :: Widget
 cigital = do
     cigital <- newIdent

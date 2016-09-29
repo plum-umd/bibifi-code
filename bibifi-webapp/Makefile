@@ -7,9 +7,9 @@ build:
 	stack build
 
 deploy: 
-	rm -rf /fs/mc2-application/config; rm -rf /fs/mc2-application/static; rm -rf /fs/mc2-application/dist;
-	cp -rf config /fs/mc2-application/; cp -rf static /fs/mc2-application/; mkdir -p /fs/mc2-application/dist; cp -rf .stack-work/dist/x86_64-linux/Cabal-1.22.5.0/build /fs/mc2-application/dist;
-	chmod -R o+w /fs/mc2-application/static/tmp;
+	rm -rf /fs/mc2-application/config; rm -rf /fs/mc2-application/webapp/static; rm -rf /fs/mc2-application/webapp/dist;
+	cp -rf ../config /fs/mc2-application/; cp -rf static /fs/mc2-application/webapp; mkdir -p /fs/mc2-application/webapp/dist; cp -rf .stack-work/dist/x86_64-linux/Cabal-1.22.5.0/build /fs/mc2-application/webapp/dist;
+	chmod -R o+w /fs/mc2-application/webapp/static/tmp;
 
 clean:
 	stack exec cabal clean && stack clean

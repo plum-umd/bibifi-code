@@ -214,8 +214,10 @@ getDetailsR = runLHandler $ defaultLayout $ lLift $ do
                 <ul>
                     <li>
                         You will only be allowed to make 5 submissions against a single team. 
+                    <!--
                     <li>
                         You will only be allowed to make one integrity submission and one confidentiality submission against a single team. 
+                    -->
                 <h4>
                     Fix-it
                 <ul>
