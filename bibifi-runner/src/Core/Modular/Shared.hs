@@ -225,6 +225,24 @@ runOracle session exec input = do
 
     -- return output
 
+runBuildTestAt :: (BackendError e, MonadIO m) => Session -> (BuildTest, Text) -> ErrorT e m (BuildTest, BuildResult)
+runBuildTestAt session (test, location) = do
+    -- Launch grader.
+    (Result resOut' _ _) <- executioner' session testUser grader [Text.unpack location]
+    putLog "Output received."
+
+    -- Drop newline. 
+    let (resOut, _) = BS.breakSubstring "\n" resOut'
+    putLog $ show resOut
+
+    -- Parse resOut.
+    output <- ErrorT $ case Aeson.decodeStrict' resOut of
+        Nothing ->
+            return $ Left $ strMsg $ "Could not decode test output: " <> BS8.unpack resOut
+        Just r ->
+            return $ Right r
+
+    return (test, output)
 
 -- `exec` is the name of the target executable.
 runBuildTest :: (BackendError e, MonadIO m) => Session -> String -> (BuildTest, Aeson.Value) -> ErrorT e m (BuildTest, BuildResult)
@@ -241,22 +259,7 @@ runBuildTest session exec (test, input) = do
     -- Upload json input.
     uploadString session json destJson
 
-    -- Launch grader.
-    (Result resOut' _ _) <- executioner' session testUser grader [destJson]
-    putLog "Output received."
-
-    -- Drop newline. 
-    let (resOut, _) = BS.breakSubstring "\n" resOut'
-    putLog $ show resOut
-
-    -- Parse resOut.
-    output <- ErrorT $ case Aeson.decodeStrict' resOut of
-        Nothing ->
-            return $ Left $ strMsg $ "Could not decode test output: " <> BS8.unpack resOut
-        Just r ->
-            return $ Right r
-
-    return (test, output)
+    runBuildTestAt session (test, Text.pack destJson)
 
     where
         baseDir :: String

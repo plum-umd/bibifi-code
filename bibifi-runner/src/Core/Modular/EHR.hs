@@ -81,9 +81,10 @@ instance ModularContest EHRSpec where
         coreDoneRef <- IO.newIORef False
         resultsE <- runErrorT $ do
             -- Parse tests.
-            coreTests <- mapM parseCoreTest coreTests'
-            performanceTests <- mapM parsePerformanceTest performanceTests'
-            optionalTests <- mapM parseOptionalTest optionalTests'
+            let toPath c f t = (c t, "/home/ubuntu/gradertests/" <> f (entityVal t) <> ".json")
+            let coreTests = map (toPath BuildTestCore contestCoreTestName) coreTests'
+            let performanceTests = map (toPath BuildTestPerformance contestPerformanceTestName) performanceTests'
+            let optionalTests = map (toPath BuildTestOptional contestOptionalTestName) optionalTests'
 
             -- Make sure build submission tar and MITMs exist.
             archiveLocation <- getBuildArchiveLocation submission opts 
@@ -121,7 +122,7 @@ instance ModularContest EHRSpec where
 
                 -- Map over tests.
                 let (requiredTests, optTests) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests <> optionalTests)
-                requiredResults <- mapM (runBuildTest session "server") requiredTests
+                requiredResults <- mapM (runBuildTestAt session) requiredTests
                 mapM_ (recordBuildResult submissionId) requiredResults
 
                 -- Indicate core tests passed. 
@@ -129,7 +130,7 @@ instance ModularContest EHRSpec where
 
                 -- Continue running optional tests.
                 mapM_ (\test -> do
-                    result <- runBuildTest session "server" test 
+                    result <- runBuildTestAt session test 
                     (recordBuildResult submissionId) result
                   ) optTests
 
