@@ -57,6 +57,7 @@ data BreakType =
     | BreakCrash
     | BreakConfidentiality
     | BreakIntegrity
+    | BreakSecurity
         deriving (Show, Read, Eq)
 derivePersistField "BreakType"
 
@@ -321,4 +322,8 @@ prettyBreakType BreakIntegrity = [shamlet|
 prettyBreakType BreakConfidentiality = [shamlet|
         <span>
             Confidentiality
+    |]
+prettyBreakType BreakSecurity = [shamlet|
+        <span>
+            Security
     |]

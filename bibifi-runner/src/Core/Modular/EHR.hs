@@ -162,6 +162,34 @@ instance ModularContest EHRSpec where
 
 
     runBreakSubmission (EHRSpec (Entity _contestId _contest)) _opts _bsE@(Entity _submissionId _submission) = do
+        resultsE <- runErrorT $ do
+            checkSubmissionRound2 contestId bsE
+
+            (breakTest :: JSONBreakTest) <- loadBreakSubmissionJSON submissionId breakJSONFile
+
+            -- Make sure build submission exists.
+            breakArchiveLocation <- getBreakArchiveLocation submission opts
+
+            checkForBreakDescription submission opts
+
+            -- Start instance.
+            let conf = runnerCloudConfiguration opts
+            let manager = runnerHttpManager opts
+            launchOneInstanceWithTimeout conf manager 30 \_inst session -> do
+                -- Setup firewall.
+                -- setupFirewall session
+
+                -- Upload Oracle.
+                putLog "Sending oracle files."
+                oracleFile <- undefined -- TODO: get oracle dependent on qualification
+
+                -- Upload target.
+
+                -- Build target.
+                -- Run grader.
+
+
+                undefined
         undefined
 
     runFixSubmission (EHRSpec (Entity _contestId _contest)) _opts (Entity _submissionId _submission) = do

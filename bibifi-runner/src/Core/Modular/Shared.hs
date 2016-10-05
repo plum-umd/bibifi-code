@@ -174,6 +174,28 @@ data BuildTest =
   | BuildTestPerformance (Entity ContestPerformanceTest)
   | BuildTestOptional (Entity ContestOptionalTest)
 
+data JSONBreakTest = 
+    JSONBreakCorrectnessTest Aeson.Value
+  | JSONBreakIntegrityTest Aeson.Value
+  | JSONBreakConfidentialityTest Aeson.Value
+  | JSONBreakCrashTest Aeson.Value
+  | JSONBreakSecurityTest Aeson.Value
+
+instance FromJSON JSONBreakTest where
+    parseJSON j@(Object o) = do
+        (typ :: String) <- o .: "type"
+        case typ of
+            "correctness" ->
+                return $ JSONBreakCorrectnessTest j
+            "integrity" ->
+                return $ JSONBreakIntegrityTest j
+            "confidentiality" ->
+                return $ JSONBreakConfidentialityTest j
+            "crash" ->
+                return $ JSONBreakCrashTest j
+            "security" ->
+                return $ JSONBreakSecurityTest j
+
 data BuildResult = BuildResult {
     buildResult :: Bool
   , buildResultMessage :: Maybe Text
