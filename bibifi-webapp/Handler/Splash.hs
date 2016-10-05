@@ -203,12 +203,15 @@ sponsorWidget = do
                 <a href="http://www.cyber.umd.edu/">
                     <img id="#{mc2}" src="@{StaticR img_mc2_png}">
 
-        <!---
         <div class="row">
             <div class="col-md-12 col-lg-offset-2 col-lg-8">
                 <hr class="spacer">
                 <h1 class="text-center">
                     Bronze Sponsors
+        <div class="row">
+            <div class="sponsors col-sm-offset-3 col-sm-6 col-lg-offset-3 col-lg-6 text-center">
+                ^{Sponsors.galois}
+        <!---
         <div class="row">
             <div class="sponsors col-sm-6 col-lg-offset-1 col-lg-5 text-center">
                 ^{Sponsors.lockheed}

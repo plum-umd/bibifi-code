@@ -77,7 +77,7 @@ galois = do
     ident <- newIdent
     toWidget [lucius|
         ##{ident} {
-            margin: 12px 0px;
+            margin: 24px 0px 12px;
         }
     |]
     [whamlet'|
