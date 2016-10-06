@@ -231,10 +231,13 @@ instance ModularContest EHRSpec where
             Left (BreakErrorRejected msg) -> do
                 runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just msg, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail msg
-            Right (BuildResult False msgM _, _) -> do
+            Right (BreakResult (Just False) msgM, _) -> do
                 runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail $ maybe "Test failed" Text.unpack msgM
-            Right (BuildResult True _ _, breakTest) -> do
+            Right (BreakResult Nothing _, _) -> do
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing]
+                return $ Just ( True, False)
+            Right (BreakResult (Just True) _, breakTest) -> do
                 let result = breakTestTypeToSuccessfulResult $ breakTestToType breakTest
                 runDB $ update submissionId [BreakSubmissionStatus =. BreakTested, BreakSubmissionResult =. Just result, BreakSubmissionMessage =. Nothing]
                 return $ Just ( True, True)

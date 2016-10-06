@@ -212,6 +212,19 @@ instance FromJSON JSONBreakTest where
                 fail "Not a valid test type."
     parseJSON _ = fail "Not a JSON object."
 
+data BreakResult = BreakResult {
+    breakResult :: Maybe Bool
+  , breakResultMessage :: Maybe Text
+  }
+
+instance FromJSON BreakResult where
+    parseJSON (Aeson.Object o) = do
+        res <- o .:? "result"
+        message <- o .:? "error"
+        return $ BreakResult res message
+
+    parseJSON _ = fail "BreakResult is not a JSON object."
+
 data BuildResult = BuildResult {
     buildResult :: Bool
   , buildResultMessage :: Maybe Text
