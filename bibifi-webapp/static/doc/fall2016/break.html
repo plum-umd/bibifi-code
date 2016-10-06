@@ -1,0 +1,178 @@
+<h1>Break-it Round Submissions</h1>
+<h2>Summary</h2>
+<p>During this round, breakers will attack build-it implementations of
+the <a href="index.html">data server</a>. The three types of attacks that
+breakers can demonstrate are <em>correctness</em>, <em>crash</em>, and <em>security</em>
+violations.  All breaker tests require an input test file <em>and</em> a
+textual justification for the break. I.e., you must explain why the
+behavior constitutes a security violation according to the
+specification.</p>
+<p>You may submit up to 5 attacks against each build-it submission. </p>
+<h2>General Input Variables</h2>
+<p>Command line arguments passed to the server may depend on variables
+that are dynamically generated.  Therefore, the grader will replace
+variables present in arguments with their true value. These are the
+input variables that will be replaced:</p>
+<ul>
+<li><code>%PORT%</code> - Port of the server</li>
+</ul>
+<h2>Security Violations</h2>
+<p>Security violations are worth the most points: 100 points (split between all teams that find the security violation).</p>
+<p>To demonstrate a security violation, breakers will submit an input
+test file that contains a list of input programs to run on the server.  The
+grader will then run each program  on both the oracle and the targeted
+build-it submission. We consider it a security bug in a test's
+targeted submission when </p>
+<ul>
+<li>the oracle issues status <code>DENIED</code> but the target doesn't (integrity or privacy security violation)</li>
+<li>the oracle returns correctly (issuing final status <code>EXITING</code> or
+  <code>RETURNING</code>), but the target's status is <code>DENIED</code> (availability security violation) </li>
+<li>the oracle returns any status within 30 seconds but the target fails
+  to return within a much longer window (availability security violation). </li>
+</ul>
+<p>Any test for which the oracle's status is <code>TIMEOUT</code> cannot be used to
+claim a bug in a submission.  See the "invalid break submissions"
+section below for more details.</p>
+<p>Here is an example input test file for a security violation, which is
+very similar to what is provided to the oracle during build-it, but also mentions the type of break and the ID of the targeted team:</p>
+<pre><code>{
+    "type": "security",
+    "target_team": 9,
+    "arguments": {
+        "argv": ["%PORT%"],
+        "base64": false
+    },
+    "programs": [
+        {"program": "as principal admin password \"password\" do\nset x = \"x\"\nreturn x\n***", "base64": false},
+        {"program": "as principal admin password \"wrongpassword\" do\nreturn x\n***", "base64": false}
+    ]
+}
+</code></pre>
+<p>The previous example would demonstrate a security violation where the server ignores the password and always lets you log in. The second program would return the value of <code>x</code>, when the program should be denied. </p>
+<p>Binary base64 encoded inputs are indicated by providing the optional
+boolean field <code>"base64"</code>. <code>"argv"</code> inputs should not contain any nul (0) bytes.</p>
+<h2>Correctness Violations</h2>
+<p>Correctness violations are worth the least points: 25 points (split between all teams that find the correctness violation).</p>
+<p>To demonstrate a correctness violation, breakers will once again
+submit an input test file that contains a list of inputs to run on the
+server.  The grader will then run each input on both the oracle and
+the targeted build-it submission. We consider it a security bug in a
+test's targeted submission when
+both the oracle and target provide output, but the output differs
+(different status code, returned value, etc.). </p>
+<p>As with security violations, any test for which the oracle returns
+<code>TIMEOUT</code> cannot be used to claim a bug in a submission.  See the
+"invalid break submissions" section below for more details.</p>
+<pre><code>{
+    "type": "correctness",
+    "target_team": 9,
+    "arguments": {
+        "argv": ["%PORT%"],
+        "base64": false
+    },
+    "programs": [
+        {"program": "as principal admin password \"password\" do\nset x = \"x\"\nreturn x\n***", "base64": false},
+        {"program": "YXMgcHJpbmNpcGFsIGFkbWluIHBhc3N3b3JkIFwicGFzc3dvcmRcIiBkbwpyZXR1cm4geAoqKioK", "base64": true}
+    ]
+}
+</code></pre>
+<p>Binary base64 encoded inputs are indicated by providing the optional
+boolean field <code>"base64"</code>. <code>"argv"</code> inputs should not contain any nul (0) bytes.</p>
+<h2>Crash Violations</h2>
+<p>Crash violations are potentially security relevant, so they are worth
+more points than correctness violations, but fewer than security
+violations: 50 points (split between all teams that find the violation).</p>
+<p>A crash occurs when a program unexpectedly terminates due to a
+violation of memory safety.  To demonstrate a crash, submit a test
+with the <code>type</code> attribute set to <code>crash</code>.  The given arguments and
+input programs should cause the target implementation to crash with a
+memory safety violation (like overflowing a buffer, causing a use
+after free, etc).  Here is an example input test file for a crash
+violation:</p>
+<pre><code>{
+    "type": "crash",
+    "target_team": 9,
+    "arguments": {
+        "argv": ["%PORT%"],
+        "base64": false
+    },
+    "programs": [
+        {"program": "as principal admin password \"password\" do\nset x = \"x\"\nreturn x\n***", "base64": false},
+        {"program": "as principal admin password \"password\" do\nreturn x\n***"}
+    ]
+}
+</code></pre>
+<p>Binary base64 encoded inputs are indicated by providing the optional
+boolean field <code>"base64"</code>. <code>"argv"</code> inputs should not contain any null bytes.</p>
+<p>The grader will automatically be able to detect or reject crash
+violations in some cases. For the other cases, breaks will be marked
+for manual judgement, and judges will manually review them after the
+conclusion of the break-it round.</p>
+<h2>Invalid Break Submissions</h2>
+<p>Correctness violations against ambiguities or differences between the
+specification and oracle are invalid and <strong>will be rejected</strong>.</p>
+<p>Any break submission that exhausts resources is not valid (for
+example, causing the target to run out of memory is not a valid
+break). To remove any ambiguity about this, we have instrumented to
+oracle to count the size of the normal state and the security state on
+the server. If this size exceeds 10 million bytes, the oracle will
+signal a timeout failure, and the break will be considered
+invalid. Roughly speaking, we compute the size as follows:</p>
+<ul>
+<li>each variable stored on the server counts as 1 byte plus the length of the variable name plus the size of the value assigned to that variable</li>
+<li>the size of values is computed as follows<ul>
+<li>a string's size is its length, in characters</li>
+<li>a record is 1 byte for each field, plus the length of the field's name, plus the size of the field's value</li>
+<li>a list is 1 byte for each element, plus the size of the element </li>
+</ul>
+</li>
+<li>each delegation assertion of the form <code>x</code> <em>q</em> <code>&lt;right&gt; -&gt;</code> <em>p</em> stored on the server counts as the sum of the size of the variable name <code>x</code> (its length), 1 byte for the choice of <code>&lt;right&gt;</code>, and the size of principals <em>q</em> and <em>p</em> (which are 1 byte if either <code>anyone</code> or <code>admin</code> or their length otherwise).</li>
+</ul>
+<p>In addition, we assume that all updates to the store during a program's
+execution add to the size of the store at the start of the program,
+since the old values need to be retained, for possible rollback. Once the
+program completes successfully, old values for variables and the
+delegations are discarded.</p>
+<p>But, to be honest, none of the above really matters. This is just an
+automated way of avoiding resource exhaustion attacks. And in any
+case, the actual consumed size will differ based on the
+implementation language and strategy, but the above definition is a
+ballpark figure that is precisely enforced by the oracle.</p>
+<h3>Disputes</h3>
+<p>Build-it teams will also have the opportunity to dispute invalid break
+submissions during the fix-it round. A dispute must argue that the
+breakit test does not illustrate a violation of the specification
+according to the above rules (e.g., because the oracle was incorrect).</p>
+<h2>Builder's code</h2>
+<p>You can find the builder's source code by visiting your 
+<a href="https://builditbreakit.org/participation">participation page</a>, 
+and clicking on <code>Builder's Code</code> in the sidebar.</p>
+<h2>Submissions</h2>
+<p>Break submissions are made via <a href="http://git-scm.com/">git</a>. Create a
+<code>break</code> folder in the top-level folder of your team's repository
+(which is the same repository used to submit code during the build-it
+phase if you participated in that phase). Make sure the git URL you 
+provide is the ssh url (ie <code>git@domain.com:user/...</code>). 
+Within that folder, you will specify
+test cases as directories. Each test directory will contain a 
+JSON file, <code>test.json</code>, following the
+above formatting instructions --- one file per test case. 
+Any changes to a test case directory will be ignored once it has already 
+been committed. You must create a new test case directory if you want to 
+make modifications. </p>
+<p>A textual description is required that justifies your break, and 
+describes the bug in the target submission. This description must
+<em>explain why the test case is demonstrating a bug</em>; it is not sufficient
+to just textually describe what the test case is doing. Instead, you
+have to say why the outcome on the target is a violation of the
+specification. </p>
+<p>Your break description should be put in a file
+called <code>description.txt</code> within the test's directory. This file
+should be no more than 300 words long.
+It may refer to relevant portions of
+this spec (link the appropriate part reachable from the spec's table
+of contents) and/or line numbers
+in the submitted code, if you like. 
+For example, if you create a security test with a JSON file at 
+<code>break/break1/test.json</code>, there should be a textual description in
+<code>break/break1/description.txt</code>. </p>
