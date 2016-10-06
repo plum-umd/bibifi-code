@@ -200,6 +200,10 @@ instance ModularContest EHRSpec where
 
                 -- Extract target.
                 putLog "Extracting target submission."
+                -- putLog $ ("cd /home/builder; sudo -u builder unzip " <> destTargetArchiveLocation <> "; mv ./repos/" <> targetTeamIdS <> "/ ./submission")
+                (Result _ _ exit) <- runSSH (BreakErrorSystem "Could not extract submission") $ execCommand session ("cd /home/builder; sudo -u builder unzip " <> destTargetArchiveLocation <> "; sudo -u builder mv ./" <> targetTeamIdS <> " ./submission")
+                when (exit /= ExitSuccess) $ 
+                    fail "Could not extract target submission"
 
                 -- Build target.
                 putLog "Building target submission."
