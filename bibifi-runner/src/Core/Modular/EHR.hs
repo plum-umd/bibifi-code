@@ -2,15 +2,18 @@
 
 module Core.Modular.EHR where
 
+import Core (keyToInt)
 import Control.Monad.Error
 import qualified Data.Aeson as Aeson
 import qualified Data.IORef.Lifted as IO
 import qualified Data.List as List
 import Data.Monoid
--- import qualified Data.Text as Text
+import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified Data.Text.Encoding.Error as Text
+import qualified Database.Esqueleto as E
 import Network.SSH.Client.SimpleSSH
+import qualified System.FilePath as FilePath
 import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
@@ -122,7 +125,7 @@ instance ModularContest EHRSpec where
 
                 -- Map over tests.
                 let (requiredTests, optTests) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests <> optionalTests)
-                requiredResults <- mapM (runBuildTestAt session) requiredTests
+                requiredResults <- mapM (runTestAt' session) requiredTests
                 mapM_ (recordBuildResult submissionId) requiredResults
 
                 -- Indicate core tests passed. 
@@ -130,7 +133,7 @@ instance ModularContest EHRSpec where
 
                 -- Continue running optional tests.
                 mapM_ (\test -> do
-                    result <- runBuildTestAt session test 
+                    result <- runTestAt' session test 
                     (recordBuildResult submissionId) result
                   ) optTests
 
@@ -156,41 +159,127 @@ instance ModularContest EHRSpec where
                 buildBuilt
         
         where
+            runTestAt' session (test, location) = do
+                res <- runTestAt session location
+                return ( test, res)
+
             buildBuilt = do
                 runDB $ update submissionId [BuildSubmissionStatus =. BuildBuilt]
                 return $ Just (True, True)
 
 
-    runBreakSubmission (EHRSpec (Entity _contestId _contest)) _opts _bsE@(Entity _submissionId _submission) = do
-        resultsE <- runErrorT $ do
+    runBreakSubmission (EHRSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = do
+        resultE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
 
             (breakTest :: JSONBreakTest) <- loadBreakSubmissionJSON submissionId breakJSONFile
 
-            -- Make sure build submission exists.
-            breakArchiveLocation <- getBreakArchiveLocation submission opts
-
+            -- Make sure break submission exists.
             checkForBreakDescription submission opts
 
             -- Start instance.
             let conf = runnerCloudConfiguration opts
             let manager = runnerHttpManager opts
-            launchOneInstanceWithTimeout conf manager 30 \_inst session -> do
+            launchOneInstanceWithTimeout conf manager 30 $ \_inst session -> do
                 -- Setup firewall.
                 -- setupFirewall session
 
                 -- Upload Oracle.
                 putLog "Sending oracle files."
-                oracleFile <- undefined -- TODO: get oracle dependent on qualification
+                oracleFileName <- getOracleFileName $ breakSubmissionTargetTeam submission
+                let oracleFile = FilePath.joinPath [oracleBasePath, oracleFileName]
+                let oracleDestFile = "/tmp/server"
+                _ <- runSSH (BreakErrorSystem "Could not send oracle to instance.") $ sendFile session 0o700 oracleFile oracleDestFile
+
 
                 -- Upload target.
+                putLog "Sending target submission."
+                let targetArchiveLocation = FilePath.addExtension (FilePath.joinPath [basePath,"round2",targetTeamIdS]) "zip"
+                let destTargetArchiveLocation = "/home/ubuntu/submission.zip"
+                _ <- runSSH (BreakErrorSystem "Could not send target submission") $ sendFile session 0o666 targetArchiveLocation destTargetArchiveLocation
+
+                -- Extract target.
+                putLog "Extracting target submission."
 
                 -- Build target.
+                putLog "Building target submission."
+                (Result _ _ exit) <- runSSH (BreakErrorSystem "Building target failed") $ execCommand session $ "sudo -i -u builder make -B -C /home/builder/submission/build"
+                when (exit /= ExitSuccess) $
+                    fail "Building target failed"
+
                 -- Run grader.
+                let targetDestFile = "/home/builder/submission/build/server"
+                res <- runJSONBreakTest session targetDestFile oracleDestFile breakTest
 
+                return (res, breakTest)
 
-                undefined
-        undefined
+        -- Record result.
+        case resultE of
+            Left (BreakErrorSystem err) -> do
+                systemFail err
+            Left BreakErrorTimeout ->
+                return Nothing
+            Left (BreakErrorBuildFail stdout' stderr') -> do
+                let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                userFail "Build failed"
+            Left (BreakErrorRejected msg) -> do
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just msg, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                userFail msg
+            Right (BuildResult False msgM _, _) -> do
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                userFail $ maybe "Test failed" Text.unpack msgM
+            Right (BuildResult True _ _, breakTest) -> do
+                let result = breakTestTypeToSuccessfulResult $ breakTestToType breakTest
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakTested, BreakSubmissionResult =. Just result, BreakSubmissionMessage =. Nothing]
+                return $ Just ( True, True)
+
+        where
+            basePath = runnerRepositoryPath opts
+            oracleBasePath = runnerOracleDirectory opts
+            breakJSONFile = FilePath.addExtension (FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName, "test"]) "json"
+            targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam submission
+            submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
+            breakName = Text.unpack $ breakSubmissionName submission
+
+            getOracleFileName targetId = do
+                submissionM <- lift $ lift $ runDB $ selectFirst [BuildSubmissionTeam ==. targetId] [Desc BuildSubmissionTimestamp]
+                case submissionM of
+                    Nothing ->
+                        throwError $ BreakErrorSystem $ "Could not find build submission for team: " ++ show targetId
+                    Just (Entity submissionId _) -> lift $ lift $ do
+                        passedFunc <- helper submissionId ["testfunc1", "testfunc2", "testfunc3"]
+                        passedFilter <- helper submissionId ["testfilter1", "testfilter2"]
+                        passedLet <- helper submissionId ["testlet1", "testlet2", "testlet3"]
+                        if passedLet then
+                            return ("server" :: String)
+                        else if passedFilter then
+                            return "server2"
+                        else if passedFunc then
+                            return "server1"
+                        else
+                            return "server"
+
+                where
+                    helper :: Key BuildSubmission -> [Text.Text] -> DatabaseM Bool
+                    helper submissionId testNames = do
+                        r <- runDB $ E.select $ E.from $ \(t `E.InnerJoin` r) -> do
+                            E.on (r E.^. BuildOptionalResultTest E.==. t E.^. ContestOptionalTestId)
+                            E.where_ (
+                                (r E.^. BuildOptionalResultPass E.==. E.val True)
+                                E.&&. (r E.^. BuildOptionalResultSubmission E.==. E.val submissionId)
+                                E.&&. ((t E.^. ContestOptionalTestName) `E.in_` (E.valList testNames)))
+                            return r
+                        return $ List.length r == List.length testNames
+
+            userFail err = do
+                putLog err
+                return $ Just (True, False)
+            systemFail err = do
+                putLog err
+                return $ Just (False, False)
+
 
     runFixSubmission (EHRSpec (Entity _contestId _contest)) _opts (Entity _submissionId _submission) = do
         undefined

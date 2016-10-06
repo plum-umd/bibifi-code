@@ -181,8 +181,21 @@ data JSONBreakTest =
   | JSONBreakCrashTest Aeson.Value
   | JSONBreakSecurityTest Aeson.Value
 
+instance ModularBreakTest JSONBreakTest where
+    breakTestToType (JSONBreakCorrectnessTest _) = BreakCorrectness
+    breakTestToType (JSONBreakIntegrityTest _) = BreakIntegrity
+    breakTestToType (JSONBreakConfidentialityTest _) = BreakConfidentiality
+    breakTestToType (JSONBreakCrashTest _) = BreakCrash
+    breakTestToType (JSONBreakSecurityTest _) = BreakSecurity
+
+breakTestTypeToSuccessfulResult BreakCorrectness = BreakCorrect
+breakTestTypeToSuccessfulResult BreakCrash = BreakCorrect
+breakTestTypeToSuccessfulResult BreakIntegrity = BreakExploit
+breakTestTypeToSuccessfulResult BreakConfidentiality = BreakExploit
+breakTestTypeToSuccessfulResult BreakSecurity = BreakExploit
+
 instance FromJSON JSONBreakTest where
-    parseJSON j@(Object o) = do
+    parseJSON j@(Aeson.Object o) = do
         (typ :: String) <- o .: "type"
         case typ of
             "correctness" ->
@@ -195,6 +208,9 @@ instance FromJSON JSONBreakTest where
                 return $ JSONBreakCrashTest j
             "security" ->
                 return $ JSONBreakSecurityTest j
+            _ ->
+                fail "Not a valid test type."
+    parseJSON _ = fail "Not a JSON object."
 
 data BuildResult = BuildResult {
     buildResult :: Bool
@@ -247,8 +263,8 @@ runOracle session exec input = do
 
     -- return output
 
-runBuildTestAt :: (BackendError e, MonadIO m) => Session -> (BuildTest, Text) -> ErrorT e m (BuildTest, BuildResult)
-runBuildTestAt session (test, location) = do
+runTestAt :: (BackendError e, MonadIO m, FromJSON a) => Session -> Text -> ErrorT e m a
+runTestAt session location = do
     -- Launch grader.
     (Result resOut' _ _) <- executioner' session testUser grader [Text.unpack location]
     putLog "Output received."
@@ -264,7 +280,7 @@ runBuildTestAt session (test, location) = do
         Just r ->
             return $ Right r
 
-    return (test, output)
+    return output
 
 -- `exec` is the name of the target executable.
 runBuildTest :: (BackendError e, MonadIO m) => Session -> String -> (BuildTest, Aeson.Value) -> ErrorT e m (BuildTest, BuildResult)
@@ -281,7 +297,8 @@ runBuildTest session exec (test, input) = do
     -- Upload json input.
     uploadString session json destJson
 
-    runBuildTestAt session (test, Text.pack destJson)
+    res <- runTestAt session $ Text.pack destJson
+    return ( test, res)
 
     where
         baseDir :: String
@@ -344,3 +361,25 @@ parsePerformanceTest = parseTestHelper contestPerformanceTestTestScript BuildTes
 parseOptionalTest :: (Monad m, Error e) => Entity ContestOptionalTest -> ErrorT e m (BuildTest, Aeson.Value)
 parseOptionalTest = parseTestHelper contestOptionalTestTestScript BuildTestOptional
 
+runJSONBreakTest :: (MonadIO m, BackendError e, FromJSON a) => Session -> String -> String -> JSONBreakTest -> ErrorT e m a
+runJSONBreakTest session targetDestFile oracleDestFile breakTest = do
+    let input = BSL.toStrict $ Aeson.encode [
+            "test" .= jsonTest
+          , "oracle" .= oracleDestFile
+          , "target" .= targetDestFile
+          ]
+
+    -- Upload json input.
+    uploadString session input destJson
+
+    runTestAt session $ Text.pack destJson
+
+    where
+        jsonTest = case breakTest of
+          JSONBreakCorrectnessTest v -> v
+          JSONBreakIntegrityTest v -> v
+          JSONBreakConfidentialityTest v -> v
+          JSONBreakCrashTest v -> v
+          JSONBreakSecurityTest v -> v
+            
+    
