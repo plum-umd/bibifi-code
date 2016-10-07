@@ -376,10 +376,13 @@ parseOptionalTest = parseTestHelper contestOptionalTestTestScript BuildTestOptio
 
 runJSONBreakTest :: (MonadIO m, BackendError e, FromJSON a) => Session -> String -> String -> JSONBreakTest -> ErrorT e m a
 runJSONBreakTest session targetDestFile oracleDestFile breakTest = do
-    let input = BSL.toStrict $ Aeson.encode [
+    let input = BSL.toStrict $ Aeson.encode $ Aeson.object [
             "test" .= jsonTest
           , "oracle" .= oracleDestFile
+          , "client_user" .= ("builder" :: String)
+          , "oracle_user" .= ("breaker" :: String)
           , "target" .= targetDestFile
+          , "type" .= testType
           ]
 
     -- Upload json input.
@@ -388,6 +391,13 @@ runJSONBreakTest session targetDestFile oracleDestFile breakTest = do
     runTestAt session $ Text.pack destJson
 
     where
+        testType = case breakTest of
+          JSONBreakCorrectnessTest _ -> "correctness" :: Text
+          JSONBreakIntegrityTest _ -> "integrity"
+          JSONBreakConfidentialityTest _ -> "confidentiality"
+          JSONBreakCrashTest _ -> "crash"
+          JSONBreakSecurityTest _ -> "security"
+            
         jsonTest = case breakTest of
           JSONBreakCorrectnessTest v -> v
           JSONBreakIntegrityTest v -> v
