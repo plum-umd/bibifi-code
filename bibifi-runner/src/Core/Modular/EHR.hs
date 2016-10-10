@@ -190,6 +190,9 @@ instance ModularContest EHRSpec where
                 let oracleFile = FilePath.joinPath [oracleBasePath, oracleFileName]
                 let oracleDestFile = "/tmp/server"
                 _ <- runSSH (BreakErrorSystem "Could not send oracle to instance.") $ sendFile session 0o700 oracleFile oracleDestFile
+                (Result _ _ exit) <- runSSH (BreakErrorSystem "Could not make oracle runnable") $ execCommand session ("sudo chmod o+x " ++ oracleDestFile)
+                when (exit /= ExitSuccess) $ 
+                    fail "Could not chmod oracle"
 
 
                 -- Upload target.
