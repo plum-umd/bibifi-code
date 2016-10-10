@@ -1,4 +1,8 @@
 <h1>Break-it Round Submissions</h1>
+<h2>Changelog</h2>
+<ul>
+<li>[10/9/16] Clarified definition of availability violations.</li>
+</ul>
 <h2>Summary</h2>
 <p>During this round, breakers will attack build-it implementations of
 the <a href="index.html">data server</a>. The three types of attacks that
@@ -25,8 +29,7 @@ build-it submission. We consider it a security bug in a test's
 targeted submission when </p>
 <ul>
 <li>the oracle issues status <code>DENIED</code> but the target doesn't (integrity or privacy security violation)</li>
-<li>the oracle returns correctly (issuing final status <code>EXITING</code> or
-  <code>RETURNING</code>), but the target's status is <code>DENIED</code> (availability security violation) </li>
+<li>the target's status is <code>DENIED</code>, but the oracle's status isn't <code>DENIED</code> (availability security violation) </li>
 <li>the oracle returns any status within 30 seconds but the target fails
   to return within a much longer window (availability security violation). </li>
 </ul>
