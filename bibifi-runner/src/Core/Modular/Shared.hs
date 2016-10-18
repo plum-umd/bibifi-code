@@ -279,11 +279,12 @@ runOracle session exec input = do
 runTestAt :: (BackendError e, MonadIO m, FromJSON a) => Session -> Text -> ErrorT e m a
 runTestAt session location = do
     -- Launch grader.
-    (Result resOut' _ _) <- executioner' session testUser grader [Text.unpack location]
+    (Result resOut' resErr _) <- executioner' session testUser grader [Text.unpack location]
     putLog "Output received."
 
     -- Drop newline. 
     let (resOut, _) = BS.breakSubstring "\n" resOut'
+    putLog $ show resErr
     putLog $ show resOut
 
     -- Parse resOut.
