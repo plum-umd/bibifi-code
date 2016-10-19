@@ -77,6 +77,7 @@ type retrieve =
     | TEAMS () -> (teamId * gitURL * qualifiedBuilder) list
     | TESTS () -> (test * testid) list (* there is a separate set of testid's for each type of test *)
     | RESUMES () -> (resumeId * team * buildScore * breakScore) csv
+    | RESUMES () -> (teamContestId * team * userid * user * email) csv
 (*    | PARTICIPANTS () -> email list*)
     | SCORES () -> (teamName, teamId, programmingLanguage, timestamp, score) list (* Build scores. *)
 		| REMOVETEAM [teamid] -> bool
