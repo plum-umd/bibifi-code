@@ -315,7 +315,7 @@ instance ModularContest EHRSpec where
 
                 -- Build submission. 
                 putLog "Building submission."
-                (Result stderr stdout exit) <- runSSH (FixErrorSystem "Could not run make") $ execCommand session "sudo -i -u builder make -B -C /home/builder/submission/build"
+                (Result stderr stdout exit) <- runSSH (FixErrorSystem "Could not run make") $ execCommand session "sudo -i -u builder make -B -C /home/builder/submission/fix/code/build"
                 when (exit /= ExitSuccess) $
                     throwError $ FixErrorBuildFail stderr stdout
 
@@ -323,7 +323,7 @@ instance ModularContest EHRSpec where
                 mapM_ (runCoreTest session) requiredTests
 
                 -- Run break tests.
-                let targetDestFile = "/home/builder/submission/build/server"
+                let targetDestFile = "/home/builder/submission/fix/code/build/server"
                 mapM_ (runBreakTest session targetDestFile oracleDestFile) breaks
 
 

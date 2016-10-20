@@ -516,8 +516,8 @@ def test_team_loop(teamdata):
     #old?? curdatetime = test_team_build(curteam, curdatetime)
 
     #changed = test_team_generic(curteam, testedset)
-    changed = test_team_break(curteam, testedset)
-    #changed = test_team_fix(curteam, testedset)
+    #changed = test_team_break(curteam, testedset)
+    changed = test_team_fix(curteam, testedset)
 
     if changed:
       f = file(".teamdata%s" % curteam.teamName, 'w')
