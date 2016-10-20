@@ -13,11 +13,13 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.List as List
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified Data.Text.Encoding.Error as Text
+import qualified Database.Esqueleto as E
 import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -174,6 +176,11 @@ data BuildTest =
   | BuildTestPerformance (Entity ContestPerformanceTest)
   | BuildTestOptional (Entity ContestOptionalTest)
 
+buildTestName :: BuildTest -> Text
+buildTestName (BuildTestCore (Entity _ (ContestCoreTest{..}))) = contestCoreTestName
+buildTestName (BuildTestPerformance (Entity _ ContestPerformanceTest{..})) = contestPerformanceTestName
+buildTestName (BuildTestOptional (Entity _ ContestOptionalTest{..})) = contestOptionalTestName
+
 data JSONBreakTest = 
     JSONBreakCorrectnessTest Aeson.Value
   | JSONBreakIntegrityTest Aeson.Value
@@ -193,6 +200,25 @@ breakTestTypeToSuccessfulResult BreakCrash = BreakCorrect
 breakTestTypeToSuccessfulResult BreakIntegrity = BreakExploit
 breakTestTypeToSuccessfulResult BreakConfidentiality = BreakExploit
 breakTestTypeToSuccessfulResult BreakSecurity = BreakExploit
+
+-- breakTestToJSONBreakTest :: Entity BreakSubmission -> m JSONBreakTest
+breakTestToJSONBreakTest (Entity bsId bs) = do
+    constr <- case breakSubmissionType bs of
+            Just BreakCorrectness -> return JSONBreakCorrectnessTest
+            Just BreakCrash -> return JSONBreakCrashTest
+            Just BreakConfidentiality -> return JSONBreakConfidentialityTest
+            Just BreakIntegrity -> return JSONBreakIntegrityTest
+            Just BreakSecurity -> return JSONBreakSecurityTest
+            Nothing ->
+                throwError $ strMsg $ "Unknown break type for break submission: " ++ show (keyToInt bsId)
+    case breakSubmissionJson bs of
+        Nothing -> 
+            throwError $ strMsg $ "No JSON stored for break submission: " ++ show (keyToInt bsId)
+        Just json -> case Aeson.decodeStrict $ Text.encodeUtf8 json of
+            Nothing -> 
+                throwError $ strMsg $ "Invalid JSON stored for break submission: " ++ show (keyToInt bsId)
+            Just test -> 
+                return ( constr test, bs)
 
 instance FromJSON JSONBreakTest where
     parseJSON j@(Aeson.Object o) = do
@@ -279,11 +305,12 @@ runOracle session exec input = do
 runTestAt :: (BackendError e, MonadIO m, FromJSON a) => Session -> Text -> ErrorT e m a
 runTestAt session location = do
     -- Launch grader.
-    (Result resOut' _ _) <- executioner' session testUser grader [Text.unpack location]
+    (Result resOut' resErr _) <- executioner' session testUser grader [Text.unpack location]
     putLog "Output received."
 
     -- Drop newline. 
     let (resOut, _) = BS.breakSubstring "\n" resOut'
+    putLog $ show resErr
     putLog $ show resOut
 
     -- Parse resOut.
@@ -405,4 +432,18 @@ runJSONBreakTest session targetDestFile oracleDestFile breakTest = do
           JSONBreakCrashTest v -> v
           JSONBreakSecurityTest v -> v
             
-    
+verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
+    where
+        helper acc bsE@(Entity bsId bs) = do
+            fixes <- lift $ runDB $ E.select $ E.from $ \(fs `E.InnerJoin` fsb) -> do
+                E.on (fs E.^. FixSubmissionId E.==. fsb E.^. FixSubmissionBugsFix)
+                E.where_ (fsb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&. (fs E.^. FixSubmissionStatus E.!=. E.val FixRejected E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixBuildFail E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixInvalidBugId))
+                return fsb -- TODO: E.countRows
+            when (List.length fixes > 1) $
+                throwError $ FixErrorRejected $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
+
+            -- Include if passes filter.
+            if filterF bs then
+                return $ bsE:acc
+            else
+                return acc
