@@ -29,7 +29,7 @@ retrieve args' =
                     cmd args
 
 dispatch :: [(String, [String] -> DatabaseM ())]  
-dispatch = [ ( "teams", teams), ( "tests", tests), ( "resumes", resumes), ( "missing", missing), ("grades", grades), ("scores", scores), ("removeteam", removeTeams)]
+dispatch = [ ( "teams", teams), ( "tests", tests), ( "resumes", resumes), ( "missing", missing), ("grades", grades), ("scores", scores), ("removeteam", removeTeams), ("emails", emails)]
 
 usage :: MonadIO m => m ()
 usage = silentFail $ usageDispatch "RETRIEVE" dispatch
@@ -344,6 +344,24 @@ removeTeams (teamid:rest) = do
 
             -- Delete break.
             delete breakId
+
+emails :: [String] -> DatabaseM ()
+emails [] = do
+    -- Rescore break and fix rounds. 
+    Entity cId _ <- activeContest
+    teamContests <- runDB $ selectList [TeamContestContest ==. cId] []
+    runDB $ mapM_ (\tcE@(Entity tcId tc) -> do
+            let tId = teamContestTeam tc
+            (Just t) <- get tId
+            members <- fmap (fmap $ teamMemberUser . entityVal) (selectList [TeamMemberTeam ==. tId] [])
+            mapM_ (printEmail tcId t) (teamLeader t : members)
+        ) teamContests
+
+    where
+        printEmail tcId t userId = do
+            (Just user) <- get userId
+
+            liftIO $ putStrLn $ (show $ keyToInt tcId) ++ ", " ++ (T.unpack $ teamName t) ++ ", " ++ (T.unpack $ userIdent user) ++ ", " ++ (T.unpack $ userEmail user)
 
             
 
