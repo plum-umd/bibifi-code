@@ -269,6 +269,9 @@ instance ModularContest EHRSpec where
             return bs
 
         resultsE <- runErrorT $ do
+            -- Check for description, other constraints.
+            checkForFixDescription submission opts
+
             -- Parse tests.
             let toPath c f t = (c t, "/home/ubuntu/gradertests/" <> f (entityVal t) <> ".json")
             let coreTests = map (toPath BuildTestCore contestCoreTestName) coreTests'
