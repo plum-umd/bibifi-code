@@ -218,7 +218,7 @@ breakTestToJSONBreakTest (Entity bsId bs) = do
             Nothing -> 
                 throwError $ strMsg $ "Invalid JSON stored for break submission: " ++ show (keyToInt bsId)
             Just test -> 
-                return $ constr test
+                return ( constr test, bs)
 
 instance FromJSON JSONBreakTest where
     parseJSON j@(Aeson.Object o) = do

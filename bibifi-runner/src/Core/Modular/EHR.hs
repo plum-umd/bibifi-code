@@ -327,9 +327,35 @@ instance ModularContest EHRSpec where
                 mapM_ (runBreakTest session targetDestFile oracleDestFile) breaks
 
 
-        undefined
+        -- Record result.
+        case resultsE of
+            Left (FixErrorSystem err) -> 
+                systemFail err
+            Left FixErrorTimeout ->
+                return Nothing
+            Left (FixErrorBuildFail stdout' stderr') -> do
+                let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                updateFix FixRejected (Just "Running make failed") stdout stderr
+                userFail "Build failed"
+            Left (FixErrorRejected msg) -> do
+                updateFix FixRejected (Just msg) Nothing Nothing
+                userFail msg
+            Right () -> do
+                updateFix FixJudging Nothing Nothing Nothing
+                return $ Just (True, True)
 
         where
+            updateFix status msg stdout stderr = 
+                runDB $ update submissionId [FixSubmissionStatus =. status, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
+
+            userFail err = do
+                putLog err
+                return $ Just (True, False)
+            systemFail err = do
+                putLog err
+                return $ Just (False, False)
+
             oracleBasePath = runnerOracleDirectory opts
 
             runCoreTest session test = do
@@ -340,10 +366,15 @@ instance ModularContest EHRSpec where
                     (test, BuildResult False _ _) ->
                         throwError $ FixErrorRejected $ "Failed core test: " ++ Text.unpack (buildTestName test)
 
-            runBreakTest session targetDestFile oracleDestFile test = do
+            runBreakTest session targetDestFile oracleDestFile (test, bs) = do
                 res <- runJSONBreakTest session targetDestFile oracleDestFile test
                 case res of
-                undefined
+                    BreakResult (Just False) _ -> 
+                        return ()
+                    BreakResult (Just True) _ ->
+                        throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
+                    BreakResult Nothing _ ->
+                        throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
         
 getOracleFileName targetId = do
     submissionM <- lift $ lift $ runDB $ selectFirst [BuildSubmissionTeam ==. targetId] [Desc BuildSubmissionTimestamp]
