@@ -446,7 +446,7 @@ def test_team_fix(teamdata, testedset):
   changes,hexS = teamdata.newRefreshRepo( testedset)
   # d = teamdata.getLatestCommitTime()
   # fixtime = datetime.datetime.fromtimestamp(d)
-  d = int( time.time())
+  d = str( int( time.time()))
   fixes = fixes_from_change(teamdata.teamName)
   changed = False
   for fix in fixes:
