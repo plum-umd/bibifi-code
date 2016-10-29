@@ -125,14 +125,14 @@ round3 args = case args of
         let bugids = fmap toKey $ removeDuplicates bugids' in
         let submission = FixSubmission teamid timestamp commithash diffsize FixPending Nothing name Nothing Nothing Nothing in -- FixBuilding 
         let isBugValid bugid = do
-              res <- runDB $ get bugid
+              res <- get bugid
               case res of 
                     Nothing ->
                         return False
                     Just breakSubm ->
                         return $ (breakSubmissionTargetTeam breakSubm) == teamid && ((breakSubmissionResult breakSubm) == Just BreakExploit || (breakSubmissionResult breakSubm) == Just BreakCorrect)
         in
-        let getSubmission = runDB $ do
+        let getSubmission = do
                 prevM <- getBy $ UniqueFixSubmissionName teamid name
                 case prevM of
                     Nothing ->
@@ -146,25 +146,26 @@ round3 args = case args of
         in
         do
         checkWithinRound timestamp 3
-        sId' <- getSubmission
-        successE <- foldM (\acc bugid -> case acc of
-            Left _ -> 
-                return acc
-            Right () -> do
-                -- Check that teamid is bugid's targetteam. otherwise fall through
-                valid <- isBugValid bugid
-                if (not valid) then
-                    return $ Left bugid
-                else
-                    do
-                    runDB $ insert_ $ FixSubmissionBugs sId' bugid
-                    return $ Right ()
-          ) (Right ()) bugids
+        ( sId', successE) <- runDB $ do
+            sId' <- getSubmission
+            successE <- foldM (\acc bugid -> case acc of
+                Left _ -> 
+                    return acc
+                Right () -> do
+                    -- Check that teamid is bugid's targetteam. otherwise fall through
+                    valid <- isBugValid bugid
+                    if (not valid) then
+                        return $ Left bugid
+                    else
+                        do
+                        insert_ $ FixSubmissionBugs sId' bugid
+                        return $ Right ()
+              ) (Right ()) bugids
+            return ( sId', successE)
         case successE of
             Right () ->
                 liftIO $ putStrLn $ show $ Just $ keyToInt sId'
             Left invalidBugId -> do
-                do
                 -- "rollback" by displaying invalid bug
                 runDB $ E.update $ \s -> do
                     let msg = "Invalid break: " ++ show (keyToInt invalidBugId)

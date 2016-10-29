@@ -395,7 +395,7 @@ getOracleFileName targetId = do
             else if passedFunc then
                 return "server1"
             else
-                return "server"
+                return "server0"
 
     where
         helper :: Key BuildSubmission -> [Text.Text] -> DatabaseM Bool
