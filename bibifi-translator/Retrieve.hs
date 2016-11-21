@@ -15,6 +15,7 @@ import Text.Printf
 
 import Common
 import BuildSubmissions
+import PostDependencyType
 
 retrieve :: [String] -> DatabaseM ()
 retrieve args' =
@@ -148,6 +149,21 @@ grades [] = do
                         return 0
                     Just (Entity sId _) ->
                         runDB $ count [BuildCoreResultSubmission ==. sId, BuildCoreResultPass ==. True]
+
+            -- Get number of accepted fix submissions.
+            fixes <- runDB $ selectList [FixSubmissionTeam ==. tcId, FixSubmissionResult ==. Just FixFixed] []
+            let fixC = L.length fixes
+
+            -- Get number of unfixed breaks.
+            remainingBreakC <- do
+                fixedBugC <- fmap (L.length . L.concat) $  mapM (\(Entity fId _) -> runDB $ selectList [FixSubmissionBugsFix ==. fId] []) fixes
+
+                breakBugC <- runDB $ count [BreakSubmissionTargetTeam ==. tcId, FilterOr [BreakSubmissionResult ==. Just BreakCorrect, BreakSubmissionResult ==. Just BreakExploit]]
+
+
+
+                return $ breakBugC - fixedBugC
+
             
             -- Grade users.
             teamM <- runDB $ get $ teamContestTeam tc
@@ -155,12 +171,12 @@ grades [] = do
                 Nothing ->
                     error "This shouldn't happen. Team not found."
                 Just team -> do
-                    gradeUser buildScore breakScore (teamName team) corePassedC $ teamLeader team
+                    gradeUser buildScore breakScore (teamName team) corePassedC fixC remainingBreakC $ teamLeader team
                     members <- runDB $ selectList [TeamMemberTeam ==. teamContestTeam tc] []
-                    mapM_ (gradeUser buildScore breakScore (teamName team) corePassedC . teamMemberUser . entityVal) members
+                    mapM_ (gradeUser buildScore breakScore (teamName team) corePassedC fixC remainingBreakC . teamMemberUser . entityVal) members
 
 
-        gradeUser buildScore breakScore team corePassedC userId = do
+        gradeUser buildScore breakScore team corePassedC fixC remainingBreakC userId = do
             (ident, email) <- do
                 userM <- runDB $ get userId
                 case userM of
@@ -177,7 +193,7 @@ grades [] = do
                     Just (Entity _ coursera) -> 
                         return $ courseraUserCourseraId coursera
 
-            liftIO $ putStrLn $ T.unpack ident ++ ", " ++ T.unpack couseraId ++ ", " ++ T.unpack team ++ ", " ++ show buildScore ++ ", " ++ show breakScore ++ ", " ++ T.unpack email ++ ", " ++ show corePassedC
+            liftIO $ putStrLn $ T.unpack ident ++ ", " ++ T.unpack couseraId ++ ", " ++ T.unpack team ++ ", " ++ show buildScore ++ ", " ++ show breakScore ++ ", " ++ T.unpack email ++ ", " ++ show corePassedC ++ ", " ++ show fixC  ++ ", " ++ show remainingBreakC
 
         notQualifiedScore = -100000
 
