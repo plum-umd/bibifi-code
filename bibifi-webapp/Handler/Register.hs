@@ -27,7 +27,7 @@ data FormData = FormData {
 userForm :: (Route App -> [(Text,Text)] -> Text) -> Form FormData
 userForm render = do
     renderBootstrap3 (BootstrapHorizontalForm (ColMd 0) (ColMd 6) (ColMd 0) (ColMd 4)) $ FormData
-        <$> areq identityField (bfs' "Username") Nothing
+        <$> areq identityField (bfs' "UMD Account") Nothing
         <*> areq passwordConfirmField (bfs' "Password") Nothing
         <*> areq emailField (bfs' "Email") Nothing
         -- <*> surveyForm render Nothing

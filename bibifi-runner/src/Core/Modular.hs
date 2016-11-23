@@ -28,6 +28,7 @@ toModular contestE = helper $ contestUrl $ entityVal contestE
         helper "fall2015coursera" = ATMContest $ ATMSpec contestE
         helper "fall2015" = ATMContest $ ATMSpec contestE
         helper "fall2016" = EHRContest $ EHRSpec contestE
+        helper "cmsc414fall2016" = ATMContest $ ATMSpec contestE
         helper url = error $ "You must define Core.Modular.toModular for url: " ++ (Text.unpack url)
 
 data ModContest = 

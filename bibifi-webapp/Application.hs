@@ -129,7 +129,7 @@ makeApplication conf = do
     let app = if development then
             app'
           else
-            let domain = "localhost" in
+            let domain = "cmsc414-p4.cs.umd.edu" in
             forceDomain (\d -> if d /= domain then Just domain else Nothing) app'
     return app
 
