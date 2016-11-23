@@ -129,7 +129,8 @@ makeApplication conf = do
     let app = if development then
             app'
           else
-            forceDomain (\d -> if d /= "builditbreakit.org" then Just "builditbreakit.org" else Nothing) app'
+            let domain = "localhost" in
+            forceDomain (\d -> if d /= domain then Just domain else Nothing) app'
     return app
 
 -- | Loads up any necessary settings, creates your foundation datatype, and

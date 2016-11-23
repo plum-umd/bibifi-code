@@ -15,5 +15,5 @@ Staging:
   <<: *defaults
 
 Production:
-  approot: "https://builditbreakit.org"
+  approot: "http://localhost:80"
   <<: *defaults
