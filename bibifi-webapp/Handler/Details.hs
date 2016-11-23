@@ -30,6 +30,7 @@ getDetailsR = runLHandler $ defaultLayout $ lLift $ do
                                 <li>
                                     <a href="#registration">
                                         Registration
+                                <!--
                                 <li>
                                     <a href="#location">
                                         Location
@@ -39,6 +40,7 @@ getDetailsR = runLHandler $ defaultLayout $ lLift $ do
                                 <li>
                                     <a href="#teams">
                                         Teams
+                                -->
                                 <li>
                                     <a href="#scoring">
                                         Scoring
@@ -60,16 +62,20 @@ getDetailsR = runLHandler $ defaultLayout $ lLift $ do
                 <h2 id="overview">
                     Overview
                 <p>
-                    The build-it, break-it, fix-it (BIBIFI) contest takes place over three rounds. Each round is roughly two weeks in length.
+                    The build-it, break-it (BIBI) contest takes place over two rounds. Each round is roughly two weeks in length.
                 <ul>
                     <li>
                         Round 1: Build-it teams build software according to a problem specification that is announced on the day the contest begins. To qualify, this software must pass a set of correctness tests that we will provide. It is scored based on its performance, and on how many optional features it implements.
                     <li>
                         Round 2: Break-it teams are given access to the source code of build-it submissions and they attempt to find correctness and security bugs (where the definition of the latter is problem specific). They submit test cases that provide evidence of these bugs, and these are vetted by our submission system. Teams receive points for each bug they find, and more points for security-relevant bugs.
+                    <!--
                     <li>
                         Round 3: Build-it teams are given the test cases for bugs found against their submission, and may fix those bugs. If fixing a bug causes multiple test cases to pass (as is likely) then build-it teams earn points back for the duplicate tests (and break-it teams lose the corresponding points). 
                 <p>
-                    Prizes are awarded at the end of the third round to the top three build-it teams, and the top three break-it teams. (Teams can win prizes in both categories.) Prizes are also awarded to lower-scoring teams, where the chance of winning a prize increases with the team's <a href="#scoring">score</a>. 
+                    Prizes are awarded at the end of the third round to the top three build-it
+                    teams, and the top three break-it teams. (Teams can win prizes in both
+                    categories.) Prizes are also awarded to lower-scoring teams, where the chance of
+                    winning a prize increases with the team's <a href="#scoring">score</a>. -->
                     <!-- See the scoring section for details.-->
                 <h2 id="registration">
                     Registration
@@ -82,6 +88,7 @@ getDetailsR = runLHandler $ defaultLayout $ lLift $ do
                         <a href="@{CreateTeamR}">Create a team</a>, or join a team (your team leader can invite you).
                     <li>
                         If you are the team leader, <a href="@{ContestSignupR}">sign your team up for the contest</a>.
+                <!--
                 <h2 id="location">
                     Location
                 <p>
@@ -95,6 +102,7 @@ getDetailsR = runLHandler $ defaultLayout $ lLift $ do
                         You are enrolled as a graduate or undergraduate student at an accredited university, anywhere in the world, during the same calendar year that the contest takes place.
                     <li>
                         You do not have close relationships with any of the contest organizers.
+                -->
                 <!--
                     <li>
                         You are either a US citizen or attend a US-based University. 
@@ -104,6 +112,7 @@ getDetailsR = runLHandler $ defaultLayout $ lLift $ do
                     Build it Break it will be used for the <a href="https://www.coursera.org/specialization/cybersecurity/7?utm_medium=courseDescripTop">Coursera capstone</a>. 
                     The only restriction for this iteration of the contest is that you must be enrolled in the Coursera capstone. 
                 -->
+                <!--
                 <h2 id="teams">
                     Teams
                 <p>
@@ -115,6 +124,7 @@ getDetailsR = runLHandler $ defaultLayout $ lLift $ do
                 <p>
                     When your team signs up for a contest, your team is automatically signed up as a builder and a breaker. 
                     Your builder and breaker scores are independent though, so you can choose to participate as a builder, a breaker, or both. 
+                -->
                 <h2 id="scoring">
                     Scoring
                 <p>
