@@ -237,13 +237,13 @@ navbar contest = do
         |]
             
     return [hamlet|
-        <div class="navbar" role="navigation">
+         <div class="navbar" role="navigation">
             <div class="container">
                 <div class="collapse navbar-collapse navbar-ex1-collapse linksbar">
                     <ul class="nav nav-pills navbar-right">
-                        <li>
+                       <!--  <li>
                             <a href=@{SponsorshipR}>
-                                SPONSORSHIP OPPORTUNITIES
+                                SPONSORSHIP OPPORTUNITIES -->
                         ^{contestLinks}
                         <li>
                             <a href=@{DetailsR}>
