@@ -56,14 +56,14 @@ instance ModularContest ATMSpec where
                 resultE <- runErrorT $ launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
                     -- Send oracle bank. 
                     putLog "Sending oracle files."
-                    let oracleBankFile = runnerOracleDirectory opts ++ "/dist/build/bank/bank"
+                    let oracleBankFile = runnerOracleDirectory opts ++ "/bank"
                     _ <- runSSH (OracleErr "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
 
                     -- Send oracle atm.
-                    let oracleAtmFile = runnerOracleDirectory opts ++ "/dist/build/atm/atm"
+                    let oracleAtmFile = runnerOracleDirectory opts ++ "/atm"
                     _ <- runSSH (OracleErr "Could not send atm oracle to instance.") $ sendFile session 0o700 oracleAtmFile oracleAtmDestFile
 
-                    setupFirewall session
+                    -- setupFirewall session
 
                     -- Run with input. 
                     putLog "Running oracle."
@@ -138,7 +138,7 @@ instance ModularContest ATMSpec where
                 let destArchiveLocation = "/home/ubuntu/submission.tar.gz"
                 _ <- runSSH (BuildError "Could not send submission") $ sendFile session 0o666 archiveLocation destArchiveLocation
 
-                setupFirewall session
+                -- setupFirewall session
 
                 -- Send MITMs. 
                 -- Note: Should be on VM.
@@ -244,7 +244,7 @@ instance ModularContest ATMSpec where
             let manager = runnerHttpManager opts
             launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
                 -- Setup firewall.
-                setupFirewall session
+                -- setupFirewall session
 
                 -- Setup directory.
                 -- (Result _ _ exit) <- runSSH (BreakErrorSystem "Could not make test directory.") $ execCommand session "sudo -i -u builder mkdir /home/builder/submission"
@@ -253,10 +253,10 @@ instance ModularContest ATMSpec where
 
                 -- Upload Oracle.
                 putLog "Sending oracle files."
-                let oracleBankFile = oracleBasePath ++ "/dist/build/bank/bank"
+                let oracleBankFile = oracleBasePath ++ "/bank"
                 _ <- runSSH (BreakErrorSystem "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
 
-                let oracleAtmFile = oracleBasePath ++ "/dist/build/atm/atm"
+                let oracleAtmFile = oracleBasePath ++ "/atm"
                 _ <- runSSH (BreakErrorSystem "Could not send atm oracle to instance.") $ sendFile session 0o700 oracleAtmFile oracleAtmDestFile
 
                 -- Upload target.
@@ -400,14 +400,14 @@ instance ModularContest ATMSpec where
             let manager = runnerHttpManager opts
             launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
                 -- Setup firewall.
-                setupFirewall session
+                -- setupFirewall session
 
                 -- Upload Oracle.
                 putLog "Sending oracle files."
-                let oracleBankFile = oracleBasePath ++ "/dist/build/bank/bank"
+                let oracleBankFile = oracleBasePath ++ "/bank"
                 _ <- runSSH (FixErrorSystem "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
 
-                let oracleAtmFile = oracleBasePath ++ "/dist/build/atm/atm"
+                let oracleAtmFile = oracleBasePath ++ "/atm"
                 _ <- runSSH (FixErrorSystem "Could not send atm oracle to instance.") $ sendFile session 0o700 oracleAtmFile oracleAtmDestFile
 
                 -- Setup directory.
