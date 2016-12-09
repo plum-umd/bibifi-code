@@ -4,6 +4,7 @@ module Core.Modular.ATM where
 import Core (keyToInt)
 import Core.DatabaseM
 import Core.Score
+import Control.Monad.Base
 import Control.Monad.Error
 import Data.Aeson (FromJSON(..),(.:),(.=), (.:?), Value(..))
 import qualified Data.Aeson as Aeson
@@ -23,7 +24,7 @@ import qualified Database.Esqueleto as E
 import Database.Persist
 import Network.SSH.Client.SimpleSSH
 import qualified System.FilePath as FilePath
-import qualified System.Random as Random
+-- import qualified System.Random as Random
 import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
@@ -162,7 +163,8 @@ instance ModularContest ATMSpec where
 
                 -- Map over tests.
                 let (requiredTests, optionalTests) = List.partition (isTestRequired . fst) (coreTests <> performanceTests <> optionalTests')
-                requiredResults <- mapM (runATMTest session builderBaseDir) requiredTests
+                port <- IO.newIORef 3000 -- Fix when we can't reuse ports.
+                requiredResults <- mapM (runATMTest port session builderBaseDir) requiredTests
                 lift $ lift $ runDB $ mapM_ recorder requiredResults
 
                 -- Indicate core tests passed. 
@@ -170,7 +172,7 @@ instance ModularContest ATMSpec where
 
                 -- Continue running optional tests.
                 mapM_ (\test -> do
-                    result <- runATMTest session builderBaseDir test
+                    result <- runATMTest port session builderBaseDir test
                     lift $ lift $ runDB $ recorder result
                   ) optionalTests
 
@@ -292,7 +294,8 @@ instance ModularContest ATMSpec where
                 maybeBuildMITM session breakTest
 
                 -- Run grader.
-                input <- fmap (B64.encode . BSL.toStrict . Aeson.encode) $ prepareBreakTest builderBaseDir destBreakFolder breakTest
+                port <- IO.newIORef 3000 -- Fix when we can't reuse ports.
+                input <- fmap (B64.encode . BSL.toStrict . Aeson.encode) $ prepareBreakTest port builderBaseDir destBreakFolder breakTest
                 (Result resOut' _ _) <- executioner session "ubuntu" "/usr/bin/grader" input
 
                 -- Drop newline. 
@@ -434,10 +437,11 @@ instance ModularContest ATMSpec where
 
                 -- Run core tests.
                 let (requiredTests, _) = List.partition (isTestRequired . fst) (coreTests <> performanceTests)
-                mapM_ (runCoreTest session) requiredTests
+                port <- IO.newIORef 3000 -- Fix when we can't reuse ports.
+                mapM_ (runCoreTest port session) requiredTests
 
                 -- Run correctness break tests.
-                mapM_ (runBreakTest session) breaks
+                mapM_ (runBreakTest port session) breaks
 
         -- Record result.
         case resultE of
@@ -469,7 +473,7 @@ instance ModularContest ATMSpec where
             updateFix status msg stdout stderr = 
                 runDB $ update submissionId [FixSubmissionStatus =. status, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
 
-            runBreakTest session (Entity bsId breakTest') = do
+            runBreakTest port session (Entity bsId breakTest') = do
                 breakTest <- case breakSubmissionJson breakTest' of
                     Nothing ->
                         throwError $ FixErrorSystem $ "Break json not stored: " ++ show (keyToInt bsId)
@@ -480,7 +484,7 @@ instance ModularContest ATMSpec where
                             return r
 
                 -- Run grader.
-                input <- fmap (B64.encode . BSL.toStrict . Aeson.encode) $ prepareBreakTest builderBaseDir "UNUSED" breakTest
+                input <- fmap (B64.encode . BSL.toStrict . Aeson.encode) $ prepareBreakTest port builderBaseDir "UNUSED" breakTest
                 (Result resOut' _ _) <- executioner session "ubuntu" "/usr/bin/grader" input
 
                 -- Drop newline.
@@ -500,8 +504,8 @@ instance ModularContest ATMSpec where
 
             builderBaseDir = "/home/builder/submission/fix/code/build"
 
-            runCoreTest session test = do
-                (_, res) <- runATMTest session builderBaseDir test
+            runCoreTest portRef session test = do
+                (_, res) <- runATMTest portRef session builderBaseDir test
                 case res of 
                     ATMBuildTestOutput True _ _ -> 
                         return ()
@@ -524,9 +528,13 @@ instance ModularContest ATMSpec where
                     return acc
 
                 
-prepareBreakTest :: (MonadIO m) => String -> String -> ATMBreakTest -> m Value
-prepareBreakTest baseDir destBreakFolder breakTest = do
-    (bankPort, commandPort, bankOraclePort, mitmPort) <- generateRandomPorts
+prepareBreakTest :: (MonadIO m, MonadBase IO m) => IO.IORef Int -> String -> String -> ATMBreakTest -> m Value
+prepareBreakTest port baseDir destBreakFolder breakTest = do
+    -- (bankPort, commandPort, bankOraclePort, mitmPort) <- generateRandomPorts
+    bankPort <- getNextPort port
+    commandPort <- getNextPort port
+    bankOraclePort <- getNextPort port
+    mitmPort <- getNextPort port
     let input' = [
             "type" .= breakTestType breakTest
           , "atm" .= (baseDir ++ "/atm" :: String)
@@ -559,22 +567,22 @@ prepareBreakTest baseDir destBreakFolder breakTest = do
     return $ Aeson.object $ includeTests breakTest input'
 
     where
-        generateRandomPorts = do
-            gen'''' <- liftIO Random.getStdGen
-            let (bankPort, gen''') = generateRandomPort gen'''' []
-            let (commandPort, gen'') = generateRandomPort gen''' [bankPort]
-            let (bankOraclePort, gen') = generateRandomPort gen'' [bankPort, commandPort]
-            let (mitmPort, _) = generateRandomPort gen' [bankPort, commandPort, bankOraclePort]
-            return ( bankPort, commandPort, bankOraclePort, mitmPort)
+        -- generateRandomPorts = do
+        --     gen'''' <- liftIO Random.getStdGen
+        --     let (bankPort, gen''') = generateRandomPort gen'''' []
+        --     let (commandPort, gen'') = generateRandomPort gen''' [bankPort]
+        --     let (bankOraclePort, gen') = generateRandomPort gen'' [bankPort, commandPort]
+        --     let (mitmPort, _) = generateRandomPort gen' [bankPort, commandPort, bankOraclePort]
+        --     return ( bankPort, commandPort, bankOraclePort, mitmPort)
 
-            where
-                generateRandomPort :: (Random.RandomGen g) => g -> [Int] -> (Int, g)
-                generateRandomPort gen prev = 
-                    let res@(port, gen') = Random.randomR (1024, 65535) gen in
-                    if List.elem port prev then
-                        generateRandomPort gen' prev
-                    else
-                        res
+        --     where
+        --         generateRandomPort :: (Random.RandomGen g) => g -> [Int] -> (Int, g)
+        --         generateRandomPort gen prev = 
+        --             let res@(port, gen') = Random.randomR (1024, 65535) gen in
+        --             if List.elem port prev then
+        --                 generateRandomPort gen' prev
+        --             else
+        --                 res
 
         breakTestType :: ATMBreakTest -> String
         breakTestType (ATMBreakCorrectnessTest _) = "correctness"
@@ -645,8 +653,9 @@ isTestRequired (ATMCoreTest _) = True
 isTestRequired (ATMPerformanceTest required _) = required
 isTestRequired (ATMOptionalTest _) = False
 
-runATMTest :: (BackendError e, MonadIO m) => Session -> String -> (ATMTest, ATMBuildTestInput) -> ErrorT e m (ATMTest, ATMBuildTestOutput)
-runATMTest session baseDir (test, (ATMBuildTestInput inputs mitm)) = 
+runATMTest :: (BackendError e, MonadIO m, MonadBase IO m) => IO.IORef Int -> Session -> String -> (ATMTest, ATMBuildTestInput) -> ErrorT e m (ATMTest, ATMBuildTestOutput)
+runATMTest portRef session baseDir (test, (ATMBuildTestInput inputs mitm)) = do
+    port <- getNextPort portRef
     let input' = [
             "type" .= ("buildit" :: String)
           , "tests" .= inputs
@@ -654,7 +663,7 @@ runATMTest session baseDir (test, (ATMBuildTestInput inputs mitm)) =
           , "bank" .= (baseDir ++ "/bank" :: String)
           , "bank_settings" .= Aeson.object [
                 "ip" .= ("127.0.0.1" :: String)
-              , "port" .= (3000 :: Int)
+              , "port" .= port
               ]
 --           , "oracle_atm" .= oracleAtmDestFile
 --           , "oracle_bank" .= oracleBankDestFile
@@ -665,7 +674,6 @@ runATMTest session baseDir (test, (ATMBuildTestInput inputs mitm)) =
           , "atm_user" .= ("client" :: String)
           , "bank_user" .= ("server" :: String)
           ]
-    in
     let inputObject = case mitm of
           Nothing -> 
             Aeson.object input'
@@ -677,9 +685,7 @@ runATMTest session baseDir (test, (ATMBuildTestInput inputs mitm)) =
                   ]
             in
             Aeson.object $ mitmLoc:mitmSettings:input'
-    in
-    let input = B64.encode $ BSL.toStrict $ Aeson.encode inputObject in
-    do
+    let input = B64.encode $ BSL.toStrict $ Aeson.encode inputObject
     -- putLog $ show input
     -- (Result resOut' _ _) <- runSSH (BuildError "Could not run build test on instance.") $ execCommand session $ "sudo /usr/bin/grader " <> (BS8.unpack input)
     (Result resOut' _ _) <- executioner session "ubuntu" "/usr/bin/grader" input
@@ -736,3 +742,8 @@ parsePerformanceTest t@(Entity _ test) =
 parseOptionalTest :: (Monad m, Error e) => Entity ContestOptionalTest -> ErrorT e m (ATMTest, ATMBuildTestInput)
 parseOptionalTest = parseTestHelper contestOptionalTestTestScript (ATMOptionalTest . entityKey)
 
+-- Ugly fix, but works.
+getNextPort portRef = do
+    port <- IO.readIORef portRef
+    IO.writeIORef portRef $ port + 1
+    return port
