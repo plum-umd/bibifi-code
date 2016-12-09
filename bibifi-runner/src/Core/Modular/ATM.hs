@@ -656,6 +656,7 @@ isTestRequired (ATMOptionalTest _) = False
 runATMTest :: (BackendError e, MonadIO m, MonadBase IO m) => IO.IORef Int -> Session -> String -> (ATMTest, ATMBuildTestInput) -> ErrorT e m (ATMTest, ATMBuildTestOutput)
 runATMTest portRef session baseDir (test, (ATMBuildTestInput inputs mitm)) = do
     port <- getNextPort portRef
+    mitmPort <- getNextPort portRef
     let input' = [
             "type" .= ("buildit" :: String)
           , "tests" .= inputs
@@ -681,7 +682,7 @@ runATMTest portRef session baseDir (test, (ATMBuildTestInput inputs mitm)) = do
             let mitmLoc = "mitm" .= (FilePath.joinPath ["/home/ubuntu/mitm",mitm]) in
             let mitmSettings = "mitm_settings" .= Aeson.object [
                     "ip" .= ("127.0.0.1" :: String)
-                  , "port" .= (4000 :: Int)
+                  , "port" .= mitmPort
                   ]
             in
             Aeson.object $ mitmLoc:mitmSettings:input'
