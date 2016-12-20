@@ -62,6 +62,7 @@
 /participation/#TeamContestId/fixsubmissions ParticipationFixSubmissionsR GET
 /participation/#TeamContestId/fixsubmission/#FixSubmissionId ParticipationFixSubmissionR GET
 /participation/#TeamContestId/fixsubmission/#FixSubmissionId/delete ParticipationFixSubmissionDeleteR POST
+/participation/#TeamContestId/fixsubmission/#FixSubmissionId/rerun ParticipationFixSubmissionRerunR POST
 
 /createteam CreateTeamR GET POST
 
