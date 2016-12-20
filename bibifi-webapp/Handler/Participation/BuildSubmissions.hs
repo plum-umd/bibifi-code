@@ -73,9 +73,8 @@ getParticipationBuildSubmissionR tcId bsId = runLHandler $ do
                     Rerun Submission
                 <form method=post action="@{ParticipationBuildSubmissionRerunR tcId bsId}" enctype=#{enctype}>
                     ^{widget}
-                    <button type="submit" class="btn btn-danger">
+                    <button type="submit" class="btn btn-warning">
                         Rerun
-                    
             |]
 
 checkBuildSubmissionTeam tcId bsId = do
