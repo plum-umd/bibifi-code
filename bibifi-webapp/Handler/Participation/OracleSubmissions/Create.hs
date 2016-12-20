@@ -4,7 +4,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text.Encoding as Text
-import Data.Time.Clock
 
 import Import
 import qualified Participation
@@ -22,7 +21,7 @@ form = renderBootstrap3' $ FormData
 
 generateHtml :: ( Widget, Enctype) -> Maybe Text -> TeamContestId -> Contest -> LWidget
 generateHtml ( widget, enctype) msgM tcId contest = do
-    now <- lLift $ lift getCurrentTime
+    now <- getCurrentTime
     if not development && now < contestBuildStart contest then
         [whamlet|The contest has not started yet.|]
     else 
@@ -65,7 +64,7 @@ postParticipationOracleSubmissionCreateR tcId = runLHandler $
                 --       Just val -> 
                 --         let prettyConf = Aeson.defConfig {Aeson.confIndent = 2} in
                 --         Text.decodeUtf8 $ BSL.toStrict $ Aeson.encodePretty' prettyConf (val :: Aeson.Value)
-                timestamp <- lLift $ lift $ getCurrentTime
+                timestamp <- getCurrentTime
                 osId <- handlerToWidget $ runDB $ insert $ OracleSubmission tcId timestamp name input Nothing OraclePending
                 setMessage [shamlet|
                     <div class="container">

@@ -2,7 +2,6 @@ module Handler.Register (getRegisterR, postRegisterR) where
 
 import Import as I hiding (renderBootstrap3)
 import Control.Applicative
-import Data.Time
 -- import Text.Hamlet (shamlet)
 import Yesod.Auth.HashDB (setPassword)
 import Yesod.Auth.OAuth2
@@ -44,7 +43,7 @@ userForm render = do
 
 getUser :: FormData -> LHandler User
 getUser dat = do
-    now <- liftIO getCurrentTime
+    now <- getCurrentTime
     return $ User 
         (formIdent dat)
         (formPassword dat)

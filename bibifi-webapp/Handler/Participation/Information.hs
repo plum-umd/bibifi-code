@@ -2,7 +2,6 @@ module Handler.Participation.Information (getParticipationInformationR, postPart
 
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy.Encoding
-import Data.Time.Clock (getCurrentTime)
 import Forms
 import Import
 import Network.Mail.Mime
@@ -252,7 +251,7 @@ unregisteringIsAllowed tc team contest uId =
         return $ Just "Only team leaders can unregister their team from the contest."
     else do
         -- Check if contest has started.
-        now <- lLift $ liftIO getCurrentTime
+        now <- getCurrentTime
         if now >= contestBuildStart contest then
             return $ Just "Cannot unregister. The contest has already started."
         else

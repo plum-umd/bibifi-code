@@ -1,6 +1,5 @@
 module Participation where
 
-import Data.Time.Clock
 import Import
 import qualified Team
 
@@ -62,7 +61,7 @@ layout page tcId content =
     raiseTeamLabel
     raiseGroupLabel
     ( uId, tc, contest, team) <- checkCreds tcId
-    now <- lLift $ lift getCurrentTime
+    now <- getCurrentTime
     let builderCodeWidget = if now > contestBreakStart contest then
             [whamlet'|
                 <li class="#{builderCodeActive}">

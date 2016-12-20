@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Import
     ( module Import
+    , getCurrentTime
     ) where
 
 import           Prelude              as Import hiding (head, init, last,
@@ -8,7 +9,9 @@ import           Prelude              as Import hiding (head, init, last,
 import           LYesod               as Import
 
 import           Control.Applicative  as Import (pure, (<$>), (<*>), (<*))
+import           Control.Monad        as Import
 import           Data.Text            as Import (Text)
+import           Data.Time            as Import (UTCTime, addUTCTime, NominalDiffTime)
 
 import           Foundation           as Import
 import           Model                as Import
@@ -46,4 +49,8 @@ infixr 5 <>
 (<>) :: Monoid m => m -> m -> m
 (<>) = mappend
 #endif
+
+import qualified Data.Time.Clock      as Clock
+
+getCurrentTime = liftIO Clock.getCurrentTime
 

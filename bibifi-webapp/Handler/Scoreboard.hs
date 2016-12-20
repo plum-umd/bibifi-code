@@ -5,7 +5,6 @@ module Handler.Scoreboard where
 import Control.Monad
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
-import Data.Time
 
 import Import
 import qualified Widgets
@@ -31,7 +30,7 @@ showScoreboard c =
     let Entity cId contest = c in
     let url = contestUrl contest in
     lLift $ do
-    now <- lift $ getCurrentTime
+    now <- getCurrentTime
     if now < (contestBuildStart contest) then
         [whamlet'|
             <div class="row">
@@ -148,7 +147,7 @@ getScoresR cUrl = runLHandler $ do
         Just (Entity cId c) -> 
             let end' = addUTCTime (60*30) (contestFixEnd c) in
             do
-            now <- lLift $ lift getCurrentTime
+            now <- getCurrentTime
             teams <- if now > (contestFixEnd c) then 
                     runDB [lsql| select TeamContest.id, Team.name, TeamContest.professional from Team inner join TeamContest on Team.id == TeamContest.team where TeamContest.contest == #{cId} and TeamContest.gitUrl != #{""}|]
                 else
@@ -188,7 +187,7 @@ getScoreBreakdownR tcId = runLHandler $ do
             customLayout contestM $ do
                 lLift $ setTitle $ toHtml title
                 contestTemplate contestM "Score Breakdown" $ \(Entity cId contest) -> do
-                    now <- lLift $ lift $ getCurrentTime
+                    now <- getCurrentTime
                     if now < (contestBuildStart contest) then
                         [whamlet|
                             <div class="row">

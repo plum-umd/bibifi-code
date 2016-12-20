@@ -1,7 +1,6 @@
 module Handler.Participation.BreakSubmissions where
 
 import qualified Database.Esqueleto as E
-import Data.Time.Clock (getCurrentTime)
 import Score
 
 import qualified BreakSubmissions
@@ -249,7 +248,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                                                 #{comments}
                                 |]
 
-                    now <- lLift $ liftIO getCurrentTime
+                    now <- getCurrentTime
 
                     disputeW <- do
                         -- TODO: Check if a dispute exists. 
@@ -469,7 +468,7 @@ postParticipationBreakSubmissionDisputeR tcId bsId = runLHandler $ do
                         case teamLeaderM of
                             [(E.Value leader, (Entity _ contest))] | leader == userId -> do
                                 -- Check that it's fix round.
-                                now <- lLift $ liftIO getCurrentTime
+                                now <- getCurrentTime
                                 if not development && ( now < contestFixStart contest || now > contestFixEnd contest) then
                                     failureHandler
                                 else
@@ -536,7 +535,7 @@ postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
                                 failureHandler
                             else do
                                 -- Check that it's break round.
-                                now <- lLift $ liftIO getCurrentTime
+                                now <- getCurrentTime
                                 if not development && ( now < contestBreakStart contest || now > contestBreakEnd contest) then
                                     failureHandler
                                 else do

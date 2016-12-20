@@ -1,6 +1,5 @@
 module Handler.Participation.FixSubmissions where
 
-import Data.Time.Clock
 import Score
 
 import Import
@@ -10,7 +9,7 @@ import PostDependencyType
 getParticipationFixSubmissionsR :: TeamContestId -> Handler Html
 getParticipationFixSubmissionsR tcId = runLHandler $ 
     Participation.layout Participation.FixSubmissions tcId $ \_ _ contest _ -> do
-        now <- lLift $ lift getCurrentTime
+        now <- getCurrentTime
         if not development && now < (contestFixStart contest) then
             [whamlet|
                 <p>
@@ -128,7 +127,7 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                                 #{msg}
                             |]
                     deleteW <- do
-                        now <- lLift $ liftIO getCurrentTime
+                        now <- getCurrentTime
                         -- Check that it's during the fix it round.
                         if not development && (now < contestFixStart contest || now > contestFixEnd contest) then
                             return mempty
@@ -251,7 +250,7 @@ postParticipationFixSubmissionDeleteR tcId fsId = runLHandler $ Participation.la
                         failureHandler
                     else do
                         -- Check that it's during the fix it round.
-                        now <- lLift $ liftIO getCurrentTime
+                        now <- getCurrentTime
                         if not development && (now < contestFixStart contest || now > contestFixEnd contest) then
                             failureHandler
                         else
