@@ -3,7 +3,6 @@
 module Handler.Participation.BuildersCode where
 
 import Data.Ord
-import Data.Time.Clock
 
 import Import
 import qualified Cache
@@ -13,7 +12,7 @@ getParticipationBuildersCodeR :: TeamContestId -> Handler Html
 getParticipationBuildersCodeR tcId = runLHandler $ 
     Participation.layout Participation.BuilderCode tcId $ \uId tc contest team -> do
         -- Check if break-it round has started.
-        now <- lLift $ lift getCurrentTime
+        now <- getCurrentTime
         if now < contestBreakStart contest then
             notFound
         else

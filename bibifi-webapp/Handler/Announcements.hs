@@ -1,8 +1,6 @@
 {-# LANGUAGE TupleSections, OverloadedStrings #-}
 module Handler.Announcements ( getAnnouncementsR, getSpecificAnnouncementsR) where
 
-import Data.Time
-
 import Import
 import qualified Team
 -- import System.Locale
@@ -56,7 +54,7 @@ showAnnouncements c =
     fixStart <- lLift $ lift $ displayTime $ contestFixStart contest
     fixEnd <- lLift $ lift $ displayTime $ contestFixEnd contest
     -- Check if contest has already started.
-    now <- lLift $ lift $ getCurrentTime
+    now <- getCurrentTime
     button <- do
           uIdM <- handlerToWidget $ maybeAuthId
           case uIdM of

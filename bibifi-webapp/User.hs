@@ -3,7 +3,7 @@ module User where
 import Import
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Encoding as TLE
-import Data.Time.Clock
+import Data.Time (addUTCTime)
 import Network.Mail.Mime hiding (randomString)
 import qualified Text.Blaze.Html.Renderer.String as S (renderHtml)
 import qualified Text.Blaze.Html.Renderer.Utf8 as U (renderHtml)
@@ -50,7 +50,7 @@ invitePasswordReset u =
     let (Entity uId user) = u in
     do
     code <- liftIO $ randomString 20
-    expires <- liftIO $ do
+    expires <- do
         now <- getCurrentTime
         -- Add a week.
         return $ addUTCTime (fromInteger 604800) now

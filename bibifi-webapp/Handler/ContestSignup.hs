@@ -3,7 +3,6 @@ module Handler.ContestSignup (getContestSignupR, getContestSpecificSignupR, post
 import Import
 import Control.Monad (foldM)
 import qualified Data.Text as T
-import Data.Time
 import Yesod.Auth.OAuth2.Coursera
 
 import Coursera
@@ -16,7 +15,7 @@ registerForm teamList = renderDivs $ SelectTeam
 
 unlessDeadline :: Contest -> LWidget -> LWidget
 unlessDeadline c f = do
-    now <- lLift $ lift $ getCurrentTime
+    now <- getCurrentTime
     if now >= (contestBreakEnd c) then
         [whamlet|
             Sorry, registration for this contest is closed.

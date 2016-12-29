@@ -50,164 +50,90 @@ getParticipationBuildSubmissionsR tcId = runLHandler $
 
 getParticipationBuildSubmissionR :: TeamContestId -> BuildSubmissionId -> Handler Html
 getParticipationBuildSubmissionR tcId bsId = runLHandler $ do
-    res <- runDB $ get bsId
-    case res of 
-        Nothing ->
-            notFound
-        Just bs ->
-            if (buildSubmissionTeam bs) /= tcId then
-                notFound
-            else
-                Participation.layout Participation.BuildSubmissions tcId $ \_ teamcontest _ _ -> do
-                    [whamlet|
-                        <a href="@{ParticipationBuildSubmissionsR tcId}" type="button" class="btn btn-primary">
-                            Back
-                        <h2>
-                            Submission
+    bs <- checkBuildSubmissionTeam tcId bsId
+    Participation.layout Participation.BuildSubmissions tcId $ \_ teamcontest contest _ -> do
+        [whamlet|
+            <a href="@{ParticipationBuildSubmissionsR tcId}" type="button" class="btn btn-primary">
+                Back
+            <h2>
+                Submission
+        |]
+        Widgets.buildSubmission (Entity bsId bs) (teamContestContest teamcontest) False
+
+        -- Check if we can rerun submission.
+        rerunSubmission <- canRerunBuildSubmission bs contest
+        when rerunSubmission $
+            rerunWidget bs
+
+    where
+        rerunWidget bs = do
+            ( widget, enctype) <- handlerToWidget $ generateFormPost rerunForm
+            [whamlet|
+                <h3>
+                    Rerun Submission
+                <form method=post action="@{ParticipationBuildSubmissionRerunR tcId bsId}" enctype=#{enctype}>
+                    ^{widget}
+                    <button type="submit" class="btn btn-warning">
+                        Rerun
+            |]
+
+checkBuildSubmissionTeam tcId bsId = do
+    bs <- runDB $ get404 bsId
+    when (buildSubmissionTeam bs /= tcId)
+        notFound
+
+    return bs
+
+-- Determines if we can rerun submission.
+canRerunBuildSubmission bs contest = do
+    (Entity _ user) <- handlerToWidget requireAuth
+    if not (userAdmin user) then
+        return False
+    else
+        let status = buildSubmissionStatus bs in
+        if not (status == BuildTimeout || status == BuildBuildFail || status == BuildBuilt) then
+            return False
+        else if development then
+            return True
+        else do
+            now <- getCurrentTime
+            return $ now <= contestBuildEnd contest
+        
+data RerunFormData = RerunFormData ()
+
+rerunForm = identifyForm "rerun-build-submission" $ renderBootstrap3 BootstrapBasicForm $ RerunFormData
+    <$> pure ()
+
+postParticipationBuildSubmissionRerunR :: TeamContestId -> BuildSubmissionId -> Handler Html
+postParticipationBuildSubmissionRerunR tcId bsId = runLHandler $ do
+    bs <- checkBuildSubmissionTeam tcId bsId
+    Participation.layout Participation.BuildSubmissions tcId $ \_ teamcontest contest _ -> do
+        ((res, widget), enctype) <- handlerToWidget $ runFormPost rerunForm
+        case res of
+            FormMissing ->
+                errorHandler
+            FormFailure _ ->
+                errorHandler
+            FormSuccess _ -> do
+                -- Check if we can rerun this submission.
+                canRerun <- canRerunBuildSubmission bs contest
+                if not canRerun then
+                    errorHandler
+                else do
+                    handlerToWidget $ runDB $ update bsId [BuildSubmissionStatus =. BuildPending]
+
+                    setMessage [shamlet|
+                        <div .container>
+                            <div .alert .alert-success>
+                                Rerunning submission.
                     |]
-                    Widgets.buildSubmission (Entity bsId bs) (teamContestContest teamcontest) False
-                    -- let status = prettyBuildStatus $ buildSubmissionStatus bs
-                    -- time <- lift $ displayTime $ buildSubmissionTimestamp bs
-                    -- [whamlet|
-                    --     <a href="@{ParticipationBuildSubmissionsR tcId}" type="button" class="btn btn-primary">
-                    --         Back
-                    --     <h2>
-                    --         Submission
-                    --     <form class="form-horizontal">
-                    --         <div class="form-group">
-                    --             <label class="col-sm-2 control-label">
-                    --                 Submission hash
-                    --             <div class="col-sm-10">
-                    --                 <p class="form-control-static">
-                    --                     #{buildSubmissionCommitHash bs}
-                    --         <div class="form-group">
-                    --             <label class="col-sm-2 control-label">
-                    --                 Timestamp
-                    --             <div class="col-sm-10">
-                    --                 <p class="form-control-static">
-                    --                     #{time}
-                    --         <div class="form-group">
-                    --             <label class="col-sm-2 control-label">
-                    --                 Status
-                    --             <div class="col-sm-10">
-                    --                 <p class="form-control-static">
-                    --                     #{status}
-                    -- |]
-                    -- if (buildSubmissionStatus bs) == BuildBuilt then
-                    --     let renderCores ((Entity _ test), mbr') = 
-                    --           let result = case mbr' of 
-                    --                 Nothing ->
-                    --                     prettyPassResult False
-                    --                 Just (Entity _ mbr) ->
-                    --                     prettyPassResult $ buildCoreResultPass mbr
-                    --           in
-                    --           [whamlet|
-                    --               <tr>
-                    --                   <td>
-                    --                       #{contestCoreTestName test}
-                    --                   <td>
-                    --                       Correctness
-                    --                   <td>
-                    --                       #{result}
-                    --                   <td>
-                    --                       #{dash}
-                    --           |]
-                    --     in
-                    --     let renderOpts ((Entity _ test), mbr') =
-                    --           let result = case mbr' of 
-                    --                 Nothing ->
-                    --                     prettyPassResult False
-                    --                 Just (Entity _ mbr) ->
-                    --                     prettyPassResult $ buildOptionalResultPass mbr
-                    --           in
-                    --           [whamlet|
-                    --               <tr>
-                    --                   <td>
-                    --                       #{contestOptionalTestName test}
-                    --                   <td>
-                    --                       Optional
-                    --                   <td>
-                    --                       #{result}
-                    --                   <td>
-                    --                       #{dash}
-                    --           |]
-                    --     in
-                    --     let renderPerfs ((Entity _ test), mbr') =
-                    --           let (result, period) = case mbr' of
-                    --                 Nothing ->
-                    --                     (prettyPassResult False, dash)
-                    --                 Just (Entity _ mbr) ->
-                    --                     case buildPerformanceResultTime mbr of
-                    --                         Nothing ->
-                    --                             ( prettyPassResult False, dash)
-                    --                         Just t ->
-                    --                             let period' = [shamlet|#{t}|] in
-                    --                             ( prettyPassResult True, period')
-                    --           in
-                    --           [whamlet|
-                    --               <tr>
-                    --                   <td>
-                    --                       #{contestPerformanceTestName test}
-                    --                   <td>
-                    --                       Performance
-                    --                   <td>
-                    --                       #{result}
-                    --                   <td>
-                    --                       #{period}
-                    --           |]
-                    --     in
-                    --     do
-                    --     let cId = teamContestContest teamcontest
-                    --     coreResults <- handlerToWidget $ runDB $ E.select $ E.from $ \(t `E.LeftOuterJoin` tr) -> do
-                    --         E.on ( E.just (t E.^. ContestCoreTestId) E.==. tr E.?. BuildCoreResultTest)
-                    --         E.where_ ( t E.^. ContestCoreTestContest E.==. E.val cId 
-                    --             E.&&. (tr E.?. BuildCoreResultSubmission E.==. E.just (E.val bsId)
-                    --             E.||. E.isNothing (tr E.?. BuildCoreResultId)))
-                    --         E.orderBy [E.asc (t E.^. ContestCoreTestName)]
-                    --         return ( t, tr)
-                    --     performanceResults <- handlerToWidget $ runDB $ E.select $ E.from $ \(t `E.LeftOuterJoin` tr) -> do
-                    --         E.on ( E.just (t E.^. ContestPerformanceTestId) E.==. tr E.?. BuildPerformanceResultTest)
-                    --         E.where_ ( t E.^. ContestPerformanceTestContest E.==. E.val cId
-                    --             E.&&. ( tr E.?. BuildPerformanceResultSubmission E.==. E.just (E.val bsId)
-                    --             E.||. E.isNothing (tr E.?. BuildPerformanceResultId)))
-                    --         E.orderBy [E.asc (t E.^. ContestPerformanceTestName)]
-                    --         return ( t, tr)
-                    --     optionalResults <- handlerToWidget $ runDB $ E.select $ E.from $ \(t `E.LeftOuterJoin` tr) -> do
-                    --         E.on ( E.just (t E.^. ContestOptionalTestId) E.==. tr E.?. BuildOptionalResultTest)
-                    --         E.where_ ( t E.^. ContestOptionalTestContest E.==. E.val cId
-                    --             E.&&. ( tr E.?. BuildOptionalResultSubmission E.==. E.just (E.val bsId) 
-                    --             E.||. E.isNothing (tr E.?. BuildOptionalResultId)))
-                    --         E.orderBy [E.asc (t E.^. ContestOptionalTestName)]
-                    --         return ( t, tr)
-                    --     [whamlet|
-                    --         <h2>
-                    --             Test Results
-                    --     |]
-                    --     if ((length coreResults) + (length performanceResults) + (length optionalResults)) == 0 then
-                    --         [whamlet|
-                    --             <p>
-                    --                 No tests found.
-                    --         |]
-                    --     else
-                    --         let cores = mconcat $ map renderCores coreResults in
-                    --         let perfs = mconcat $ map renderPerfs performanceResults in
-                    --         let opts = mconcat $ map renderOpts optionalResults in
-                    --         [whamlet|
-                    --             <table class="table table-hover">
-                    --                 <thead>
-                    --                     <tr>
-                    --                         <th>
-                    --                             Test name
-                    --                         <th>
-                    --                             Test type
-                    --                         <th>
-                    --                             Result
-                    --                         <th>
-                    --                             Performance
-                    --                 <tbody>
-                    --                     ^{cores}
-                    --                     ^{perfs}
-                    --                     ^{opts}
-                    --         |]
-                    -- else
-                    --     mempty
+                    redirect $ ParticipationBuildSubmissionR tcId bsId
+
+    where
+        errorHandler = do
+            setMessage [shamlet|
+                <div class="container">
+                    <div class="alert alert-danger">
+                        Could not rerun submission.
+            |]
+            redirect $ ParticipationBuildSubmissionR tcId bsId

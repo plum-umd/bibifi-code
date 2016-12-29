@@ -52,14 +52,17 @@
 /participation/#TeamContestId/new/oraclesubmission ParticipationOracleSubmissionCreateR GET POST
 /participation/#TeamContestId/buildsubmissions ParticipationBuildSubmissionsR GET
 /participation/#TeamContestId/buildsubmission/#BuildSubmissionId ParticipationBuildSubmissionR GET
+/participation/#TeamContestId/buildsubmission/#BuildSubmissionId/rerun ParticipationBuildSubmissionRerunR POST
 /participation/#TeamContestId/builderscode ParticipationBuildersCodeR GET
 /participation/#TeamContestId/breaksubmissions ParticipationBreakSubmissionsR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId ParticipationBreakSubmissionR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/delete ParticipationBreakSubmissionDeleteR POST
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/dispute ParticipationBreakSubmissionDisputeR POST
+/participation/#TeamContestId/breaksubmission/#BreakSubmissionId/rerun ParticipationBreakSubmissionRerunR POST
 /participation/#TeamContestId/fixsubmissions ParticipationFixSubmissionsR GET
 /participation/#TeamContestId/fixsubmission/#FixSubmissionId ParticipationFixSubmissionR GET
 /participation/#TeamContestId/fixsubmission/#FixSubmissionId/delete ParticipationFixSubmissionDeleteR POST
+/participation/#TeamContestId/fixsubmission/#FixSubmissionId/rerun ParticipationFixSubmissionRerunR POST
 
 /createteam CreateTeamR GET POST
 

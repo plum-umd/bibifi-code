@@ -1,7 +1,5 @@
 module Handler.Participation.OracleSubmissions where
 
-import Data.Time.Clock
-
 import Control.Monad
 import Import
 import PostDependencyType
@@ -10,7 +8,7 @@ import qualified Participation
 getParticipationOracleSubmissionsR :: TeamContestId -> Handler Html
 getParticipationOracleSubmissionsR tcId = runLHandler $ 
     Participation.layout Participation.Oracle tcId $ \_ _ contest _ -> do
-        now <- lLift $ lift getCurrentTime
+        now <- getCurrentTime
         if not development && now < contestBuildStart contest then
             [whamlet|The contest has not started yet.|]
         else do

@@ -2,7 +2,6 @@ module Handler.Team.Leave where
 
 import Control.Monad
 import qualified Data.Text.Lazy.Encoding
-import Data.Time.Clock
 import Network.Mail.Mime
 import Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import Text.Shakespeare.Text (stext)
@@ -71,7 +70,7 @@ postTeamLeaveR tId = runLHandler $ Team.layout Team.Leave tId $ \uId team -> do
 
     where
         redirectIfContestOngoing tId = do
-            now <- lLift $ liftIO getCurrentTime
+            now <- getCurrentTime
             cs <- handlerToWidget $ runDB [lsql| select Contest.* from TeamContest inner join Contest on TeamContest.contest == Contest.id where TeamContest.team == #{tId}|]
             mapM_ (\(Entity _ contest) ->
                 when (now >= contestBuildStart contest && now <= contestFixEnd contest) $ do

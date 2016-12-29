@@ -3,7 +3,6 @@ where
 
 import Data.Maybe
 import Data.Tuple
-import Data.Time.Clock
 import Data.Text (pack)
 import qualified Data.Text.Lazy as LazyT
 import Control.Applicative
@@ -88,7 +87,7 @@ getAddAnnouncementR = runLHandler $ do
 
 generatePost :: Text -> ContestId -> Bool -> Textarea -> LHandler Post
 generatePost title contest draft markdowntext = do
-  time <- lLift $ lift getCurrentTime
+  time <- getCurrentTime
   let markdown = unTextarea markdowntext
   let html = M.markdown M.def $ LazyT.fromStrict markdown
   return $ Post
