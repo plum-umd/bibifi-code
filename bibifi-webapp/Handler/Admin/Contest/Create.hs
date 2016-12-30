@@ -49,7 +49,9 @@ contestForm tz = renderBootstrap3 BootstrapBasicForm $ FormData
 
 generateHtml form enctype = do
     [whamlet|
-        <h1>
+        <a href="@{AdminContestsR}" type="button" class="btn btn-primary">
+            Back
+        <h2>
             Create new contest
         <form method=post action="@{AdminContestCreateR}" enctype="#{enctype}" role="form">
             ^{form}
