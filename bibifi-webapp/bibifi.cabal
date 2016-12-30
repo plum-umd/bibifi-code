@@ -47,6 +47,7 @@ library
                      Handler.Admin.AddAnnouncement
                      Handler.Admin.Contests
                      Handler.Admin.Contest
+                     Handler.Admin.Contest.Create
                      Handler.Admin.Contest.JudgeEmails
                      Handler.Admin.Contest.Judgements
                      Handler.Admin.Contest.Judgements.AssignBuild

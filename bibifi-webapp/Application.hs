@@ -30,6 +30,7 @@ import Yesod.Core.Types (loggerSet, Logger (Logger))
 import Handler.Admin
 import Handler.Admin.Contests
 import Handler.Admin.Contest
+import Handler.Admin.Contest.Create
 import Handler.Admin.Contest.JudgeEmails
 import Handler.Admin.Contest.Judgements
 import Handler.Admin.Contest.Judgements.AssignBuild

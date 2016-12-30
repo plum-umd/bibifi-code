@@ -8,7 +8,7 @@ getAdminContestsR = runLHandler $ Admin.layout Admin.Contests $ do
     Admin.setTitle "Contests"
     res <- handlerToWidget $ runDB $ selectList [] [Desc ContestBuildStart]
     [whamlet|
-        <a href="@{TodoR}" type="button" class="btn btn-primary pull-right">
+        <a href="@{AdminContestCreateR}" type="button" class="btn btn-primary pull-right">
             Create new contest
         <div class="clearfix">
     |]
