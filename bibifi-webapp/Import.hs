@@ -54,3 +54,5 @@ import qualified Data.Time.Clock      as Clock
 
 getCurrentTime = liftIO Clock.getCurrentTime
 
+whenJust (Just _) m = m
+whenJust Nothing _ = return ()
