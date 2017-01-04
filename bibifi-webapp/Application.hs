@@ -31,6 +31,7 @@ import Handler.Admin
 import Handler.Admin.Contests
 import Handler.Admin.Contest
 import Handler.Admin.Contest.Create
+import Handler.Admin.Contest.Edit
 import Handler.Admin.Contest.JudgeEmails
 import Handler.Admin.Contest.Judgements
 import Handler.Admin.Contest.Judgements.AssignBuild

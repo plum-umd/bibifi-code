@@ -17,6 +17,11 @@ getAdminContestR url = runLHandler $ do
                         Back
                     <h2>
                         #{contestTitle c}
+                    <h2>
+                        Edit
+                    <p>
+                        <a href="@{AdminContestEditR url}">
+                            Edit contest name, date, etc.
                     <h3>
                         Announcements
                     <p>
