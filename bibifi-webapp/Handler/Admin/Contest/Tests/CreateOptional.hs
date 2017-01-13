@@ -1,4 +1,4 @@
-module Handler.Admin.Contest.Tests.CreateCorrectness where
+module Handler.Admin.Contest.Tests.CreateOptional where
 
 import qualified Admin
 import Import
@@ -10,22 +10,22 @@ generateHtml url form enctype = do
         <a href="@{AdminContestTestsR url}" type="button" .btn .btn-primary>
             Back
         <h2>
-            Create correctness test
-        <form method=post action="@{AdminContestTestsCreateCorrectnessR url}" enctype=#{enctype} roles="form">
+            Create optional test
+        <form method=post action="@{AdminContestTestsCreateOptionalR url}" enctype=#{enctype} roles="form">
             ^{form}
             <div .form-group .optional>
                 <button .btn .btn-primary type="submit">
                     Create test
     |]
 
-getAdminContestTestsCreateCorrectnessR :: Text -> Handler Html
-getAdminContestTestsCreateCorrectnessR url = runLHandler $ Admin.layoutContest url $ \(Entity _ _) -> do
+getAdminContestTestsCreateOptionalR :: Text -> Handler Html
+getAdminContestTestsCreateOptionalR url = runLHandler $ Admin.layoutContest url $ \_ -> do
     Admin.setTitle "Create test"
     (form, enctype) <- handlerToWidget $ generateFormPost $ testForm Nothing
     generateHtml url form enctype
 
-postAdminContestTestsCreateCorrectnessR :: Text -> Handler Html
-postAdminContestTestsCreateCorrectnessR url = runLHandler $ Admin.layoutContest url $ \(Entity cId _) -> do
+postAdminContestTestsCreateOptionalR :: Text -> Handler Html
+postAdminContestTestsCreateOptionalR url = runLHandler $ Admin.layoutContest url $ \(Entity cId _) -> do
     Admin.setTitle "Create test"
     ((res, form), enctype) <- handlerToWidget $ runFormPost $ testForm Nothing
     case res of
@@ -35,7 +35,7 @@ postAdminContestTestsCreateCorrectnessR url = runLHandler $ Admin.layoutContest 
             errorHandler form enctype
         FormSuccess FormData{..} -> do
             -- Insert test into database.
-            handlerToWidget $ runDB $ insert_ $ ContestCoreTest cId formDataName "" "" $ unTextarea formDataTest
+            handlerToWidget $ runDB $ insert_ $ ContestOptionalTest cId formDataName "" "" $ unTextarea formDataTest
 
             -- Set message.
             setMessage [shamlet|
@@ -45,7 +45,7 @@ postAdminContestTestsCreateCorrectnessR url = runLHandler $ Admin.layoutContest 
             |]
             
             -- Redirect.
-            redirect $ AdminContestTestsCreateCorrectnessR url
+            redirect $ AdminContestTestsCreateOptionalR url
 
     where
         errorHandler form enctype = do

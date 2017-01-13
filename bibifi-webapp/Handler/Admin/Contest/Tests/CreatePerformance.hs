@@ -1,4 +1,4 @@
-module Handler.Admin.Contest.Tests.CreateCorrectness where
+module Handler.Admin.Contest.Tests.CreatePerformance where
 
 import qualified Admin
 import Import
@@ -10,32 +10,32 @@ generateHtml url form enctype = do
         <a href="@{AdminContestTestsR url}" type="button" .btn .btn-primary>
             Back
         <h2>
-            Create correctness test
-        <form method=post action="@{AdminContestTestsCreateCorrectnessR url}" enctype=#{enctype} roles="form">
+            Create performance test
+        <form method=post action="@{AdminContestTestsCreatePerformanceR url}" enctype=#{enctype} roles="form">
             ^{form}
             <div .form-group .optional>
                 <button .btn .btn-primary type="submit">
                     Create test
     |]
 
-getAdminContestTestsCreateCorrectnessR :: Text -> Handler Html
-getAdminContestTestsCreateCorrectnessR url = runLHandler $ Admin.layoutContest url $ \(Entity _ _) -> do
+getAdminContestTestsCreatePerformanceR :: Text -> Handler Html
+getAdminContestTestsCreatePerformanceR url = runLHandler $ Admin.layoutContest url $ \(Entity _ _) -> do
     Admin.setTitle "Create test"
-    (form, enctype) <- handlerToWidget $ generateFormPost $ testForm Nothing
+    (form, enctype) <- handlerToWidget $ generateFormPost $ performanceTestForm Nothing
     generateHtml url form enctype
 
-postAdminContestTestsCreateCorrectnessR :: Text -> Handler Html
-postAdminContestTestsCreateCorrectnessR url = runLHandler $ Admin.layoutContest url $ \(Entity cId _) -> do
+postAdminContestTestsCreatePerformanceR :: Text -> Handler Html
+postAdminContestTestsCreatePerformanceR url = runLHandler $ Admin.layoutContest url $ \(Entity cId _) -> do
     Admin.setTitle "Create test"
-    ((res, form), enctype) <- handlerToWidget $ runFormPost $ testForm Nothing
+    ((res, form), enctype) <- handlerToWidget $ runFormPost $ performanceTestForm Nothing
     case res of
         FormMissing ->
             errorHandler form enctype
         FormFailure _ ->
             errorHandler form enctype
-        FormSuccess FormData{..} -> do
+        FormSuccess PerformanceFormData{..} -> do
             -- Insert test into database.
-            handlerToWidget $ runDB $ insert_ $ ContestCoreTest cId formDataName "" "" $ unTextarea formDataTest
+            handlerToWidget $ runDB $ insert_ $ ContestPerformanceTest cId performanceFormDataName "" "" (unTextarea performanceFormDataTest) (not performanceFormDataRequired)
 
             -- Set message.
             setMessage [shamlet|
@@ -45,7 +45,7 @@ postAdminContestTestsCreateCorrectnessR url = runLHandler $ Admin.layoutContest 
             |]
             
             -- Redirect.
-            redirect $ AdminContestTestsCreateCorrectnessR url
+            redirect $ AdminContestTestsCreatePerformanceR url
 
     where
         errorHandler form enctype = do
@@ -56,3 +56,4 @@ postAdminContestTestsCreateCorrectnessR url = runLHandler $ Admin.layoutContest 
             |]
             
             generateHtml url form enctype
+

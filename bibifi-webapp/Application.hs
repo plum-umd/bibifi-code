@@ -44,7 +44,11 @@ import Handler.Admin.Contest.OracleBreaks.Create
 import Handler.Admin.Contest.OracleBreaks.Edit
 import Handler.Admin.Contest.Tests
 import Handler.Admin.Contest.Tests.CreateCorrectness
+import Handler.Admin.Contest.Tests.CreateOptional
+import Handler.Admin.Contest.Tests.CreatePerformance
 import Handler.Admin.Contest.Tests.Correctness
+import Handler.Admin.Contest.Tests.Optional
+import Handler.Admin.Contest.Tests.Performance
 -- import Handler.Admin.Contest.OracleBreaks.Edit
 import Handler.Admin.Users
 import Handler.Admin.User

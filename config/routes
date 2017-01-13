@@ -98,7 +98,11 @@
 /admin/contest/#BreakOracleSubmissionId/oracle_breaks/edit AdminContestOracleBreaksEditR GET POST
 /admin/contest/#Text/tests AdminContestTestsR GET
 /admin/contest/#Text/tests/create/correctness AdminContestTestsCreateCorrectnessR GET POST
+/admin/contest/#Text/tests/create/optional AdminContestTestsCreateOptionalR GET POST
+/admin/contest/#Text/tests/create/performance AdminContestTestsCreatePerformanceR GET POST
 /admin/contest/#Text/tests/correctness/#ContestCoreTestId AdminContestTestsCorrectnessR GET POST
+/admin/contest/#Text/tests/optional/#ContestOptionalTestId AdminContestTestsOptionalR GET POST
+/admin/contest/#Text/tests/performance/#ContestPerformanceTestId AdminContestTestsPerformanceR GET POST
 
 /admin/users AdminUsersR GET
 

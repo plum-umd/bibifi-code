@@ -62,7 +62,11 @@ library
                      Handler.Admin.Contest.ParticipantEmails
                      Handler.Admin.Contest.Tests
                      Handler.Admin.Contest.Tests.CreateCorrectness
+                     Handler.Admin.Contest.Tests.CreateOptional
+                     Handler.Admin.Contest.Tests.CreatePerformance
                      Handler.Admin.Contest.Tests.Correctness
+                     Handler.Admin.Contest.Tests.Optional
+                     Handler.Admin.Contest.Tests.Performance
                      Handler.Admin.Users
                      Handler.Admin.User
                      Handler.Admin.User.ResetPassword
