@@ -70,6 +70,7 @@ library
                      Handler.Admin.Users
                      Handler.Admin.User
                      Handler.Admin.User.ResetPassword
+                     Handler.Admin.User.SetAdmin
                      Handler.Announcements
                      Handler.Scoreboard
                      Handler.Contests

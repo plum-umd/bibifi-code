@@ -113,6 +113,7 @@
 
 /admin/user/#UserId AdminUserR GET
 /admin/user/#UserId/reset AdminUserResetPasswordR GET POST
+/admin/user/#UserId/admin AdminUserSetAdminR GET POST
 
 /judges RedirectJudgesR GET
 /judges/#Text JudgesR GET

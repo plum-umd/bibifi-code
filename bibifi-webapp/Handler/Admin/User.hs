@@ -28,5 +28,9 @@ getAdminUserR uId = runLHandler $ Admin.layout Admin.Users $ do
                     Reset Password
                 <a href="@{AdminUserResetPasswordR uId}">
                     Reset user's password
+                <h3>
+                    Set Admin
+                <a href="@{AdminUserSetAdminR uId}">
+                    Grant or revoke admin privileges
             |]
     

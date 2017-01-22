@@ -106,6 +106,7 @@ import Handler.Admin.Contest.MakeDefault
 import Handler.Admin.Users
 import Handler.Admin.User
 import Handler.Admin.User.ResetPassword
+import Handler.Admin.User.SetAdmin
 import Handler.Todo
 
 -- This line actually creates our YesodDispatch instance. It is the second half
