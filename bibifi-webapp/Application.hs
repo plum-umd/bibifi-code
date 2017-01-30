@@ -50,9 +50,13 @@ import Handler.Admin.Contest.Tests.Correctness
 import Handler.Admin.Contest.Tests.Optional
 import Handler.Admin.Contest.Tests.Performance
 -- import Handler.Admin.Contest.OracleBreaks.Edit
+import Handler.Admin.Team
+import Handler.Admin.Team.Member
+import Handler.Admin.Teams
 import Handler.Admin.Users
 import Handler.Admin.User
 import Handler.Admin.User.ResetPassword
+import Handler.Admin.User.SetAdmin
 import Handler.Announcements
 import Handler.Scoreboard
 import Handler.PerformanceRankings
@@ -103,10 +107,6 @@ import Handler.Admin.AddAnnouncement
 import Handler.Admin.Contests
 import Handler.Admin.Contest
 import Handler.Admin.Contest.MakeDefault
-import Handler.Admin.Users
-import Handler.Admin.User
-import Handler.Admin.User.ResetPassword
-import Handler.Admin.User.SetAdmin
 import Handler.Todo
 
 -- This line actually creates our YesodDispatch instance. It is the second half

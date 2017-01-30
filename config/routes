@@ -106,6 +106,10 @@
 
 /admin/users AdminUsersR GET
 
+/admin/team/#TeamId AdminTeamR GET
+/admin/team/#TeamId/member/#UserId AdminTeamMemberR GET POST
+/admin/teams AdminTeamsR GET
+
 /admin/announcements AdminAnnouncementsR GET
 /admin/announcement/add AddAnnouncementR GET POST
 /admin/announcement/modify/#PostId ModifyAnnouncementR GET POST

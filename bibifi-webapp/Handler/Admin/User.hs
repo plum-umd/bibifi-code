@@ -22,6 +22,8 @@ getAdminUserR uId = runLHandler $ Admin.layout Admin.Users $ do
         [(Entity _ user, Entity _ info)] -> do
             Admin.setTitle "User Information"
             [whamlet|
+                <a href="@{AdminUsersR}" type="button" class="btn btn-primary">
+                    Back
                 <h2>
                     User Information
                 <h3>

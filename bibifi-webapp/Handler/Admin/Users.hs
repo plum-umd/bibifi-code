@@ -10,7 +10,8 @@ getAdminUsersR = runLHandler $ Admin.layout Admin.Users $ do
     case res of 
         [] ->
             [whamlet|
-                There are no users.
+                <p>
+                    There are no users.
             |]
         users ->
             let display (Entity uId u) = 

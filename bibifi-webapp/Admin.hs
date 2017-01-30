@@ -58,7 +58,7 @@ layout page content =
                             <a href="@{AdminContestsR}">
                                 Contests
                         <li class="#{teamsActive}">
-                            <a href="@{TodoR}">
+                            <a href="@{AdminTeamsR}">
                                 Teams
                         <li class="#{usersActive}">
                             <a href="@{AdminUsersR}">

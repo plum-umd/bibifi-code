@@ -67,6 +67,9 @@ library
                      Handler.Admin.Contest.Tests.Correctness
                      Handler.Admin.Contest.Tests.Optional
                      Handler.Admin.Contest.Tests.Performance
+                     Handler.Admin.Team
+                     Handler.Admin.Team.Member
+                     Handler.Admin.Teams
                      Handler.Admin.Users
                      Handler.Admin.User
                      Handler.Admin.User.ResetPassword
