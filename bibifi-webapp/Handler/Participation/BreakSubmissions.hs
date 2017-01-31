@@ -10,7 +10,7 @@ import PostDependencyType
 
 getParticipationBreakSubmissionsR :: TeamContestId -> Handler Html
 getParticipationBreakSubmissionsR tcId = runLHandler $ 
-    Participation.layout Participation.BreakSubmissions tcId $ \_ _ _ _ -> do
+    Participation.layout Participation.BreakSubmissions tcId $ \_ _ contest _ -> do
         -- submissions <- handlerToWidget $ runDB $ selectList [BreakSubmissionTeam ==. tcId] [Desc BreakSubmissionTimestamp]
         submissions <- handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission inner join TeamContest on BreakSubmission.targetTeam == TeamContest.id inner join Team on TeamContest.team == Team.id where BreakSubmission.team == #{tcId} order by BreakSubmission.id desc |]
         -- E.select $ E.from $ \( s `E.InnerJoin` tc `E.InnerJoin` tt) -> do
@@ -85,10 +85,16 @@ getParticipationBreakSubmissionsR tcId = runLHandler $
                           do
                           fixStatus <- prettyFixStatus sId
                           time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
+                          now <- getCurrentTime
+                          let name = 
+                                if now > contestBreakEnd contest then 
+                                    toHtml $ breakSubmissionName s 
+                                else
+                                    dash
                           return [whamlet'|
                             <tr .clickable href="@{ParticipationBreakSubmissionR tcId sId}">
                                 <td>
-                                    #{breakSubmissionName s} (#{keyToInt sId})
+                                    #{name} (#{keyToInt sId})
                                 <td>
                                     #{time}
                                 <td>
