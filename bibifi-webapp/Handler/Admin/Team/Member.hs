@@ -10,13 +10,13 @@ data FormData = FormData ()
     -- Form to remove from team.
 
 generateHtml teamId userId teamAndUserE leaderFormM removeFormM = do
-    Admin.setTitle "Manage User"
+    Admin.setTitle "Manage Member"
     ( teamName, userIdent) <- getNames
     [whamlet|
         <a href="@{AdminTeamR teamId}" type="button" class="btn btn-primary">
             Back
         <h2>
-            Manage User
+            Manage Team Member
         <form class="form-horizontal">
             <div class="form-group">
                 <label class="col-sm-2 control-label">
@@ -104,7 +104,6 @@ postAdminTeamMemberR teamId userId = runLHandler $ Admin.layout Admin.Teams $ do
         Left _ ->
             generateHtml teamId userId teamAndUserE Nothing Nothing
         Right teamAndUser -> do
-            error "TODO: DEBUG THIS. ALWAYS ACCEPTING FIRST FORM. XXX"
             runMultipleFormsPost [
                 FormAndHandler leaderForm (leaderFormHandler teamAndUser)
               , FormAndHandler removeForm (removeFormHandler teamAndUser)
