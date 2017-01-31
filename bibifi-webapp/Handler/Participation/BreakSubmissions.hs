@@ -354,6 +354,13 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                             Only the team leader may delete a break submission. 
                     |]
                     
+        -- Show break name if attacker or break-it has ended.
+        now <- getCurrentTime
+        let name = 
+              if not victim || now > contestBreakEnd contest then
+                  toHtml $ breakSubmissionName bs 
+              else
+                  dash
         [whamlet|
             <a href="@{ParticipationBreakSubmissionsR tcId}" type="button" class="btn btn-primary">
                 Back
@@ -371,7 +378,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                         Test name
                     <div class="col-xs-9">
                         <p class="form-control-static">
-                            #{breakSubmissionName bs}
+                            #{name}
                 <div class="form-group">
                     <label class="col-xs-3 control-label">
                         Test type
