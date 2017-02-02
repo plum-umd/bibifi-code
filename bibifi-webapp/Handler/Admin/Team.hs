@@ -55,7 +55,7 @@ getAdminTeamR tId = runLHandler $ Admin.layout Admin.Teams $ do
 
         contestsWidget = do
             contests <- handlerToWidget $ runDB [lsql|
-                    select Contest.url, Contest.title from Contest
+                    select TeamContest.id, Contest.title from Contest
                     inner join TeamContest on Contest.id == TeamContest.contest
                     where TeamContest.team == #{tId}
                 |]
@@ -75,8 +75,8 @@ getAdminTeamR tId = runLHandler $ Admin.layout Admin.Teams $ do
                         ^{cs}
                 |]
 
-        contestWidget (cUrl, cName) = [whamlet'|
-                <a href="@{AdminContestR cUrl}" .list-group-item>
+        contestWidget (tcId, cName) = [whamlet'|
+                <a href="@{ParticipationInformationR tcId}" .list-group-item>
                     #{cName}
             |]
 

@@ -28,16 +28,27 @@ getAdminContestR url = runLHandler $ do
                     <h3>
                         Announcements
                     <p>
-                        <a href="@{TodoR}">
+                        <a href="@{AdminAnnouncementsR}">
                             Create new announcements, edit them, delete them, etc. 
                     <h3>
                         Participants
                     <p>
-                        <a href="@{TodoR}">
-                            View participants, inspect their submissions, etc.
+                        <a href="@{AdminContestTeamsR url}">
+                            View participating teams. 
                     <p>
                         <a href="@{AdminContestParticipantEmailsR url}">
                             View participants' emails.
+                    <h3>
+                        Submissions
+                    <p>
+                        <a href="@{TodoR}">
+                            View build submissions
+                    <p>
+                        <a href="@{TodoR}">
+                            View break submissions
+                    <p>
+                        <a href="@{TodoR}">
+                            View fix submissions
                     <h3>
                         Judges
                     <p>

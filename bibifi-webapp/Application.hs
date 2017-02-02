@@ -42,6 +42,7 @@ import Handler.Admin.Contest.MakeDefault
 import Handler.Admin.Contest.OracleBreaks
 import Handler.Admin.Contest.OracleBreaks.Create
 import Handler.Admin.Contest.OracleBreaks.Edit
+import Handler.Admin.Contest.Teams
 import Handler.Admin.Contest.Tests
 import Handler.Admin.Contest.Tests.CreateCorrectness
 import Handler.Admin.Contest.Tests.CreateOptional

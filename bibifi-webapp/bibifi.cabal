@@ -60,6 +60,7 @@ library
                      Handler.Admin.Contest.OracleBreaks.Create
                      Handler.Admin.Contest.OracleBreaks.Edit
                      Handler.Admin.Contest.ParticipantEmails
+                     Handler.Admin.Contest.Teams
                      Handler.Admin.Contest.Tests
                      Handler.Admin.Contest.Tests.CreateCorrectness
                      Handler.Admin.Contest.Tests.CreateOptional
