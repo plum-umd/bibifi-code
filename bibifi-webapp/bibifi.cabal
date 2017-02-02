@@ -150,7 +150,7 @@ library
                  , yesod-auth                    
                  , yesod-auth-hashdb             
                  , yesod-static                  
-                 , yesod-form                    
+                 , yesod-form                    >= 1.4.10
                  , vector
                  , bytestring                     
                  , data-textual
