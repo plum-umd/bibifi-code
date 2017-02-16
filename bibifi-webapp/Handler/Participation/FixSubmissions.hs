@@ -5,6 +5,7 @@ import Score
 import Import
 import qualified Participation
 import PostDependencyType
+import Submissions
 
 getParticipationFixSubmissionsR :: TeamContestId -> Handler Html
 getParticipationFixSubmissionsR tcId = runLHandler $ 
@@ -24,39 +25,8 @@ getParticipationFixSubmissionsR tcId = runLHandler $
                             No submissions were found. If you have made submissions, please ensure your git url is correct on the information page.
                     |]
                 _ ->
-                    let row (Entity sId s) = do
-                          let status = prettyFixStatus $ fixSubmissionStatus s
-                          let result = prettyFixResult $ fixSubmissionResult s
-                          time <- lLift $ lift $ displayTime $ fixSubmissionTimestamp s
-                          return $ [whamlet'|
-                            <tr .clickable href="@{ParticipationFixSubmissionR tcId sId}">
-                                <td>
-                                    #{fixSubmissionName s}
-                                <td>
-                                    #{time}
-                                <td>
-                                    #{status}
-                                <td>
-                                    #{result}
-                          |]
-                    in
-                    do
-                    rows <- mapM row submissions
-                    [whamlet|
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>
-                                        Fix name
-                                    <th>
-                                        Timestamp
-                                    <th>
-                                        Status
-                                    <th>
-                                        Result
-                            <tbody>
-                                ^{mconcat rows}
-                    |]
+                    displayFixSubmissionsTable False submissions
+
             [whamlet|
                 <h3>
                     Break submissions

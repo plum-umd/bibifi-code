@@ -5,6 +5,7 @@ module Handler.Participation.BuildSubmissions where
 import Import
 import qualified Participation
 import PostDependencyType
+import Submissions
 import qualified Widgets
 
 getParticipationBuildSubmissionsR :: TeamContestId -> Handler Html
@@ -18,35 +19,7 @@ getParticipationBuildSubmissionsR tcId = runLHandler $
                         No submissions were found. If you have made submissions, please ensure your git url is correct on the information page.
                 |]
             _ ->
-                let row (Entity sId s) = do
-                    let status = prettyBuildStatus $ buildSubmissionStatus s
-                    time <- lift $ displayTime $ buildSubmissionTimestamp s
-                    [whamlet'|
-                        <tr class="clickable" href="@{ParticipationBuildSubmissionR tcId sId}">
-                            <td>
-                                #{buildSubmissionCommitHash s}
-                            <td>
-                                #{time}
-                            <td>
-                                #{status}
-                    |]
-                in
-                do
-                let rows = mconcat $ map row submissions
-                [whamlet|
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>
-                                    Submission hash
-                                <th>
-                                    Timestamp
-                                <th>
-                                    Status
-                        <tbody>
-                            ^{rows}
-                |]
-                clickableDiv
+                displayBuildSubmissionsTable False submissions
 
 getParticipationBuildSubmissionR :: TeamContestId -> BuildSubmissionId -> Handler Html
 getParticipationBuildSubmissionR tcId bsId = runLHandler $ do

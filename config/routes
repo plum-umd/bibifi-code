@@ -85,6 +85,9 @@
 /admin/contests/create AdminContestCreateR GET POST
 
 /admin/contest/#Text AdminContestR GET
+/admin/contest/#Text/build_submissions AdminContestBuildSubmissionsR GET
+/admin/contest/#Text/break_submissions AdminContestBreakSubmissionsR GET
+/admin/contest/#Text/fix_submissions AdminContestFixSubmissionsR GET
 /admin/contest/#Text/edit AdminContestEditR GET POST
 /admin/contest/#Text/judgeinfo AdminContestJudgeEmailsR GET
 /admin/contest/#Text/judgements AdminContestJudgementsR GET

@@ -7,6 +7,7 @@ import qualified BreakSubmissions
 import Import
 import qualified Participation
 import PostDependencyType
+import Submissions
 
 getParticipationBreakSubmissionsR :: TeamContestId -> Handler Html
 getParticipationBreakSubmissionsR tcId = runLHandler $ 
@@ -26,45 +27,10 @@ getParticipationBreakSubmissionsR tcId = runLHandler $
                         No submissions were found. If you have made submissions, please ensure your git url is correct on the information page.
                 |]
             _ ->
-                let row (Entity sId s, target) = do
-                    let status = prettyBreakStatus $ breakSubmissionStatus s
-                    let result = prettyBreakResult $ breakSubmissionResult s
-                    time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
-                    return [whamlet'|
-                        <tr .clickable href="@{ParticipationBreakSubmissionR tcId sId}">
-                            <td>
-                                #{breakSubmissionName s}
-                            <td>
-                                #{time}
-                            <td>
-                                #{target}
-                            <td>
-                                #{status}
-                            <td>
-                                #{result}
-                    |]
-                in
-                do
-                rows <- mapM row submissions
-                [whamlet|
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>
-                                    Test name
-                                <th>
-                                    Timestamp
-                                <th>
-                                    Target Team
-                                <th>
-                                    Status
-                                <th>
-                                    Result
-                        <tbody>
-                            ^{mconcat rows}
-                |]
-        againstW <- handlerToWidget $ do
-            ss <- runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission inner join TeamContest on BreakSubmission.team == TeamContest.id inner join Team on Team.id == TeamContest.team where BreakSubmission.targetTeam == #{tcId} order by BreakSubmission.id desc |]
+                displayBreakSubmissionsTable contest BreakSubmissionAttacker submissions
+
+        let againstW = do
+            ss <- handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission inner join TeamContest on BreakSubmission.team == TeamContest.id inner join Team on Team.id == TeamContest.team where BreakSubmission.targetTeam == #{tcId} order by BreakSubmission.id desc |]
             -- E.select $ E.from $ \( s `E.InnerJoin` tc `E.InnerJoin` tt) -> do
             --     E.on ( tc E.^. TeamContestTeam E.==. tt E.^. TeamId)
             --     E.on ( s E.^. BreakSubmissionTeam E.==. tc E.^. TeamContestId)
@@ -73,98 +39,17 @@ getParticipationBreakSubmissionsR tcId = runLHandler $
             --     return (s, tt E.^. TeamName)
             case ss of 
                 [] ->
-                    return $ [whamlet'|
+                    [whamlet|
                         <p>
                             No submissions have targeted against your team.
                     |]
                 _ ->
-                    let row (Entity sId s, attacker) = 
-                          let status = prettyBreakStatusVictim $ breakSubmissionStatus s in
-                          let result = prettyBreakResultVictim $ breakSubmissionResult s in
-                          let bType = maybe dash prettyBreakType $ breakSubmissionType s in
-                          do
-                          fixStatus <- prettyFixStatus sId
-                          time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
-                          now <- getCurrentTime
-                          let name = 
-                                if now > contestBreakEnd contest then 
-                                    toHtml $ breakSubmissionName s 
-                                else
-                                    dash
-                          return [whamlet'|
-                            <tr .clickable href="@{ParticipationBreakSubmissionR tcId sId}">
-                                <td>
-                                    #{name} (#{keyToInt sId})
-                                <td>
-                                    #{time}
-                                <td>
-                                    #{attacker} (#{keyToInt $ breakSubmissionTeam s})
-                                <td>
-                                    #{status}
-                                <td>
-                                    #{result}
-                                <td>
-                                    #{bType}
-                                <td>
-                                    #{fixStatus}
-                          |]
-                    in
-                    do
-                    rows <- mapM row ss
-                    return [whamlet'|
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>
-                                        Test name
-                                    <th>
-                                        Timestamp
-                                    <th>
-                                        Attacking Team
-                                    <th>
-                                        Status
-                                    <th>
-                                        Result
-                                    <th>
-                                        Type
-                                    <th>
-                                        Fix Status
-                            <tbody>
-                                ^{mconcat rows}
-                    |]
+                    displayBreakSubmissionsTable contest BreakSubmissionVictim ss
         [whamlet|
             <h3>
                 Against your team
-            ^{againstW}
         |]
-        clickableDiv
-
-    where
-        prettyFixStatus bsId = do
-            disputeM <- runDB $ getBy $ UniqueBreakDispute bsId
-            case disputeM of
-                Just _ ->
-                    return [shamlet|
-                        <span>
-                            Disputed
-                    |]
-                Nothing -> do
-                    -- Check if a non pending/rejected fix exists.
-                    fixs <- runDB $ E.select $ E.from $ \(E.InnerJoin f fb) -> do
-                        E.on (f E.^. FixSubmissionId E.==. fb E.^. FixSubmissionBugsFix)
-                        E.where_ (fb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&.
-                            (f E.^. FixSubmissionStatus E.==. E.val FixBuilt E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudging E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudged))
-                        return fb
-                    case fixs of
-                        [_a] ->
-                            return [shamlet|
-                                <span>
-                                    Submitted
-                            |]
-                        _ ->
-                            return dash
-
-
+        againstW
 
 getParticipationBreakSubmissionR :: TeamContestId -> BreakSubmissionId -> Handler Html
 getParticipationBreakSubmissionR tcId bsId = runLHandler $ do

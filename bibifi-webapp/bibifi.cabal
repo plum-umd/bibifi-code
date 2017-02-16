@@ -38,6 +38,7 @@ library
                      Settings.Judges
                      Settings.StaticFiles
                      Sponsors
+                     Submissions
                      Team
                      TCB
                      User
@@ -48,6 +49,9 @@ library
                      Handler.Admin.AddAnnouncement
                      Handler.Admin.Contests
                      Handler.Admin.Contest
+                     Handler.Admin.Contest.BuildSubmissions
+                     Handler.Admin.Contest.BreakSubmissions
+                     Handler.Admin.Contest.FixSubmissions
                      Handler.Admin.Contest.Create
                      Handler.Admin.Contest.Edit
                      Handler.Admin.Contest.JudgeEmails
