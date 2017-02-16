@@ -427,3 +427,88 @@ fall2015coursera = do
                     <strong>
                         Second place breakers, team <em>Erlang</em>.
     |]
+
+fall2016 :: Widget
+fall2016 = do
+    winners <- newIdent
+    f00d <- newIdent
+    fivedollarwrench <- newIdent
+    provablywrong <- newIdent
+    tos <- newIdent
+    toWidget [lucius|
+        ##{f00d} {
+            width: 300px;
+            height: 401px;
+            margin: 15px 0px 5px;
+        }
+
+        ##{fivedollarwrench} {
+            width: 300px;
+            height: 504px;
+            margin: 15px 0px 5px;
+        }
+
+        ##{provablywrong} {
+            width: 300px;
+            height: 367px;
+            margin: 15px 0px 5px;
+        }
+
+        ##{tos} {
+            width: 400px;
+            height: 300px;
+            margin: 15px 0px 5px;
+        }
+    |]
+    [whamlet'|
+        <div class="row">
+            <div class="col-md-12 col-lg-offset-2 col-lg-8">
+                <hr class="spacer">
+                <h1 class="text-center" id="winners">
+                    Fall 2016 Winners
+                <div>
+                    <p id="#{winners}" class="center-block">
+                        The Fall 2016 open contest has ended! 
+                        Congratulations to the winners!
+                        Team <em>f00d</em> took first place as a builder and breaker. 
+                        The second place builder team was <em>fivedollarwrench</em>, and the third place builder team was <em>ProvablyWrong</em>. 
+                        The second place breaker team was <em>tos</em>. 
+                        Team <em>c0dingRabbits</em> won third place as a breaker. 
+        <div class="row">
+            <div .col-md-offset-4 .col-md-4 .text-center>
+                <img id="#{f00d}" src="@{StaticR img_fall2016_f00d_jpg}" .img-rounded>
+        <div class="row">
+            <div .text-center>
+                <p>
+                    <strong>
+                        First place builder and breaker, team <em>f00d</em>.
+        <div class="row">
+            <div .col-md-offset-4 .col-md-4 .text-center>
+                <img id="#{fivedollarwrench}" src="@{StaticR img_fall2016_fivedollarwrench_png}" .img-rounded>
+        <div class="row">
+            <div .text-center>
+                <p>
+                    <strong>
+                        Second place builders, team <em>fivedollarwrench</em>.
+        <div class="row">
+            <div .col-md-offset-4 .col-md-4 .text-center>
+                <img id="#{provablywrong}" src="@{StaticR img_fall2016_ProvablyWrong_png}" .img-rounded>
+        <div class="row">
+            <div .text-center>
+                <p>
+                    <strong>
+                        Third place builders, team <em>ProvablyWrong</em>.
+        <div class="row">
+            <div .col-md-12 .text-center>
+                <img id="#{tos}" src="@{StaticR img_fall2016_tos_jpg}" .img-rounded>
+        <div class="row">
+            <div .text-center>
+                <p>
+                    <strong>
+                        Second place breakers, team <em>tos</em>.
+        <div class="row">
+            <div .text-center>
+                <p>
+                    <strong>
+                        No picture for third place breakers, team <em>c0dingRabbits</em>.
+    |]
