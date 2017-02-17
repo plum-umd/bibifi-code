@@ -66,10 +66,13 @@ executable runner
                        Core.SSH
                        Core.Score
                        Options
+                       Problem
+                       Problem.Class
                        Queue
                        Runner
                        Scheduler
                        Scorer  
+                       Scorer.Class
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:    
@@ -122,6 +125,8 @@ executable runner
                        MultiParamTypeClasses
                        RecordWildCards
                        ScopedTypeVariables
+                       OverloadedStrings
+                       ExistentialQuantification
   
   -- Base language which the package is written in.
   default-language:    Haskell2010

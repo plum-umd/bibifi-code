@@ -28,17 +28,22 @@ import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
 import Common
-import Core.Modular.Class
 import Core.Modular.Shared hiding (parseCoreTest, parseOptionalTest, parsePerformanceTest)
 import Core.SSH
+import Problem.Class
+import Scorer.Class
 
 newtype ATMSpec = ATMSpec (Entity Contest)
 
-instance ModularContest ATMSpec where
+instance ExtractContest ATMSpec where
+    extractContest (ATMSpec c) = c
+
+instance ScorerClass ATMSpec where
     scoreContestBuild (ATMSpec (Entity cId _)) _ = defaultScoreBuildRound cId
     scoreContestBreak (ATMSpec (Entity cId _)) _ = defaultScoreBreakRound cId
     scoreContestFix (ATMSpec (Entity cId _)) _ = defaultScoreFixRound cId
 
+instance ProblemRunnerClass ATMSpec where
     runOracleSubmission (ATMSpec _contest) opts (Entity submissionId submission) = 
         -- Parse oracle input.
         let inputObjectM = Aeson.decodeStrict' $ Text.encodeUtf8 $ oracleSubmissionInput submission in

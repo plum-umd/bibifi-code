@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 module Core.Modular (
       toModular
     , getModContestId

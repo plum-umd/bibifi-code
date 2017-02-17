@@ -33,18 +33,25 @@ import qualified Text.Read as Text
 import Cloud
 import Cloud.EC2
 import Common
-import Core.Modular.Class
+import Core.Modular.Shared (getBuildArchiveLocation, getFixArchiveLocation)
 import Core.Score
+import Problem.Class
+import Scorer.Class
 
 newtype ArtGallery = ArtGallery (Entity Contest)
 
 foldr' :: (a -> b -> b) -> b -> [a] -> b
 foldr' = foldr
 
-instance ModularContest ArtGallery where
+instance ExtractContest ArtGallery where
+    extractContest (ArtGallery c) = c
+
+instance ScorerClass ArtGallery where
     scoreContestBuild (ArtGallery (Entity cId _)) _ = defaultScoreBuildRound cId
     scoreContestBreak (ArtGallery (Entity cId _)) _ = defaultScoreBreakRound cId
     scoreContestFix (ArtGallery (Entity cId _)) _ = defaultScoreFixRound cId
+
+instance ProblemRunnerClass ArtGallery where
     runOracleSubmission (ArtGallery _contest) opts (Entity submissionId submission) = 
         -- Parse input.
         let inputM = Aeson.decodeStrict' $ Text.encodeUtf8 $ oracleSubmissionInput submission in

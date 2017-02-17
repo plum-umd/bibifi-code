@@ -5,7 +5,7 @@ import Control.Exception.Enclosed
 -- import Control.Monad
 -- import Control.Monad.Trans.Class
 -- import Control.Monad.Trans.Reader
-import Core.Modular
+import Problem
 import Data.Set (Set)
 import Score
 -- import System.Timeout
@@ -13,8 +13,8 @@ import Score
 import Common
 import Queue
 
-getJob :: ModContest -> (ModContest -> Job -> DatabaseM (Maybe (Bool, Maybe ContestRound))) -> MVar (Set TeamContestId) -> MVar (Queue Job) -> MVar Int -> DatabaseM ()
-getJob contest f blockedTeams queue exiting = do
+getJob :: ProblemRunner -> (ProblemRunner -> Job -> DatabaseM (Maybe (Bool, Maybe ContestRound))) -> MVar (Set TeamContestId) -> MVar (Queue Job) -> MVar Int -> DatabaseM ()
+getJob runner'@(ProblemRunner runner) f blockedTeams queue exiting = do
     -- Check for job.
     jobM <- popQueue queue
     case jobM of
@@ -28,7 +28,7 @@ getJob contest f blockedTeams queue exiting = do
             -- resultM <- lift $ timeout timer $ runDatabaseM dbConf $ 
             --     runComputation (False, Nothing) $ f contest job
             -- Run computation. 
-            resultM <- catchAny (f contest job) $ \e -> do
+            resultM <- catchAny (f runner' job) $ \e -> do
                 putLog $ show e
                 return $ Just (False,Nothing)
 
@@ -37,7 +37,7 @@ getJob contest f blockedTeams queue exiting = do
                     -- Check if an error occured.
                     if success then do
                         -- Rescore if necessary.
-                        let contestId = getModContestId contest
+                        let contestId = extractContestId runner
                         case rescore of
                             Just ContestRoundBuild -> 
                                 rescoreBuildRound contestId
@@ -75,15 +75,15 @@ getJob contest f blockedTeams queue exiting = do
         -- Sleep and then loop
         loop = do
             liftIO $ threadDelay 1000000
-            getJob contest f blockedTeams queue exiting
+            getJob runner' f blockedTeams queue exiting
 
         jobTeamContestId (OracleJob (Entity _ os)) = oracleSubmissionTeam os
         jobTeamContestId (BuildJob (Entity _ bs)) = buildSubmissionTeam bs
         jobTeamContestId (BreakJob (Entity _ bs)) = breakSubmissionTeam bs
         jobTeamContestId (FixJob (Entity _ fs)) = fixSubmissionTeam fs
 
-runner :: ModContest -> RunnerOptions -> MVar (Set TeamContestId) -> MVar (Queue Job) -> MVar Int -> DatabaseM ()
-runner contest options = getJob contest $ runJob options
+runner :: ProblemRunner -> RunnerOptions -> MVar (Set TeamContestId) -> MVar (Queue Job) -> MVar Int -> DatabaseM ()
+runner r options = getJob r $ runJob options
 
 revertJob :: Job -> DatabaseM ()
 revertJob (OracleJob (Entity osId _os)) = runDB $ 
@@ -104,22 +104,17 @@ timeoutJob (BreakJob (Entity bsId _bs)) = runDB $
     update bsId [BreakSubmissionStatus =. BreakTimeout]
 timeoutJob (FixJob (Entity fsId _fs)) = runDB $ update fsId [FixSubmissionStatus =. FixTimeout]
 
-runJob :: RunnerOptions -> ModContest -> Job -> DatabaseM (Maybe (Bool, Maybe ContestRound))
-runJob opts contest (OracleJob os) = do
-    successM <- runOracle contest opts os
+runJob :: RunnerOptions -> ProblemRunner -> Job -> DatabaseM (Maybe (Bool, Maybe ContestRound))
+runJob opts (ProblemRunner r) (OracleJob os) = do
+    successM <- runOracleSubmission r opts os
     case successM of 
         Nothing ->
             return Nothing
         Just success ->
             return $ Just (success, Nothing)
 
-    where
-        runOracle (ATMContest c) = runOracleSubmission c
-        runOracle (ArtContest c) = runOracleSubmission c
-        runOracle (EHRContest c) = runOracleSubmission c
-
-runJob opts contest (BuildJob bs) = do
-    resM <- runBuild contest
+runJob opts (ProblemRunner r) (BuildJob bs) = do
+    resM <- runBuildSubmission r opts bs
     case resM of
         Nothing ->
             return Nothing
@@ -127,13 +122,8 @@ runJob opts contest (BuildJob bs) = do
             let rescore = if rescore' then Just ContestRoundBuild else Nothing in
             return $ Just (success, rescore)
 
-    where
-        runBuild (ATMContest c) = runBuildSubmission c opts bs
-        runBuild (ArtContest c) = runBuildSubmission c opts bs
-        runBuild (EHRContest c) = runBuildSubmission c opts bs
-
-runJob opts contest (BreakJob bs) = do
-            resM <- runBreak contest
+runJob opts (ProblemRunner r) (BreakJob bs) = do
+            resM <- runBreakSubmission r opts bs
             case resM of 
                 Nothing ->
                     return Nothing
@@ -141,24 +131,14 @@ runJob opts contest (BreakJob bs) = do
                     let rescore = if rescore' then Just ContestRoundBreak else Nothing in
                     return $ Just (success, rescore)
 
-    where
-        runBreak (ATMContest c) = runBreakSubmission c opts bs
-        runBreak (ArtContest c) = runBreakSubmission c opts bs
-        runBreak (EHRContest c) = runBreakSubmission c opts bs
-
-runJob opts contest (FixJob fs) = do
-    resM <- runFix contest
+runJob opts (ProblemRunner r) (FixJob fs) = do
+    resM <- runFixSubmission r opts fs
     case resM of
         Nothing ->
             return Nothing
         Just (success, rescore') -> 
             let rescore = if rescore' then Just ContestRoundFix else Nothing in
             return $ Just (success, rescore)
-
-    where
-        runFix (ATMContest c) = runFixSubmission c opts fs
-        runFix (ArtContest c) = runFixSubmission c opts fs
-        runFix (EHRContest c) = runFixSubmission c opts fs
 
 -- getBuildTest blockedTeams = 
 --     -- Get next build-it test for non-blocked teams.

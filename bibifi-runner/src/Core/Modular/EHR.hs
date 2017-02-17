@@ -19,18 +19,24 @@ import Yesod.Form.Fields (Textarea(..))
 import Cloud
 import Common
 -- import Core.DatabaseM
-import Core.Modular.Class
+-- import Core.Modular.Class
 import Core.Modular.Shared
 import Core.Score
 import Core.SSH
+import Scorer.Class
+import Problem.Class
 
 newtype EHRSpec = EHRSpec (Entity Contest)
 
-instance ModularContest EHRSpec where
+instance ExtractContest EHRSpec where
+    extractContest (EHRSpec c) = c
+
+instance ScorerClass EHRSpec where
     scoreContestBuild (EHRSpec (Entity cId _)) _ = defaultScoreBuildRound cId
     scoreContestBreak (EHRSpec (Entity cId _)) _ = defaultScoreBreakRound cId
     scoreContestFix (EHRSpec (Entity cId _)) _ = defaultScoreFixRound cId
 
+instance ProblemRunnerClass EHRSpec where
     runOracleSubmission (EHRSpec _contest) opts (Entity submissionId submission) =
         -- Parse oracle input.
         let inputObjectM = Aeson.decodeStrict' $ Text.encodeUtf8 $ oracleSubmissionInput submission in

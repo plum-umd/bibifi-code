@@ -1,23 +1,39 @@
 module Scorer where
 
-import Core.Modular
 import Control.Monad.Trans.Control
-
 import Common
+import Problem.Class (ExtractContest(..), extractContestId, RunnerOptions(..))
+import Scorer.Class
 
-scorer :: MVar Int -> ModContest -> RunnerOptions -> DatabaseM ()
-scorer exiting contest runnerOptions = checkExit exiting $ do
+-- Import additional contest specification instances here.
+import Core.Modular.ATM (ATMSpec(..))
+import Core.Modular.ArtGallery (ArtGallery(..))
+import Core.Modular.EHR (EHRSpec(..))
+
+data Scorer = forall a . (ScorerClass a, ExtractContest a) => Scorer a
+
+contestToScorer :: Entity Contest -> Scorer
+contestToScorer contestE = helper $ contestUrl $ entityVal contestE
+    where
+        helper "spring2015coursera" = Scorer $ ArtGallery contestE
+        helper "fall2015coursera" = Scorer $ ATMSpec contestE
+        helper "fall2015" = Scorer $ ATMSpec contestE
+        helper "fall2016" = Scorer $ EHRSpec contestE
+        helper _url = undefined -- error $ "You must define Core.Modular.toModular for url: " ++ (Text.unpack url)
+
+scorerLoop :: MVar Int -> Scorer -> RunnerOptions -> DatabaseM ()
+scorerLoop exiting (Scorer scorer) runnerOptions = checkExit exiting $ do
     -- Check for rescore.
-    let contestId = getModContestId contest
+    let contestId = extractContestId scorer
     rescores <- runDB $ selectList [ScorePendingContest ==. contestId] []
     flip mapM_ rescores $ \(Entity pendingId pending) -> do
         case scorePendingRound pending of
             ContestRoundBuild ->
-                scoreModContestBuild contest runnerOptions
+                scoreContestBuild scorer runnerOptions
             ContestRoundBreak ->
-                scoreModContestBreak contest runnerOptions
+                scoreContestBreak scorer runnerOptions
             ContestRoundFix ->
-                scoreModContestFix contest runnerOptions
+                scoreContestFix scorer runnerOptions
         -- Delete the pending request. 
         runDB $ delete pendingId
 
@@ -35,19 +51,4 @@ checkExit exiting f = do
             checkExit exiting f
         Just c -> do
             liftIO $ putMVar exiting $ c - 1
-
-scoreModContestBuild :: ModContest -> RunnerOptions -> DatabaseM ()
-scoreModContestBuild (ATMContest contest) = scoreContestBuild contest
-scoreModContestBuild (ArtContest contest) = scoreContestBuild contest
-scoreModContestBuild (EHRContest contest) = scoreContestBuild contest
-
-scoreModContestBreak :: ModContest -> RunnerOptions -> DatabaseM ()
-scoreModContestBreak (ATMContest contest) = scoreContestBreak contest
-scoreModContestBreak (ArtContest contest) = scoreContestBreak contest
-scoreModContestBreak (EHRContest contest) = scoreContestBreak contest
-
-scoreModContestFix :: ModContest -> RunnerOptions -> DatabaseM ()
-scoreModContestFix (ATMContest contest) = scoreContestFix contest
-scoreModContestFix (ArtContest contest) = scoreContestFix contest
-scoreModContestFix (EHRContest contest) = scoreContestFix contest
 
