@@ -57,7 +57,6 @@ executable runner
                        Cloud.EC2
                        Cloud.Internal
                        Common
-                       Core.Modular
                        Core.SSH
                        Core.Score
                        Options
