@@ -1,14 +1,15 @@
 module Scorer where
 
 import Control.Monad.Trans.Control
+
 import Common
 import Problem.Class (ExtractContest(..), extractContestId, RunnerOptions(..))
 import Scorer.Class
 
 -- Import additional contest specification instances here.
-import Core.Modular.ATM (ATMSpec(..))
-import Core.Modular.ArtGallery (ArtGallery(..))
-import Core.Modular.EHR (EHRSpec(..))
+import Problem.ATM (ATMSpec(..))
+import Problem.ArtGallery (ArtGallery(..))
+import Problem.EHR (EHRSpec(..))
 
 data Scorer = forall a . (ScorerClass a, ExtractContest a) => Scorer a
 

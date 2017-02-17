@@ -11,9 +11,9 @@ import Common
 import Problem.Class as Export
 
 -- Import additional contest specification instances here.
-import Core.Modular.ATM (ATMSpec(..))
-import Core.Modular.ArtGallery (ArtGallery(..))
-import Core.Modular.EHR (EHRSpec(..))
+import Problem.ATM (ATMSpec(..))
+import Problem.ArtGallery (ArtGallery(..))
+import Problem.EHR (EHRSpec(..))
 
 data ProblemRunner = forall a . (ExtractContest a, ProblemRunnerClass a) => ProblemRunner a
 

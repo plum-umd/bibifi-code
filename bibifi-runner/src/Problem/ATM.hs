@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
-module Core.Modular.ATM where
+module Problem.ATM where
 
 import Core (keyToInt)
 import Core.DatabaseM
@@ -28,9 +28,9 @@ import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
 import Common
-import Core.Modular.Shared hiding (parseCoreTest, parseOptionalTest, parsePerformanceTest)
 import Core.SSH
 import Problem.Class
+import Problem.Shared hiding (parseCoreTest, parseOptionalTest, parsePerformanceTest)
 import Scorer.Class
 
 newtype ATMSpec = ATMSpec (Entity Contest)

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Core.Modular.EHR where
+module Problem.EHR where
 
 import Core (keyToInt)
 import Control.Monad.Error
@@ -20,11 +20,11 @@ import Cloud
 import Common
 -- import Core.DatabaseM
 -- import Core.Modular.Class
-import Core.Modular.Shared
 import Core.Score
 import Core.SSH
-import Scorer.Class
 import Problem.Class
+import Problem.Shared
+import Scorer.Class
 
 newtype EHRSpec = EHRSpec (Entity Contest)
 

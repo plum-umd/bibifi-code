@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
-module Core.Modular.Shared where
+module Problem.Shared where
 
 import Control.Monad.Error as E
 import Core (keyToInt)

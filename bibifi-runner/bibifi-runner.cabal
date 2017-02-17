@@ -58,16 +58,15 @@ executable runner
                        Cloud.Internal
                        Common
                        Core.Modular
-                       Core.Modular.ATM
-                       Core.Modular.ArtGallery
-                       Core.Modular.Class
-                       Core.Modular.EHR
-                       Core.Modular.Shared
                        Core.SSH
                        Core.Score
                        Options
                        Problem
+                       Problem.ATM
+                       Problem.ArtGallery
                        Problem.Class
+                       Problem.EHR
+                       Problem.Shared
                        Queue
                        Runner
                        Scheduler

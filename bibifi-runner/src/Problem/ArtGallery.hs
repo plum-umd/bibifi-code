@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
-module Core.Modular.ArtGallery where
+module Problem.ArtGallery where
 
 import Core (keyToInt)
 import Core.SSH hiding (uploadString)
@@ -33,9 +33,9 @@ import qualified Text.Read as Text
 import Cloud
 import Cloud.EC2
 import Common
-import Core.Modular.Shared (getBuildArchiveLocation, getFixArchiveLocation)
 import Core.Score
 import Problem.Class
+import Problem.Shared (getBuildArchiveLocation, getFixArchiveLocation)
 import Scorer.Class
 
 newtype ArtGallery = ArtGallery (Entity Contest)
