@@ -4,7 +4,7 @@ module Problem (
     , module Export
     ) where
 
-import qualified Data.Text as Text
+-- import qualified Data.Text as Text
 import Model
 
 import Common
@@ -14,6 +14,7 @@ import Problem.Class as Export
 import Problem.ATM (ATMSpec(..))
 import Problem.ArtGallery (ArtGallery(..))
 import Problem.EHR (EHRSpec(..))
+import Problem.API (APIProblem(..))
 
 data ProblemRunner = forall a . (ExtractContest a, ProblemRunnerClass a) => ProblemRunner a
 
@@ -24,4 +25,5 @@ contestToProblemRunner contestE = helper $ contestUrl $ entityVal contestE
         helper "fall2015coursera" = ProblemRunner $ ATMSpec contestE
         helper "fall2015" = ProblemRunner $ ATMSpec contestE
         helper "fall2016" = ProblemRunner $ EHRSpec contestE
-        helper url = error $ "You must define Core.Modular.toModular for url: " ++ (Text.unpack url)
+        helper _ = ProblemRunner $ APIProblem contestE
+        -- helper url = error $ "You must define Core.Modular.toModular for url: " ++ (Text.unpack url)

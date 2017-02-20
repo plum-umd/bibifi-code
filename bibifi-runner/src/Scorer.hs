@@ -10,6 +10,7 @@ import Scorer.Class
 import Problem.ATM (ATMSpec(..))
 import Problem.ArtGallery (ArtGallery(..))
 import Problem.EHR (EHRSpec(..))
+import Problem.API (APIProblem(..))
 
 data Scorer = forall a . (ScorerClass a, ExtractContest a) => Scorer a
 
@@ -20,7 +21,8 @@ contestToScorer contestE = helper $ contestUrl $ entityVal contestE
         helper "fall2015coursera" = Scorer $ ATMSpec contestE
         helper "fall2015" = Scorer $ ATMSpec contestE
         helper "fall2016" = Scorer $ EHRSpec contestE
-        helper _url = undefined -- error $ "You must define Core.Modular.toModular for url: " ++ (Text.unpack url)
+        helper _url = Scorer $ APIProblem contestE
+        -- error $ "You must define Core.Modular.toModular for url: " ++ (Text.unpack url)
 
 scorerLoop :: MVar Int -> Scorer -> RunnerOptions -> DatabaseM ()
 scorerLoop exiting (Scorer scorer) runnerOptions = checkExit exiting $ do
