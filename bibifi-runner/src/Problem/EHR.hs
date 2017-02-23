@@ -55,7 +55,7 @@ instance ProblemRunnerClass EHRSpec where
                 resultE <- runErrorT $ launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
                     -- Send oracle.
                     putLog "Sending oracle files."
-                    let oracleFile = runnerOracleDirectory opts ++ "server"
+                    let oracleFile = runnerProblemDirectory opts ++ "server"
                     let oracleDestFile = "/home/ubuntu/server"
                     _ <- runSSH (OracleErr "Could not send oracle to instance.") $ sendFile session 0o777 oracleFile oracleDestFile
 
@@ -249,7 +249,7 @@ instance ProblemRunnerClass EHRSpec where
 
         where
             basePath = runnerRepositoryPath opts
-            oracleBasePath = runnerOracleDirectory opts
+            oracleBasePath = runnerProblemDirectory opts
             breakJSONFile = FilePath.addExtension (FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName, "test"]) "json"
             targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam submission
             submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
@@ -365,7 +365,7 @@ instance ProblemRunnerClass EHRSpec where
                 putLog err
                 return $ Just (False, False)
 
-            oracleBasePath = runnerOracleDirectory opts
+            oracleBasePath = runnerProblemDirectory opts
 
             runCoreTest session test = do
                 result <- runTestAt' session test

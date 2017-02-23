@@ -19,14 +19,14 @@ import Common
 data Options = Options {
         optionsCount :: Int
       , optionsDirectory :: FilePath -- Repo directory
-      , optionsOracleDirectory :: FilePath
+      , optionsProblemDirectory :: FilePath -- Problem materials directory.
       , contest :: Entity Contest -- Unique contest url identifier
     }
 
 data InternalOptions = InternalOptions {
         _iCount :: Maybe Int
       , _iContestUrl :: Maybe String
-      , _iOracleDirectory :: Maybe String
+      , _iProblemDirectory :: Maybe String
     }
 
 $(makeLenses ''InternalOptions)
@@ -35,15 +35,15 @@ emptyOptions :: InternalOptions
 emptyOptions = InternalOptions {
         _iCount = Nothing
       , _iContestUrl = Nothing
-      , _iOracleDirectory = Nothing
+      , _iProblemDirectory = Nothing
     }
 
 options :: [OptDescr (InternalOptions -> IO InternalOptions)]
 options = 
     let countOption = Option "t" ["thread-count"] (ReqArg (setOnceParse parseInt iCount) "COUNT") "Number of threads to run. Default is 1" in
     let urlOption = Option "c" ["contest-url"] (ReqArg (setOnce iContestUrl) "CONTEST-URL") "Contest's unique url identifier. Defaults to the default contest" in
-    let oracleDirOption = Option "o" ["oracle-directory"] (ReqArg (setOnce iOracleDirectory) "ORACLE-DIRECTORY") "Directory where the oracle is located" in
-    [countOption, oracleDirOption, urlOption]
+    let problemDirOption = Option "p" ["problem-directory"] (ReqArg (setOnce iProblemDirectory) "PROBLEM-DIRECTORY") "Directory where the problem materials are located" in
+    [countOption, problemDirOption, urlOption]
     where
         setOnce :: Lens' InternalOptions (Maybe a) -> a -> InternalOptions -> IO InternalOptions
         setOnce lens arg opts = case view lens opts of
@@ -92,8 +92,7 @@ toOptions (InternalOptions countM urlM oracleDirM) args = do
             exitWithError "Only one repository directory can be specified."
     oracleDir <- case oracleDirM of
         Nothing -> do
-            putLog "Warning: No oracle directory specified. Assuming working directory."
-            return ""
+            exitWithError "No oracle directory specified."
         Just oracleDir ->
             return oracleDir
     url <- case urlM of 

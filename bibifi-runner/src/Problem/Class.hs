@@ -10,7 +10,7 @@ data RunnerOptions = RunnerOptions {
         runnerRepositoryPath :: FilePath
       , runnerCloudConfiguration :: CloudConfiguration
       , runnerHttpManager :: HTTP.Manager
-      , runnerOracleDirectory :: FilePath
+      , runnerProblemDirectory :: FilePath
     }
 
 class ExtractContest a where

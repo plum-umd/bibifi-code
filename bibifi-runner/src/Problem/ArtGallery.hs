@@ -84,9 +84,9 @@ instance ProblemRunnerClass ArtGallery where
 
                                     -- Send oracle.
                                     putLog "Sending oracle files."
-                                    let oracleAppend = runnerOracleDirectory opts ++ "logappend"
+                                    let oracleAppend = runnerProblemDirectory opts ++ "logappend"
                                     let oracleDestAppend = oracleDestDirectory ++ "logappend"
-                                    let oracleRead = runnerOracleDirectory opts ++ "logread"
+                                    let oracleRead = runnerProblemDirectory opts ++ "logread"
                                     let oracleDestRead = oracleDestDirectory ++ "logread"
                                     _ <- runSSH "Could not send logappend oracle to instance." $ sendFile session 0o777 oracleAppend oracleDestAppend
                                     _ <- runSSH "Could not send logread oracle to instance." $ sendFile session 0o777 oracleRead oracleDestRead
@@ -378,7 +378,7 @@ instance ProblemRunnerClass ArtGallery where
                 putLog err
                 return (False, False)
 
-            oracleBasePath = runnerOracleDirectory opts
+            oracleBasePath = runnerProblemDirectory opts
             basePath = runnerRepositoryPath opts
             submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
             breakName = Text.unpack $ breakSubmissionName submission
@@ -882,7 +882,7 @@ instance ProblemRunnerClass ArtGallery where
             oracleDestDirectory :: String
             oracleDestDirectory = "/home/ubuntu/"
 
-            oracleBasePath = runnerOracleDirectory opts
+            oracleBasePath = runnerProblemDirectory opts
 
             update' status msgM = 
                 runDB $ update fixId [FixSubmissionStatus =. status, FixSubmissionMessage =. msgM]

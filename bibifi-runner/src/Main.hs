@@ -27,7 +27,7 @@ main = do
     db <- makeDatabaseConf productionDatabaseYML "Production" -- "config/postgresql.yml"
 
     -- Read command line arguments. 
-    (Options count fsDir oracleDir contest) <- runDatabaseM db parseOptions
+    (Options count fsDir problemDir contest) <- runDatabaseM db parseOptions
     
     -- Create exiting mvar. 
     exiting <- newEmptyMVar
@@ -43,7 +43,7 @@ main = do
 
     -- Set runner options.
     http <- liftIO $ cloudManagerSettings ec2 >>= HTTP.newManager
-    let runnerOptions = RunnerOptions fsDir ec2 http oracleDir
+    let runnerOptions = RunnerOptions fsDir ec2 http problemDir
     let problemRunner = contestToProblemRunner contest
     let contestScorer = contestToScorer contest
 

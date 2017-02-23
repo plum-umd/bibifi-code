@@ -61,11 +61,11 @@ instance ProblemRunnerClass ATMSpec where
                 resultE <- runErrorT $ launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
                     -- Send oracle bank. 
                     putLog "Sending oracle files."
-                    let oracleBankFile = runnerOracleDirectory opts ++ "/dist/build/bank/bank"
+                    let oracleBankFile = runnerProblemDirectory opts ++ "/dist/build/bank/bank"
                     _ <- runSSH (OracleErr "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
 
                     -- Send oracle atm.
-                    let oracleAtmFile = runnerOracleDirectory opts ++ "/dist/build/atm/atm"
+                    let oracleAtmFile = runnerProblemDirectory opts ++ "/dist/build/atm/atm"
                     _ <- runSSH (OracleErr "Could not send atm oracle to instance.") $ sendFile session 0o700 oracleAtmFile oracleAtmDestFile
 
                     setupFirewall session
@@ -367,7 +367,7 @@ instance ProblemRunnerClass ATMSpec where
             destBreakArchiveLocation = "/home/ubuntu/break.tar.gz"
             destTargetArchiveLocation = "/home/ubuntu/submission.zip"
             basePath = runnerRepositoryPath opts
-            oracleBasePath = runnerOracleDirectory opts
+            oracleBasePath = runnerProblemDirectory opts
             breakJSONFile = FilePath.addExtension (FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName, "test"]) "json"
             targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam submission
             submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
@@ -501,7 +501,7 @@ instance ProblemRunnerClass ATMSpec where
                     Just (ATMBuildTestOutput False _msgM _) ->
                         return ()
 
-            oracleBasePath = runnerOracleDirectory opts
+            oracleBasePath = runnerProblemDirectory opts
 
             builderBaseDir = "/home/builder/submission/fix/code/build"
 
