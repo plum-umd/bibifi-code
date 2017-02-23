@@ -2,22 +2,29 @@ module Problem.API where
 
 import Control.Monad
 import Control.Monad.Error
-import Data.Aeson ((.=))
+import Data.Aeson ((.=), FromJSON)
 import qualified Data.Aeson as Aeson
+import qualified Data.IORef.Lifted as IO
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
--- import qualified Data.Text as Text
+import qualified Data.List as List
+import Data.Monoid ((<>))
+import Data.Text (Text)
+import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Encoding.Error as Text
 import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
+import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
 import Common
 import Core.Score
 import Core.SSH
 import Problem.Class
-import Problem.Shared
+import Problem.Shared hiding (grader, runBuildTest, runTestAt)
 import Scorer.Class
 
 newtype APIProblem = APIProblem (Entity Contest)
@@ -52,12 +59,12 @@ instance ProblemRunnerClass APIProblem where
 
                     -- Make oracle directory.
                     (Result _ _ exit) <- runSSH (OracleErr "Could not make oracle directory.") $ 
-                        execCommand session "sudo -i mkdir -p /oracle"
+                        execCommand session "sudo -i mkdir -p /problem"
                     when (exit /= ExitSuccess) $
                         fail "Could not make oracle directory."
 
                     (Result _ _ exit) <- runSSH (OracleErr "Could not update oracle directory permissions.") $ 
-                        execCommand session "sudo -i chmod -R 0700 /oracle"
+                        execCommand session "sudo -i chmod -R 0700 /problem"
                     when (exit /= ExitSuccess) $
                         fail "Could not update oracle directory permissions."
 
@@ -89,9 +96,9 @@ instance ProblemRunnerClass APIProblem where
 
         where
             getOracleFiles = liftIO $ do
-                let dir = runnerOracleDirectory opts
+                let dir = runnerProblemDirectory opts
                 contents <- listDirectory dir
-                let files = fmap (\f -> (dir </> f, "/oracle" </> f)) contents
+                let files = fmap (\f -> (dir </> f, "/problem" </> f)) contents
                 filterM (Directory.doesFileExist . fst) files
 
 
@@ -108,8 +115,8 @@ instance ProblemRunnerClass APIProblem where
                 -- Upload json input.
                 uploadString session json destJson
 
-                -- Launch grader.
-                (Result resOut' _ _) <- executioner' session testUser grader [destJson]
+                -- Launch oracle.
+                (Result resOut' _ _) <- executioner' session testUser "/problem/grader" [destJson]
 
                 -- Drop newline.
                 let (resOut, _) = BS.breakSubstring "\n" resOut'
@@ -121,6 +128,143 @@ instance ProblemRunnerClass APIProblem where
             listDirectory path = filter f <$> Directory.getDirectoryContents path
                 where f filename = filename /= "." && filename /= ".."
 
-    runBuildSubmission = undefined
+    runBuildSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
+        -- Retrieve tests from database.
+        coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
+        performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId] []
+        optionalTests' <- runDB $ selectList [ContestOptionalTestContest ==. contestId] [Asc ContestOptionalTestName]
+
+        coreDoneRef <- IO.newIORef False
+        resultsE <- runErrorT $ do
+            -- Parse tests.
+            coreTests <- mapM parseCoreTest coreTests'
+            performanceTests <- mapM parsePerformanceTest performanceTests'
+            optionalTests <- mapM parseOptionalTest optionalTests'
+
+            -- Make sure build submission tar and MITMs exist.
+            archiveLocation <- getBuildArchiveLocation submission opts 
+
+            -- Delete any previous stored results.
+            lift $ runDB $ deleteWhere [BuildCoreResultSubmission ==. submissionId]
+            lift $ runDB $ deleteWhere [BuildPerformanceResultSubmission ==. submissionId]
+            lift $ runDB $ deleteWhere [BuildOptionalResultSubmission ==. submissionId]
+
+            -- Run instance.
+            let conf = runnerCloudConfiguration opts
+            let manager = runnerHttpManager opts
+            launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
+                putLog "Sending build submission."
+                let destArchiveLocation = "/home/ubuntu/submission.tar.gz"
+                _ <- runSSH (BuildError "Could not send submission") $ sendFile session 0o666 archiveLocation destArchiveLocation
+
+                -- setupFirewall session
+
+                -- Setup directory.
+                (Result _ _ exit) <- runSSH (BuildError "Could not make test directory.") $ execCommand session "sudo -i -u builder mkdir /home/builder/submission"
+                when (exit /= ExitSuccess) $
+                    fail "Could not make test directory."
+
+                -- Extract submission.
+                putLog "Extracting build submission."
+                (Result _ _ exit) <- runSSH (BuildError "Could not extract submission") $ execCommand session ("cd /home/builder/submission; sudo -u builder tar -xf " <> destArchiveLocation)
+                when (exit /= ExitSuccess) $ 
+                    fail "Could not extract submission"
+
+                -- Build submission. 
+                putLog "Building submission."
+                (Result stderr stdout exit) <- runSSH (BuildError "Could not run make") $ execCommand session "sudo -i -u builder make -B -C /home/builder/submission/build"
+                when (exit /= ExitSuccess) $
+                    throwError $ BuildFail stderr stdout
+
+                -- Map over tests.
+                let (requiredTests, optTests) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests <> optionalTests)
+                portRef <- initialPort
+                requiredResults <- mapM (runBuildTest session portRef) requiredTests
+                mapM_ (recordBuildResult submissionId) requiredResults
+
+                -- Indicate core tests passed. 
+                coreDoneRef `IO.writeIORef` True
+
+                -- Continue running optional tests.
+                mapM_ (\test -> do
+                    result <- runBuildTest session portRef test 
+                    (recordBuildResult submissionId) result
+                  ) optTests
+
+
+
+        case (resultsE :: Either BuildError ()) of
+            Left (BuildFail stdout' stderr') -> do
+                let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                runDB $ update submissionId [BuildSubmissionStatus =. BuildBuildFail, BuildSubmissionStdout =. stdout, BuildSubmissionStderr =. stderr]
+                putLog "Build failed"
+                return $ Just (True, False)
+            Left (BuildError err) -> do
+                putLog err
+                return $ Just (False, False)
+            Left BuildErrorTimeout -> do
+                -- Timeout.
+                -- Check if core completed.
+                coreDone <- IO.readIORef coreDoneRef
+                if coreDone then 
+                    buildBuilt
+                else
+                    return Nothing
+            Right () ->
+                buildBuilt
+        
+        where
+            buildBuilt = do
+                runDB $ update submissionId [BuildSubmissionStatus =. BuildBuilt]
+                return $ Just (True, True)
+
     runBreakSubmission = undefined
     runFixSubmission = undefined
+
+-- Could use a state transformer...
+initialPort :: MonadIO m => m (IO.IORef Int)
+initialPort = liftIO $ IO.newIORef 6300
+
+getNextPort :: MonadIO m => IO.IORef Int -> m Int
+getNextPort portRef = liftIO $ do
+    port <- IO.readIORef portRef
+    IO.writeIORef portRef (port + 20)
+    return port
+
+
+runBuildTest session portRef (test, input) = do
+    port <- getNextPort portRef
+    let json = BSL.toStrict $ Aeson.encode $ Aeson.object [
+            "type" .= ("build" :: String)
+          , "port" .= port
+          , "input" .= input
+          ]
+
+    -- Upload json input.
+    uploadString session json destJson
+
+    res <- runTestAt session $ Text.pack destJson
+
+    return ( test, res)
+
+runTestAt :: (BackendError e, MonadIO m, FromJSON a) => Session -> Text -> ErrorT e m a
+runTestAt session location = do
+    -- Launch grader.
+    (Result resOut' resErr _) <- executioner' session testUser "/problem/grader" [Text.unpack location]
+    putLog "Output received."
+
+    -- Drop newline. 
+    let (resOut, _) = BS.breakSubstring "\n" resOut'
+    putLog $ show resErr
+    putLog $ show resOut
+
+    -- Parse resOut.
+    output <- ErrorT $ case Aeson.decodeStrict' resOut of
+        Nothing ->
+            return $ Left $ strMsg $ "Could not decode test output: " <> BS8.unpack resOut
+        Just r ->
+            return $ Right r
+
+    return output
+
