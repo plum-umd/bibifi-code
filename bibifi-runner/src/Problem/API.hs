@@ -17,6 +17,7 @@ import qualified Data.Text.Encoding.Error as Text
 import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
+import qualified System.FilePath as FilePath
 import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
@@ -57,21 +58,9 @@ instance ProblemRunnerClass APIProblem where
 
                     -- setupFirewall session
 
-                    -- Make oracle directory.
-                    (Result _ _ exit) <- runSSH (OracleErr "Could not make oracle directory.") $ 
-                        execCommand session "sudo -i mkdir -p /problem"
-                    when (exit /= ExitSuccess) $
-                        fail "Could not make oracle directory."
-
-                    (Result _ _ exit) <- runSSH (OracleErr "Could not update oracle directory permissions.") $ 
-                        execCommand session "sudo -i chmod -R 0700 /problem"
-                    when (exit /= ExitSuccess) $
-                        fail "Could not update oracle directory permissions."
-
                     -- Send oracle.
                     putLog "Sending oracle files."
-                    oracleFiles <- getOracleFiles
-                    sendFiles session oracleFiles
+                    uploadFolder session (runnerProblemDirectory opts) "/problem"
 
                     -- Run oracle.
                     runOracle session inputObject
@@ -95,16 +84,6 @@ instance ProblemRunnerClass APIProblem where
                         return $ Just True
 
         where
-            getOracleFiles = liftIO $ do
-                let dir = runnerProblemDirectory opts
-                contents <- listDirectory dir
-                let files = fmap (\f -> (dir </> f, "/problem" </> f)) contents
-                filterM (Directory.doesFileExist . fst) files
-
-
-            sendFiles session = mapM_ $ \(localF, remoteF) -> 
-                runSSH (OracleErr $ "Could not send file: " ++ localF) $ sendFile session 0o777 localF remoteF
-
             runOracle :: (BackendError e, MonadIO m) => Session -> Aeson.Value -> ErrorT e m (Maybe OracleOutput)
             runOracle session input = do
                 let json = BSL.toStrict $ Aeson.encode $ Aeson.object [
@@ -219,7 +198,16 @@ instance ProblemRunnerClass APIProblem where
                 runDB $ update submissionId [BuildSubmissionStatus =. BuildBuilt]
                 return $ Just (True, True)
 
-    runBreakSubmission = undefined
+    runBreakSubmission (APIProblem (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = do
+        resultE <- runErrorT $ do
+            checkSubmissionRound2 contestId bsE
+
+            -- Upload whole break folder?
+
+            undefined
+
+        undefined
+
     runFixSubmission = undefined
 
 -- Could use a state transformer...
@@ -267,4 +255,50 @@ runTestAt session location = do
             return $ Right r
 
     return output
+
+
+uploadFolder session localDir destDir' = do
+    -- Check destDir.
+    when ( FilePath.isRelative destDir || destDir == "/") $ 
+        throwError $ strMsg $ "Destination directory is not absolute: " <> destDir
+
+    -- TODO: Delete dest directory first XXX
+
+    -- Make target directory.
+    (Result _ _ exit) <- runSSH (strMsg ("Could not make directory `" <> destDir <> "`.")) $ 
+        execCommand session ( "sudo -i mkdir -p " <> destDir)
+    when (exit /= ExitSuccess) $
+        fail ( "Could not make directory `" <> destDir <> "`.")
+
+    -- Update permissions.
+    (Result _ _ exit) <- runSSH (OracleErr ( "Could not update directory `" <> destDir <> "` permissions.")) $ 
+        execCommand session ( "sudo -i chmod -R 0700 " <> destDir)
+    when (exit /= ExitSuccess) $
+        fail ( "Could not update directory `" <> destDir <> "` permissions.")
+
+    -- Get contents.
+    contents' <- liftIO $ listDirectory localDir
+    let contents = fmap (\f -> (localDir </> f, destDir </> f)) contents'
+
+    mapM_ (\( local, dest) -> do
+        -- Check if it's a file or directory.
+        isFile <- liftIO $ Directory.doesFileExist local  
+        if isFile then do
+        
+            -- Upload file.
+            _ <- runSSH (strMsg $ "Could not send file: " ++ local) $ sendFile session 0o777 local dest
+            return ()
+
+        else
+
+            -- Recursively upload directory.
+            uploadFolder session local dest
+      
+      ) contents
+    
+    where
+        destDir = FilePath.normalise destDir'
+
+        listDirectory path = filter f <$> Directory.getDirectoryContents path
+            where f filename = filename /= "." && filename /= ".."
 
