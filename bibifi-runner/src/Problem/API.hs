@@ -22,6 +22,7 @@ import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
 import Common
+import Core (keyToInt)
 import Core.Score
 import Core.SSH
 import Problem.Class
@@ -103,9 +104,6 @@ instance ProblemRunnerClass APIProblem where
 
                 -- Parse resOut.
                 return $ Aeson.decodeStrict' resOut
-
-            listDirectory path = filter f <$> Directory.getDirectoryContents path
-                where f filename = filename /= "." && filename /= ".."
 
     runBuildSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
         -- Retrieve tests from database.
@@ -202,11 +200,89 @@ instance ProblemRunnerClass APIProblem where
         resultE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
 
-            -- Upload whole break folder?
+            (breakTest :: JSONBreakTest) <- loadBreakSubmissionJSON submissionId breakJSONFile
 
-            undefined
+            -- Make sure break submission exists.
+            checkForBreakDescription submission opts
 
-        undefined
+            -- Start instance.
+            let conf = runnerCloudConfiguration opts
+            let manager = runnerHttpManager opts
+            launchOneInstanceWithTimeout conf manager 30 $ \_inst session -> do
+                -- Setup firewall.
+                -- setupFirewall session
+
+                -- Upload problem files.
+                putLog "Sending problem files."
+                uploadFolder session (runnerProblemDirectory opts) "/problem"
+
+                -- Upload break folder.
+                uploadFolder session breakDir "/break"
+
+                -- Upload target.
+                putLog "Sending target submission."
+                let targetArchiveLocation = FilePath.addExtension (FilePath.joinPath [basePath,"round2",targetTeamIdS]) "zip"
+                let destTargetArchiveLocation = "/home/ubuntu/submission.zip"
+                _ <- runSSH (BreakErrorSystem "Could not send target submission") $ sendFile session 0o666 targetArchiveLocation destTargetArchiveLocation
+
+                -- Extract target.
+                putLog "Extracting target submission."
+                -- putLog $ ("cd /home/builder; sudo -u builder unzip " <> destTargetArchiveLocation <> "; mv ./repos/" <> targetTeamIdS <> "/ ./submission")
+                (Result _ _ exit) <- runSSH (BreakErrorSystem "Could not extract submission") $ execCommand session ("cd /home/builder; sudo -u builder unzip " <> destTargetArchiveLocation <> "; sudo -u builder mv ./" <> targetTeamIdS <> " ./submission")
+                when (exit /= ExitSuccess) $ 
+                    fail "Could not extract target submission"
+
+                -- Build target.
+                putLog "Building target submission."
+                (Result _ _ exit) <- runSSH (BreakErrorSystem "Building target failed") $ execCommand session $ "sudo -i -u builder make -B -C /home/builder/submission/build"
+                when (exit /= ExitSuccess) $
+                    fail "Building target failed"
+
+                portRef <- initialPort
+                res <- runBreakTest session portRef breakTest
+                return (res, breakTest)
+
+
+        -- Record result.
+        case resultE of
+            Left (BreakErrorSystem err) -> do
+                systemFail err
+            Left BreakErrorTimeout ->
+                return Nothing
+            Left (BreakErrorBuildFail stdout' stderr') -> do
+                let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                userFail "Build failed"
+            Left (BreakErrorRejected msg) -> do
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just msg, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                userFail msg
+            Right (BreakResult (Just False) msgM, _) -> do
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                userFail $ maybe "Test failed" Text.unpack msgM
+            Right (BreakResult Nothing _, _) -> do
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing]
+                return $ Just ( True, False)
+            Right (BreakResult (Just True) _, breakTest) -> do
+                let result = breakTestTypeToSuccessfulResult $ breakTestToType breakTest
+                runDB $ update submissionId [BreakSubmissionStatus =. BreakTested, BreakSubmissionResult =. Just result, BreakSubmissionMessage =. Nothing]
+                return $ Just ( True, True)
+
+
+        where
+            basePath = runnerRepositoryPath opts
+            breakJSONFile = FilePath.addExtension (FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName, "test"]) "json"
+            breakDir = FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName]
+            targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam submission
+            submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
+            breakName = Text.unpack $ breakSubmissionName submission
+
+            userFail err = do
+                putLog err
+                return $ Just (True, False)
+            systemFail err = do
+                putLog err
+                return $ Just (False, False)
 
     runFixSubmission = undefined
 
@@ -220,6 +296,35 @@ getNextPort portRef = liftIO $ do
     IO.writeIORef portRef (port + 20)
     return port
 
+runBreakTest session portRef breakTest = do
+    port <- getNextPort portRef
+    let json = BSL.toStrict $ Aeson.encode $ Aeson.object [
+            "test" .= jsonTest
+          , "port" .= port
+          , "type" .= ("break" :: String)
+          , "classification" .= testType
+          ]
+
+    -- Upload json input.
+    uploadString session json destJson
+
+    runTestAt session $ Text.pack destJson
+
+    where
+        testType = case breakTest of
+          JSONBreakCorrectnessTest _ -> "correctness" :: Text
+          JSONBreakIntegrityTest _ -> "integrity"
+          JSONBreakConfidentialityTest _ -> "confidentiality"
+          JSONBreakCrashTest _ -> "crash"
+          JSONBreakSecurityTest _ -> "security"
+            
+        jsonTest = case breakTest of
+          JSONBreakCorrectnessTest v -> v
+          JSONBreakIntegrityTest v -> v
+          JSONBreakConfidentialityTest v -> v
+          JSONBreakCrashTest v -> v
+          JSONBreakSecurityTest v -> v
+            
 
 runBuildTest session portRef (test, input) = do
     port <- getNextPort portRef
@@ -271,7 +376,7 @@ uploadFolder session localDir destDir' = do
         fail ( "Could not make directory `" <> destDir <> "`.")
 
     -- Update permissions.
-    (Result _ _ exit) <- runSSH (OracleErr ( "Could not update directory `" <> destDir <> "` permissions.")) $ 
+    (Result _ _ exit) <- runSSH (strMsg ( "Could not update directory `" <> destDir <> "` permissions.")) $ 
         execCommand session ( "sudo -i chmod -R 0700 " <> destDir)
     when (exit /= ExitSuccess) $
         fail ( "Could not update directory `" <> destDir <> "` permissions.")

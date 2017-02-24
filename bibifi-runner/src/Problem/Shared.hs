@@ -197,13 +197,14 @@ instance ModularBreakTest JSONBreakTest where
     breakTestToType (JSONBreakCrashTest _) = BreakCrash
     breakTestToType (JSONBreakSecurityTest _) = BreakSecurity
 
+breakTestTypeToSuccessfulResult :: BreakType -> BreakSubmissionResult
 breakTestTypeToSuccessfulResult BreakCorrectness = BreakCorrect
 breakTestTypeToSuccessfulResult BreakCrash = BreakCorrect
 breakTestTypeToSuccessfulResult BreakIntegrity = BreakExploit
 breakTestTypeToSuccessfulResult BreakConfidentiality = BreakExploit
 breakTestTypeToSuccessfulResult BreakSecurity = BreakExploit
 
--- breakTestToJSONBreakTest :: Entity BreakSubmission -> m JSONBreakTest
+breakTestToJSONBreakTest :: (Error r, MonadError r m) => Entity BreakSubmission -> m (JSONBreakTest, BreakSubmission)
 breakTestToJSONBreakTest (Entity bsId bs) = do
     constr <- case breakSubmissionType bs of
             Just BreakCorrectness -> return JSONBreakCorrectnessTest
