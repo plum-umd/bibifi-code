@@ -14,6 +14,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified Data.Text.Encoding.Error as Text
+import qualified Database.Esqueleto as E
 import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
@@ -284,7 +285,132 @@ instance ProblemRunnerClass APIProblem where
                 putLog err
                 return $ Just (False, False)
 
-    runFixSubmission = undefined
+    runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
+        -- Retrieve tests from database.
+        coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
+        performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId, ContestPerformanceTestOptional ==. False] []
+
+        -- Retrieve breaks (that were auto-accepted/not judged) from database.
+        breaks'' <- runDB $ E.select $ E.from $ \(fsb `E.InnerJoin` bs) -> do
+            E.on (fsb E.^. FixSubmissionBugsBugId E.==. bs E.^. BreakSubmissionId)
+            E.where_ (fsb E.^. FixSubmissionBugsFix E.==. E.val submissionId)
+            return bs
+
+        resultsE <- runErrorT $ do
+            -- Check for description, other constraints.
+            checkForFixDescription submission opts
+
+            -- Parse tests.
+            coreTests <- mapM parseCoreTest coreTests'
+            performanceTests <- mapM parsePerformanceTest performanceTests'
+
+            -- Verify breaks fixed and filter them (only include automatically tested ones).
+            breaks' <- verifyAndFilterBreaksForFix breaks'' $ \bs -> breakSubmissionStatus bs == BreakTested
+            
+            -- Convert breaks to JSON breaks.
+            breaks <- mapM breakTestToJSONBreakTest breaks'
+
+            -- Make sure build submission tar and MITMs exist.
+            archiveLocation <- getFixArchiveLocation submission opts 
+
+            -- Start instance.
+            let conf = runnerCloudConfiguration opts
+            let manager = runnerHttpManager opts
+            launchOneInstanceWithTimeout conf manager 30 $ \_inst session -> do
+                -- Setup firewall.
+                -- setupFirewall session
+
+                -- Send build submission.
+                putLog "Sending build submission."
+                let destArchiveLocation = "/home/ubuntu/submission.tar.gz"
+                _ <- runSSH (FixErrorSystem "Could not send submission") $ sendFile session 0o666 archiveLocation destArchiveLocation
+
+                -- Upload problem files.
+                putLog "Sending problem files."
+                uploadFolder session (runnerProblemDirectory opts) "/problem"
+
+                -- Setup directory.
+                (Result _ _ exit) <- runSSH (FixErrorSystem "Could not make test directory.") $ execCommand session "sudo -i -u builder mkdir /home/builder/submission"
+                when (exit /= ExitSuccess) $
+                    fail "Could not make test directory."
+
+                -- Extract submission.
+                putLog "Extracting build submission."
+                (Result _ _ exit) <- runSSH (FixErrorSystem "Could not extract submission") $ execCommand session ("cd /home/builder/submission; sudo -u builder tar -xf " <> destArchiveLocation)
+                when (exit /= ExitSuccess) $ 
+                    fail "Could not extract submission"
+
+                -- Build submission. 
+                putLog "Building submission."
+                (Result stderr stdout exit) <- runSSH (FixErrorSystem "Could not run make") $ execCommand session "sudo -i -u builder make -B -C /home/builder/submission/fix/code/build"
+                when (exit /= ExitSuccess) $
+                    throwError $ FixErrorBuildFail stderr stdout
+
+                -- Run core tests.
+                let (requiredTests, _) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests)
+                portRef <- initialPort
+                mapM_ (\t -> do
+                    (test, BuildResult pass msgM _) <- runBuildTest session portRef t
+                    when ( not pass) $ 
+                        let msg = maybe "" Text.unpack msgM in
+                        throwError $ FixErrorRejected $ "Failed core test: " <> Text.unpack (buildTestName test) <> ". " <> msg
+                  ) requiredTests
+
+
+                -- Run each break test.
+                mapM_ (\(t, bs) -> do
+                    -- Delete break directory.
+                    (Result _ _ exit) <- runSSH (FixErrorSystem "Could not delete break directory.") $ execCommand session "sudo rm -rf /break"
+                    when (exit /= ExitSuccess) $
+                        fail "Could not delete break directory."
+
+                    -- Upload break.
+                    let breakName = Text.unpack $ breakSubmissionName bs
+                    let submitTeamIdS = show $ keyToInt $ breakSubmissionTeam bs
+                    let breakDir = FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName]
+                    uploadFolder session breakDir "/break"
+
+                    -- Run break test.
+                    res <- runBreakTest session portRef t
+                    case res of
+                        BreakResult (Just False) _ ->
+                            return ()
+                        BreakResult (Just True) _ ->
+                            throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
+                        BreakResult Nothing _ ->
+                            throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
+                  ) breaks
+
+        -- Record result.
+        case resultsE of
+            Left (FixErrorSystem err) -> 
+                systemFail err
+            Left FixErrorTimeout ->
+                return Nothing
+            Left (FixErrorBuildFail stdout' stderr') -> do
+                let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                updateFix FixRejected (Just "Running make failed") stdout stderr
+                userFail "Build failed"
+            Left (FixErrorRejected msg) -> do
+                updateFix FixRejected (Just msg) Nothing Nothing
+                userFail msg
+            Right () -> do
+                updateFix FixJudging Nothing Nothing Nothing
+                return $ Just (True, True)
+
+        where
+            basePath = runnerRepositoryPath opts
+
+            updateFix status msg stdout stderr = 
+                runDB $ update submissionId [FixSubmissionStatus =. status, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
+
+            userFail err = do
+                putLog err
+                return $ Just (True, False)
+            systemFail err = do
+                putLog err
+                return $ Just (False, False)
 
 -- Could use a state transformer...
 initialPort :: MonadIO m => m (IO.IORef Int)

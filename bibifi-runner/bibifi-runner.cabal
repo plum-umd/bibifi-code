@@ -63,6 +63,7 @@ executable runner
                        Problem
                        Problem.ATM
                        Problem.ArtGallery
+                       Problem.API
                        Problem.Class
                        Problem.EHR
                        Problem.Shared
