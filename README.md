@@ -2,7 +2,8 @@ Overview
 ========
 
 This is the codebase for Build-it Break-it Fix-it (BIBIFI). 
-We have run the contest on RHEL and Ubuntu. 
+We have run the contest on RHEL and Ubuntu systems. 
+VMs can be provisioned via Docker Swarm or AWS EC2. 
 
 Infrastructure
 --------------
@@ -49,4 +50,21 @@ Then you can run `stack build` in the `bibifi-webapp` directory:
 	cd bibifi-webapp/
 	stack build
 
+Contest Problems
+================
+
+Contest problems are composed of:
+
+- A problem specification that describes the programs contestants are expected to implement. The specification should include instructions for how to make submissions and how submissions will be graded. 
+- A suite of tests that include correctness, performance, and optional tests. 
+- A virtual machine image that is used to test submissions. 
+- A grading script that is uploaded to the virtual machine to run tests, oracle submissions, and break-it tests.
+
+We have used three different problem specifications in the past. 
+One problem is a secure log that tracks and queries the movement of entities through an art gallery.  
+Another problem is an ATM server that accepts withdraw, deposit, and account creation requests from a client application. 
+The final problem is a queryable database that supports permissions and access control checks. 
+If you are interested in using one of these existing projects, [email us](info@builditbreakit.org) and we can probably share the problem materials that we have. 
+
+If you would like to integrate your own problem specifications into the infrastructure, you can use the [Contest Problem API](docs/API.md). 
 
