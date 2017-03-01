@@ -44,7 +44,7 @@ You'll need to update the `config/postgresql.yml` configuration file with your d
 Webapp
 ------
 
-To compile the web application, you will need to install [stack](haskellstack.org). 
+To compile the web application, you will need to install [stack](https://www.stackage.org/). 
 Then you can run `stack build` in the `bibifi-webapp` directory:
 
 	cd bibifi-webapp/
@@ -60,11 +60,11 @@ Contest problems are composed of:
 - A virtual machine image that is used to test submissions. 
 - A grading script that is uploaded to the virtual machine to run tests, oracle submissions, and break-it tests.
 
-We have used three different problem specifications in the past. 
-One problem is a secure log that tracks and queries the movement of entities through an art gallery.  
-Another problem is an ATM server that accepts withdraw, deposit, and account creation requests from a client application. 
-The final problem is a queryable database that supports permissions and access control checks. 
-If you are interested in using one of these existing projects, [email us](info@builditbreakit.org) and we can probably share the problem materials that we have. 
+We have used three different problem specifications in the past.
+One problem is a secure log that tracks and queries the movement of entities through an art gallery.
+Another problem is an ATM server that accepts withdraw, deposit, and account creation requests from a client application.
+The final problem is a queryable database that supports permissions and access control checks.
+If you are interested in using one of these existing projects, [email us](mailto:info@builditbreakit.org) and we can probably share the problem materials that we have.
 
 If you would like to integrate your own problem specifications into the infrastructure, you can use the [Contest Problem API](docs/API.md). 
 
