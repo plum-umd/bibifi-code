@@ -58,7 +58,7 @@ Contest problems are composed of:
 - A problem specification that describes the programs contestants are expected to implement. The specification should include instructions for how to make submissions and how submissions will be graded. 
 - A suite of tests that include correctness, performance, and optional tests. 
 - A virtual machine image that is used to test submissions. 
-- A grading script that is uploaded to the virtual machine to run tests, oracle submissions, and break-it tests.
+- A grading script that can run on the virtual machine to run tests, oracle submissions, and break-it tests.
 
 We have used three different problem specifications in the past.
 One problem is a secure log that tracks and queries the movement of entities through an art gallery.

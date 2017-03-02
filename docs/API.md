@@ -2,35 +2,66 @@ Contest Problem API
 ===================
 
 You can integrate your own problem specifications into the BIBIFI infrastructure by using this Contest Problem API. 
+Contest problems require a Docker Swarm or AWS EC2 virtual machine image and a grading script that can run oracle submissions, build-it submissions, and break-it submissions. 
+The grading script must accept JSON input and output as described in this document. 
+You can find more general information about contest problems and infrastructure setup in the [README](../README.md). 
 
-... TODO...
 
+Virtual Machine Setup
+---------------------
 
-VM Setup
---------
+Virtual machine images should be runnable through AWS EC2 or Docker Swarm. 
+The images should have a linux OS (we've used Ubuntu). 
+SSH should be configured so that users can log in with ssh keys. 
+The user "ubuntu" must have sudo permissions so that commands can be run without entering a password. 
+The user "builder" must be created without sudo permissions. 
+The non-sudo users "breaker", "client", and "server" are not required, but may be useful. 
 
-users (ubuntu w/ sudo, no password; builder w/ no sudo), timeout executable
-
-JP: Move to README?
+The [executioner](TODO...) script must be installed at `/usr/bin/executioner`. 
+This allows us to detect timeouts while commands are run on virtual machine. 
+The VM image must install all the dependencies contestants need to compile their submissions. 
+Here is an [example image](TODO...) we've used in the past, which uses a Dockerfile to create a Docker Swarm image. 
 
 
 Oracle Submissions
 ------------------
 
-- User input from web form is JSON
+Oracle submissions allow contestants to query a reference implementation to figure out expected behavior. 
+The first argument to the grader script specifies a filepath location of a JSON file. 
+The `type` key in the JSON file has the string value `"oracle"`. 
+The `input` key contains whatever JSON the user submitted on the website.
+Here's an example: 
+
+	{
+		"type": "oracle",
+		"input": ["whatever","JSON","the user","submitted in the web form"]
+	}
+
+Output from `grader` must be provided as JSON to stdout.
+The output JSON must have the `result` key set to the boolean value of whether the oracle ran successfully. 
+If the oracle ran successfully, the `output` key must be set to the JSON value output of the oracle. 
+If the oracle did not run successfully, the `error` key must be set to a string error message.
+Here's an example output of a successful oracle run:
+
+	{
+		"result": true,
+		"output": {"some":"JSON","output":"from oracle"}
+	}
+
+Here's an example output of an unsuccessful oracle run:
+
+	{
+		"result": false,
+		"error": "some error message"
+	}
+
+When the `runner` receives an oracle submission, it does the following:
+
 - Starts a VM instance.
-- Sends all files in the problem directory.
-- TODO: Sends tarred? and uncompresses submission from ... XXX
-- Runs oracle (/problem/grader) as user "ubuntu" where the first argument is a filepath to a JSON file. The JSON file has the "type" key set to the value "oracle" while the "input" key contains whatever JSON the user submitted on the website. Here's an example:
-
-{
-	"type": "oracle",
-	"input": ["whatever","JSON","the user","submitted in the web form"]
-}
-
-- Parses resulting JSON stdout
-
-TODO: result formatting... XXX
+- Sends all files in the problem directory to `/problem` on the VM.
+- Uploads and generates the JSON input file. 
+- Runs the grader (`/problem/grader`) as user "ubuntu" where the first argument is a filepath to a JSON file. 
+- Parses the resulting JSON output from stdout and records the result in the database.
 
 
 Build Submissions
