@@ -4,9 +4,8 @@ Contest Problem API
 You can integrate your own problem specifications into the BIBIFI infrastructure by using this Contest Problem API. 
 Contest problems require a Docker Swarm or AWS EC2 virtual machine image and a grading script that can run oracle submissions, build-it submissions, and break-it submissions. 
 The grading script must accept JSON input and output as described in this document. 
+If a submission takes too long to run, the system will time out and the submission will be rejected. 
 You can find more general information about contest problems and infrastructure setup in the [README](../README.md). 
-
-JP: Mention timeouts?
 
 
 Virtual Machine Setup
