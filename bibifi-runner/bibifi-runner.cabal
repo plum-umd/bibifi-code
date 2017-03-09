@@ -91,6 +91,7 @@ executable runner
                      , directory
                      , docker
                      , enclosed-exceptions
+                     , exceptions
                      , esqueleto
                      , filepath
                      , hashable
