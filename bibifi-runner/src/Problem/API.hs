@@ -97,7 +97,10 @@ instance ProblemRunnerClass APIProblem where
                 uploadString session json destJson
 
                 -- Launch oracle.
-                (Result resOut' _ _) <- executioner' session testUser "/problem/grader" [destJson]
+                (Result resOut' resErr exitCode) <- executioner' session testUser "/problem/grader" [destJson]
+                when ( exitCode /= ExitSuccess) $ do
+                    putLog $ BS8.unpack resOut'
+                    putLog $ BS8.unpack resErr
 
                 -- Drop newline.
                 let (resOut, _) = BS.breakSubstring "\n" resOut'
@@ -503,7 +506,7 @@ uploadFolder session localDir destDir' = do
 
     -- Update permissions.
     (Result _ _ exit) <- runSSH (strMsg ( "Could not update directory `" <> destDir <> "` permissions.")) $ 
-        execCommand session ( "sudo -i chmod -R 0700 " <> destDir)
+        execCommand session ( "sudo -i chmod -R 0777 " <> destDir)
     when (exit /= ExitSuccess) $
         fail ( "Could not update directory `" <> destDir <> "` permissions.")
 
