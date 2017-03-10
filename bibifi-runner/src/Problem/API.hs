@@ -157,6 +157,10 @@ instance ProblemRunnerClass APIProblem where
                 when (exit /= ExitSuccess) $
                     throwError $ BuildFail stderr stdout
 
+                -- Upload problem files.
+                putLog "Sending problem files."
+                uploadFolder session (runnerProblemDirectory opts) "/problem"
+
                 -- Map over tests.
                 let (requiredTests, optTests) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests <> optionalTests)
                 portRef <- initialPort
