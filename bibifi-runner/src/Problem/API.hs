@@ -384,7 +384,16 @@ instance ProblemRunnerClass APIProblem where
                     let breakName = Text.unpack $ breakSubmissionName bs
                     let submitTeamIdS = show $ keyToInt $ breakSubmissionTeam bs
                     let breakDir = FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName]
+                    let breakMakefile = FilePath.joinPath [breakDir, "Makefile"]
                     uploadFolder session breakDir "/break"
+
+                    -- Build break if there's a Makefile.
+                    makefileExists <- liftIO $ Directory.doesFileExist breakMakefile
+                    when makefileExists $ do
+                        putLog "Building break submission."
+                        (Result _ _ exit) <- runSSH (FixErrorSystem "Could not build break") $ execCommand session $ "sudo -i -u breaker make -B -C /break"
+                        when (exit /= ExitSuccess) $
+                            fail "Could not build break"
 
                     -- Run break test.
                     res <- runBreakTest session portRef t
