@@ -15,8 +15,8 @@ Virtual machine images should be runnable through AWS EC2 or Docker Swarm.
 The images should have a linux OS (we've used Ubuntu). 
 SSH should be configured so that users can log in with ssh keys. 
 The user "ubuntu" must have sudo permissions so that commands can be run without entering a password. 
-The user "builder" must be created without sudo permissions. 
-The non-sudo users "breaker", "client", and "server" are not required, but may be useful. 
+The users "builder" and "breaker" must be created without sudo permissions. 
+The non-sudo users "client" and "server" are not required, but may be useful. 
 
 The [executioner](TODO...) script must be installed at `/usr/bin/executioner`. 
 This allows us to detect timeouts while commands are run on virtual machine. 
