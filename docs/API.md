@@ -121,7 +121,7 @@ The `test` key is the JSON break test submitted by the breaker.
 Here is an example input file: 
 
 	{
-		"type": "build",
+		"type": "break",
 		"classification": "confidentiality",
 		"port": 6300,
 		"test": ["some","break","test"]
