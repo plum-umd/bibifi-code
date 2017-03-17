@@ -246,6 +246,14 @@ instance ProblemRunnerClass APIProblem where
                 when (exit /= ExitSuccess) $
                     fail "Building target failed"
 
+                -- Build break if there's a Makefile.
+                makefileExists <- liftIO $ Directory.doesFileExist breakMakefile
+                when makefileExists $ do
+                    putLog "Building break submission."
+                    (Result stderr stdout exit) <- runSSH (BreakErrorSystem "Could not run make") $ execCommand session $ "sudo -i -u breaker make -B -C /break"
+                    when (exit /= ExitSuccess) $
+                        throwError $ BreakErrorBuildFail stderr stdout
+
                 portRef <- initialPort
                 res <- runBreakTest session portRef breakTest
                 return (res, breakTest)
@@ -281,6 +289,7 @@ instance ProblemRunnerClass APIProblem where
             basePath = runnerRepositoryPath opts
             breakJSONFile = FilePath.addExtension (FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName, "test"]) "json"
             breakDir = FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName]
+            breakMakefile = FilePath.joinPath [breakDir, "Makefile"]
             targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam submission
             submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
             breakName = Text.unpack $ breakSubmissionName submission
