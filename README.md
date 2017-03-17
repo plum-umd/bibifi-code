@@ -68,3 +68,13 @@ If you are interested in using one of these existing projects, [email us](mailto
 
 If you would like to integrate your own problem specifications into the infrastructure, you can use the [Contest Problem API](docs/API.md). 
 
+Running Contests
+================
+
+TODO...
+
+You can zip up build submissions by running the following in the `repos` directory:
+
+    for D in *; do zip -r $D.zip $D -x *.git*; done;
+		mv *.zip ../round2/
+

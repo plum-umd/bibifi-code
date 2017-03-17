@@ -142,7 +142,7 @@ When the `runner` receives a break-it submission, it does the following:
 - Parses the JSON break-it test and makes sure a text description file exists.
 - Starts a VM instance.
 - Uploads all files in the problem directory to `/problem/`.
-- Uploads and decompresses the builder's final build submission to `/home/builder/submission`.
+- Uploads and decompresses the builder's final build submission to `/home/builder/submission`. The final build submission should be a zip at `<repository path>/round2/<build team id>.zip`. 
 - Compiles the build submission with `sudo -i -u builder make -B -C /home/builder/submission/build`.
 - Uploads all files in the break test directory (`<repository path>/repos/<breaker team id>/break/<break name>/`) to `/break/`.
 - If a Makefile exists in the break test directory (`/break/Makefile`), compiles the break submission with `sudo -i -u breaker make -B -C /break`.
