@@ -145,6 +145,7 @@ When the `runner` receives a break-it submission, it does the following:
 - Uploads and decompresses the builder's final build submission to `/home/builder/submission`.
 - Compiles the build submission with `sudo -i -u builder make -B -C /home/builder/submission/build`.
 - Uploads all files in the break test directory (`<repository path>/repos/<breaker team id>/break/<break name>/`) to `/break/`.
+- If a Makefile exists in the break test directory (`/break/Makefile`), compiles the break submission with `sudo -i -u breaker make -B -C /break`.
 - Uploads the JSON test input file.
 - Runs the grader (`/problem/grader`) as user "ubuntu" where the first argument is a filepath to a JSON file.
 - Parses the resulting JSON output from stdout and records the result in the database.
