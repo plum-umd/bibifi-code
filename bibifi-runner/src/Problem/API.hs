@@ -362,6 +362,14 @@ instance ProblemRunnerClass APIProblem where
                 when (exit /= ExitSuccess) $
                     throwError $ FixErrorBuildFail stderr stdout
 
+                (Result _ _ exit) <- runSSH (FixErrorSystem "Could not delete build dir") $ execCommand session "sudo rm -rf /home/builder/submission/build"
+                when (exit /= ExitSuccess) $
+                    fail "Could not delete build dir"
+
+                (Result _ _ exit) <- runSSH (FixErrorSystem "Could not move build dir") $ execCommand session "sudo mv /home/builder/submission/fix/code/build /home/builder/submission/build"
+                when (exit /= ExitSuccess) $
+                    fail "Could not move build dir"
+
                 -- Run core tests.
                 let (requiredTests, _) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests)
                 portRef <- initialPort
