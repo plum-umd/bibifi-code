@@ -162,6 +162,7 @@ The `runner` does the following when it receives a fix-it submission:
 - Start a VM instance. 
 - Uploads and decompresses the fix submission to `/home/builder/submission`.
 - Compiles the build submission with `sudo -i -u builder make -B -C /home/builder/submission/fix/code/build`.
+- Deletes the original build folder (`/home/builder/submission/build`) and replaces it with the fix build folder (`/home/builder/submission/fix/code/build`).
 - Run all required build-it tests. 
 - Run all automatically tested break-it tests.
 - If all the tests passed, mark the submission for judgement.
