@@ -24,29 +24,70 @@ Setup
 PostgreSQL
 ----------
 
+	sudo postgresql-setup initdb
+	sudo chkconfig postgresql on
+	sudo service postgresql start
+
+	sudo -u postgres -i
+	psql
+
+
 BIBIFI uses PostgreSQL as its database backend. 
 Here's some SQL to setup your PostgreSQL database. Be sure to set `YOURPASSWORD`!
 
 	CREATE USER bibifi WITH PASSWORD 'YOURPASSWORD';
 	CREATE DATABASE bibifi OWNER bibifi ENCODING 'UTF8';
-	CONNECT TO bibifi AS bibifi;
+
+To enable password logins edit the following:
+
+	sudo vim /var/lib/pgsql/data/pg_hba.conf
+
+Change
+	local  all      all          peer
+To
+	local  all      all          md5 
+# TODO: other foreign connections
+
+Finish configuring the database:
+
+	sudo service postgresql restart
+	psql -U bibifi
+
+	\c bibifi bibifi
+	# CONNECT TO bibifi AS bibifi;
 	REVOKE ALL ON DATABASE bibifi FROM public;
 	SET timezone='UTC';
 
-Here's a SQL example to create a contest. The second command sets the default contest to the one with `url` `"fall2014"`. Customize as needed.
-
-	INSERT INTO "contest" ( url, title, build_start, build_end, break_start, break_end, fix_start, fix_end) VALUES ( 'fall2014', 'Fall 2014 Contest', '2014-08-29 01:00:00', '2014-09-01 01:00:00', '2014-09-05 01:00:00', '2014-09-08 01:00:00', '2014-09-13 01:00:00', '2014-09-15 01:00:00');
-	UPDATE "configuration" SET value = 'fall2014' WHERE key = 'default_contest';
-
 You'll need to update the `config/postgresql.yml` configuration file with your database's `username`, `password`, `host`, and `port` information.
+
+Core
+----
+
+`bibifi-core` is library code shared by the webapp, runner, and translator.
+To compile the library, you will need to install [stack](https://haskellstack.org). 
+Then you can run `stack build` in the `bibifi-core` directory:
+
+	cd bibifi-core/
+	stack build
 
 Webapp
 ------
 
-To compile the web application, you will need to install [stack](haskellstack.org). 
-Then you can run `stack build` in the `bibifi-webapp` directory:
+TODO `config/settings.yml`
+
+Once `bibifi-core` is built, you can compile the web application by running `stack build` in the `bibifi-webapp` directory:
 
 	cd bibifi-webapp/
 	stack build
 
+Run executable:
 
+	stack exec -- bibifi-webapp Production --port YOURPORT
+
+To create a contest, visit `/admin/contests/create` and fill out the form. 
+
+Runner
+------
+
+	sudo yum install libssh2-devel
+	stack build
