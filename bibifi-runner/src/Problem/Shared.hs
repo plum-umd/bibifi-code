@@ -1,13 +1,14 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
-module Core.Modular.Shared where
+module Problem.Shared where
 
-import Control.Monad.Error
+import Control.Monad.Error as E
 import Core (keyToInt)
 import Core.SSH
 import Data.Aeson (FromJSON(..))
-import Data.Aeson ((.=), (.:), (.:?))
+import Data.Aeson ((.=), (.:), (.:?), Value(..))
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Encode.Pretty as Aeson
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
@@ -26,7 +27,8 @@ import qualified System.FilePath as FilePath
 
 import BuildSubmissions
 import Common
-import Core.Modular.Class
+--import Core.Modular.Class
+import Problem.Class
 
 checkSubmissionRound2 :: ContestId -> Entity BreakSubmission -> ErrorT BreakError DatabaseM ()
 checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $ 
@@ -195,13 +197,14 @@ instance ModularBreakTest JSONBreakTest where
     breakTestToType (JSONBreakCrashTest _) = BreakCrash
     breakTestToType (JSONBreakSecurityTest _) = BreakSecurity
 
+breakTestTypeToSuccessfulResult :: BreakType -> BreakSubmissionResult
 breakTestTypeToSuccessfulResult BreakCorrectness = BreakCorrect
 breakTestTypeToSuccessfulResult BreakCrash = BreakCorrect
 breakTestTypeToSuccessfulResult BreakIntegrity = BreakExploit
 breakTestTypeToSuccessfulResult BreakConfidentiality = BreakExploit
 breakTestTypeToSuccessfulResult BreakSecurity = BreakExploit
 
--- breakTestToJSONBreakTest :: Entity BreakSubmission -> m JSONBreakTest
+breakTestToJSONBreakTest :: (Error r, MonadError r m) => Entity BreakSubmission -> m (JSONBreakTest, BreakSubmission)
 breakTestToJSONBreakTest (Entity bsId bs) = do
     constr <- case breakSubmissionType bs of
             Just BreakCorrectness -> return JSONBreakCorrectnessTest
@@ -447,3 +450,77 @@ verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
                 return $ bsE:acc
             else
                 return acc
+
+getArchiveLocation :: (MonadIO m, E.Error e) => String -> String -> RunnerOptions -> ErrorT e m FilePath
+getArchiveLocation team hash opts = ErrorT $ do
+    let repoDir = runnerRepositoryPath opts
+    let loc'' = FilePath.joinPath [repoDir, "archives", team, hash]
+    let loc' = FilePath.addExtension loc'' "tar"
+    let loc =  FilePath.addExtension loc' "gz"
+    exists <- liftIO $ Directory.doesFileExist loc
+    if exists then
+        return $ Right loc
+    else
+        return $ Left $ E.strMsg $ "Archive does not exist: " <> loc
+
+getBuildArchiveLocation :: (MonadIO m, E.Error e) => BuildSubmission -> RunnerOptions -> ErrorT e m FilePath
+getBuildArchiveLocation submission opts = 
+    let hash = Text.unpack $ buildSubmissionCommitHash submission in
+    let team = show $ keyToInt $ buildSubmissionTeam submission in
+    getArchiveLocation team hash opts
+
+getBreakArchiveLocation :: (MonadIO m, E.Error e) => BreakSubmission -> RunnerOptions -> ErrorT e m FilePath
+getBreakArchiveLocation submission opts = do
+    -- Old for art gallery:
+    -- let hash = Text.unpack $ breakSubmissionCommitHash submission in
+    -- let team = show $ keyToInt $ breakSubmissionTeam submission
+    -- getArchiveLocation team hash opts
+    let team = show $ keyToInt $ breakSubmissionTeam submission
+    let breakName = Text.unpack $ breakSubmissionName submission
+    let repoDir = runnerRepositoryPath opts
+    let loc' = FilePath.joinPath [repoDir, "breaks", team, breakName]
+    let loc = FilePath.addExtension loc' "zip"
+    exists <- liftIO $ Directory.doesFileExist loc
+    if exists then
+        return loc
+    else
+        throwError $ E.strMsg $ "Archive does not exist: " <> loc
+
+getFixArchiveLocation :: (MonadIO m, E.Error e) => FixSubmission -> RunnerOptions -> ErrorT e m FilePath
+getFixArchiveLocation submission opts = 
+    let hash = Text.unpack $ fixSubmissionCommitHash submission in
+    let team = show $ keyToInt $ fixSubmissionTeam submission in
+    getArchiveLocation team hash opts
+
+data OracleOutput = 
+      OracleOutputError Text
+    | OracleOutputSuccess Text
+
+instance FromJSON OracleOutput where
+    parseJSON (Object o) = do
+        result <- o .: "result"
+        if result then do
+            (output' :: Value) <- o .: "output"
+            let prettyConf = Aeson.defConfig {Aeson.confIndent = 2}
+            let output = Text.decodeUtf8With Text.lenientDecode $ BSL.toStrict $ Aeson.encodePretty' prettyConf output'
+            return $ OracleOutputSuccess output
+        else do
+            err <- o .: "error"
+            return $ OracleOutputError err
+    parseJSON _ = mzero
+
+-- data BuildError = 
+--       BuildErrorInfrastructure String
+--     | BuildErrorBuildFailed
+
+parseTestHelper :: (FromJSON i, Monad m, E.Error e) => (t -> Text) -> (Entity t -> a) -> Entity t -> ErrorT e m (a, i)
+parseTestHelper getInput constr t@(Entity _ test) = ErrorT $ 
+    let input' = getInput test in
+    case Aeson.decodeStrict' $ Text.encodeUtf8 input' of
+        Nothing ->
+            return $ Left $ E.strMsg $ "Invalid test input: " <> (show input')
+        Just input ->
+            return $ Right $ (constr t, input)
+
+class ModularBreakTest b where
+    breakTestToType :: b -> BreakType

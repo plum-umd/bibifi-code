@@ -5,7 +5,7 @@ module Main where
 import Cloud
 import Control.Concurrent
 import Control.Monad
-import Core.Modular
+-- import Core.Modular
 import qualified Data.Set as Set
 import qualified Network.HTTP.Conduit as HTTP
 import System.Posix.Signals
@@ -14,6 +14,7 @@ import Common
 import Options
 import qualified Queue
 import Runner
+import Problem
 import Scorer
 import Scheduler
 
@@ -26,7 +27,7 @@ main = do
     db <- makeDatabaseConf productionDatabaseYML "Production" -- "config/postgresql.yml"
 
     -- Read command line arguments. 
-    (Options count fsDir oracleDir contest) <- runDatabaseM db parseOptions
+    (Options count fsDir problemDir contest) <- runDatabaseM db parseOptions
     
     -- Create exiting mvar. 
     exiting <- newEmptyMVar
@@ -42,16 +43,17 @@ main = do
 
     -- Set runner options.
     http <- liftIO $ cloudManagerSettings ec2 >>= HTTP.newManager
-    let runnerOptions = RunnerOptions fsDir ec2 http oracleDir
-    let modcontest = toModular contest
+    let runnerOptions = RunnerOptions fsDir ec2 http problemDir
+    let problemRunner = contestToProblemRunner contest
+    let contestScorer = contestToScorer contest
 
     -- Fork scorer. 
     _ <- forkIO $ runDatabaseM db $ 
-        scorer exiting modcontest runnerOptions
+        scorerLoop exiting contestScorer runnerOptions
 
     -- Fork `count` runner threads. 
     replicateM_ count $ forkIO $ runDatabaseM db $ 
-        runner modcontest runnerOptions blockedTeams queue exiting 
+        runner problemRunner runnerOptions blockedTeams queue exiting 
 
     -- Run scheduler. 
     runDatabaseM db $ 

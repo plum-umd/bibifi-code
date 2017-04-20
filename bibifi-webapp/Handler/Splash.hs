@@ -229,7 +229,7 @@ judgesWidget = [whamlet'|
     |]
 
 winnersWidget :: Widget
-winnersWidget = Winners.fall2015 <> Winners.fall2015coursera
+winnersWidget = Winners.fall2016
                         -- This <a href="http://www.pl-enthusiast.net/2014/10/08/bibifi-contest/">blog post</a> provides a more detailed recap of the contest. 
 
 organizersWidget :: Widget
