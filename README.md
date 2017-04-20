@@ -44,8 +44,11 @@ To enable password logins edit the following:
 	sudo vim /var/lib/pgsql/data/pg_hba.conf
 
 Change
+
 	local  all      all          peer
+
 To
+
 	local  all      all          md5 
 
 Finish configuring the database:
