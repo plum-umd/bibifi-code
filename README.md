@@ -47,7 +47,6 @@ Change
 	local  all      all          peer
 To
 	local  all      all          md5 
-# TODO: other foreign connections
 
 Finish configuring the database:
 
