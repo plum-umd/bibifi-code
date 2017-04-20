@@ -15,12 +15,15 @@ import Yesod.Default.Handlers
 import Network.Wai.Middleware.RequestLogger ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination)
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import qualified Database.Persist
+import qualified Data.ByteString.Char8 as BSC
+import qualified Data.Text as Text
 import Database.Persist.Sql (runMigration) -- (runMigration, printMigration)
 import Network.HTTP.Client.Conduit (newManager)
 import Data.Default (def)
 import Control.Monad.Logger (runLoggingT)
 import Control.Concurrent (forkIO, threadDelay)
 import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, flushLogStr)
+import qualified Network.URI as URI
 import Network.Wai.Logger (clockDateCacher)
 import Network.Wai.Middleware.ForceDomain
 import Yesod.Core.Types (loggerSet, Logger (Logger))
@@ -95,7 +98,7 @@ import Handler.Splash
 import Handler.Sponsorship
 import Handler.Support
 import Handler.Team
-import Handler.TeamInvitation
+import Handler.TeamInvitation hiding (error)
 import Handler.Team.AddMembers
 import Handler.Team.Information
 import Handler.Team.Leave
@@ -143,8 +146,15 @@ makeApplication conf = do
     let app = if development then
             app'
           else
-            forceDomain (\d -> if d /= "builditbreakit.org" then Just "builditbreakit.org" else Nothing) app'
+            forceDomain (\d -> if d /= domainName then Just domainName else Nothing) app'
     return app
+
+    where
+        domainName = case (URI.parseURI $ Text.unpack $ appRoot conf) >>= URI.uriAuthority of
+            Nothing ->
+                error $ "Could not parse domain name: " <> Text.unpack (appRoot conf)
+            Just uri ->
+                BSC.pack $ URI.uriRegName uri
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.

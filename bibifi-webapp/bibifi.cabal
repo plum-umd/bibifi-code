@@ -161,6 +161,7 @@ library
                  , data-textual
                  , network                       
                  , network-ip
+                 , network-uri
                  , persistent                    
                  , persistent-ratelimit          
                  , persistent-postgresql         
