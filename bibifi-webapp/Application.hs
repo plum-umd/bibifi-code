@@ -146,7 +146,10 @@ makeApplication conf = do
     let app = if development then
             app'
           else
-            forceDomain (\d -> if d /= domainName then Just domainName else Nothing) app'
+            forceDomain (\d' -> 
+                let d = BSC.takeWhile (/= ':') d' in
+                if d /= domainName then Just domainName else Nothing
+              ) app'
     return app
 
     where
