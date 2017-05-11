@@ -1,18 +1,25 @@
 # For more information, see: https://github.com/commercialhaskell/stack/blob/release/doc/yaml_configuration.md
 
 # Specifies the GHC version and set of packages available (e.g., lts-3.5, nightly-2015-09-21, ghc-7.10.2)
-resolver: lts-4.0
+resolver: lts-8.13
 
 # Local packages, usually specified by relative directory name
+# TODO: Drop these...
 packages:
+- '../../lmonad/'
+- '../../lmonad-yesod/'
+- '../../persistent-ratelimit/'
 - '../bibifi-core'
 - '.'
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
-extra-deps: [lmonad-0.1.0.0,lmonad-yesod-1.0.0.0,network-ip-0.2.1.1,persistent-ratelimit-0.2.0.0,yesod-auth-oauth2-0.1.6, data-textual-0.3.0.2, text-latin1-0.3, text-printer-0.4, data-checked-0.3, data-dword-0.3, data-endian-0.1, type-hint-0.1, data-bword-0.1, yesod-form-1.4.10] # ,data-dword-0.3, data-endian-0.1, data-textual-0.3.0.2, text-printer-0.4, type-hint-0.1]#, data-bword-0.1, atext-latin1-0.3]
+# extra-deps: [lmonad-0.1.0.0,lmonad-yesod-1.0.0.0,network-ip-0.2.1.1,persistent-ratelimit-0.2.0.0,yesod-auth-oauth2-0.1.6, data-textual-0.3.0.2, text-latin1-0.3, text-printer-0.4, data-checked-0.3, data-dword-0.3, data-endian-0.1, type-hint-0.1, data-bword-0.1, yesod-form-1.4.10] # ,data-dword-0.3, data-endian-0.1, data-textual-0.3.0.2, text-printer-0.4, type-hint-0.1]#, data-bword-0.1, atext-latin1-0.3]
+extra-deps: [lmonad-0.1.0.0,network-ip-0.3,persistent-ratelimit-0.3.0.0,yesod-auth-oauth2-0.1.6, data-textual-0.3.0.2, text-latin1-0.3, text-printer-0.4, data-checked-0.3, data-dword-0.3.1, data-endian-0.1, type-hint-0.1, data-bword-0.1, yesod-form-1.4.10] # ,data-dword-0.3, data-endian-0.1, data-textual-0.3.0.2, text-printer-0.4, type-hint-0.1]#, data-bword-0.1, atext-latin1-0.3]
 
 # Override default flag values for local packages and extra-deps
 flags: {}
+
+allow-newer: true
 
 # Extra package databases containing global packages
 extra-package-dbs: []
