@@ -2,8 +2,9 @@
 module Problem.ArtGallery where
 
 import Core (keyToInt)
-import Core.SSH hiding (uploadString)
+import Core.SSH
 import Control.Monad.Error
+import Control.Monad.Trans.Resource
 import Data.Aeson (FromJSON(..),(.:),(.:?),(.!=),(.=),Value(..))
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -25,6 +26,7 @@ import qualified Data.Text.Encoding.Error as Text
 import Data.Text.Encoding.Error (lenientDecode)
 import qualified Data.Vector as Vector
 import qualified Database.Esqueleto as E
+import qualified Network.HTTP.Conduit as HTTP
 import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -35,7 +37,7 @@ import Cloud.EC2
 import Common
 import Core.Score
 import Problem.Class
-import Problem.Shared (getBuildArchiveLocation, getFixArchiveLocation)
+import Problem.Shared (getBuildArchiveLocation, getFixArchiveLocation, OracleErr(..))
 import Scorer.Class
 
 newtype ArtGallery = ArtGallery (Entity Contest)
@@ -70,55 +72,53 @@ instance ProblemRunnerClass ArtGallery where
                 
                         -- Return success.
                         return $ Just True
-                    Right inputs ->
+                    Right inputs -> do
                         -- Start EC2.
-                        let ec2 = runnerEC2Configuration opts in
-                        let manager = runnerHttpManager opts in
-                        launchOneEC2WithTimeout ec2 manager 60 ( \e -> do
-                                putLog e
-                                return False
-                            ) $ \_inst session -> do
-                                resultE <- runErrorT $ do
-                                    -- Block outgoing.
-                                    setupFirewall session
+                        let ec2 = runnerCloudConfiguration opts
+                        let manager = runnerHttpManager opts
+                        resultE <- runErrorT $ launchOneInstanceWithTimeout ec2 manager 60 $ \_inst session -> do
+                            -- Block outgoing.
+                            setupFirewall session
 
-                                    -- Send oracle.
-                                    putLog "Sending oracle files."
-                                    let oracleAppend = runnerProblemDirectory opts ++ "logappend"
-                                    let oracleDestAppend = oracleDestDirectory ++ "logappend"
-                                    let oracleRead = runnerProblemDirectory opts ++ "logread"
-                                    let oracleDestRead = oracleDestDirectory ++ "logread"
-                                    _ <- runSSH "Could not send logappend oracle to instance." $ sendFile session 0o777 oracleAppend oracleDestAppend
-                                    _ <- runSSH "Could not send logread oracle to instance." $ sendFile session 0o777 oracleRead oracleDestRead
+                            -- Send oracle.
+                            putLog "Sending oracle files."
+                            let oracleAppend = runnerProblemDirectory opts ++ "logappend"
+                            let oracleDestAppend = oracleDestDirectory ++ "logappend"
+                            let oracleRead = runnerProblemDirectory opts ++ "logread"
+                            let oracleDestRead = oracleDestDirectory ++ "logread"
+                            _ <- runSSH (OracleErr "Could not send logappend oracle to instance.") $ sendFile session 0o777 oracleAppend oracleDestAppend
+                            _ <- runSSH (OracleErr "Could not send logread oracle to instance.") $ sendFile session 0o777 oracleRead oracleDestRead
 
-                                    -- Run inputs.
-                                    putLog "Running oracle inputs."
-                                    flip mapM inputs $ \input' -> do
-                                        let input = B64.encode $ Text.encodeUtf8 input'
-                                        _ <- runSSH "Could not upload oracle input." $ execCommand session $ "sudo -u client echo " <> (BS8.unpack input) <> " | base64 -d > input.sh"
-                                        (Result stdOut' _ exit) <- runSSH "Could not run oracle input." $ execCommand session "sudo -u client sh ./input.sh"
-                                        output' <- case exit of
-                                              ExitSuccess -> return ["exit" .= (0 :: Integer)]
-                                              ExitFailure i -> return ["exit" .= i]
-                                              ExitSignal _ -> do
-                                                putLog "Oracle output with signal."
-                                                return []
-                                        let stdOutput = Text.decodeUtf8With lenientDecode stdOut'
-                                        return $ Aeson.object $ ("output" .= stdOutput):output'
+                            -- Run inputs.
+                            putLog "Running oracle inputs."
+                            flip mapM inputs $ \input' -> do
+                                let input = B64.encode $ Text.encodeUtf8 input'
+                                _ <- runSSH (OracleErr "Could not upload oracle input.") $ execCommand session $ "sudo -u client echo " <> (BS8.unpack input) <> " | base64 -d > input.sh"
+                                (Result stdOut' _ exit) <- runSSH (OracleErr "Could not run oracle input.") $ execCommand session "sudo -u client sh ./input.sh"
+                                output' <- case exit of
+                                      ExitSuccess -> return ["exit" .= (0 :: Integer)]
+                                      ExitFailure i -> return ["exit" .= i]
+                                      ExitSignal _ -> do
+                                        putLog "Oracle output with signal."
+                                        return []
+                                let stdOutput = Text.decodeUtf8With lenientDecode stdOut'
+                                return $ Aeson.object $ ("output" .= stdOutput):output'
 
-                                -- Return result.
-                                case resultE of
-                                    Left err -> do
-                                        putLog err
-                                        return False
-                                    Right out' -> do
-                                        -- Store outputs.
-                                        putLog "Recording oracle result."
-                                        let out = Text.decodeUtf8With lenientDecode $ BSL.toStrict $  Aeson.encodePretty out'
-                                        lift $ lift $ runDB $ update submissionId [OracleSubmissionOutput =. Just out, OracleSubmissionStatus =. OracleFinished]
+                        -- Return result.
+                        case resultE of
+                            Left (OracleErr err) -> do
+                                putLog err
+                                return (Just False)
+                            Left OracleErrTimeout -> do
+                                return Nothing
+                            Right out' -> do
+                                -- Store outputs.
+                                putLog "Recording oracle result."
+                                let out = Text.decodeUtf8With lenientDecode $ BSL.toStrict $  Aeson.encodePretty out'
+                                runDB $ update submissionId [OracleSubmissionOutput =. Just out, OracleSubmissionStatus =. OracleFinished]
 
-                                        return True
-        
+                                return $ Just True
+
         where
             oracleDestDirectory :: String
             oracleDestDirectory = "/home/ubuntu/"
@@ -155,7 +155,7 @@ instance ProblemRunnerClass ArtGallery where
             archiveLocation <- getBuildArchiveLocation submission opts 
 
             -- Start EC2. 
-            let ec2 = runnerEC2Configuration opts
+            let ec2 = runnerCloudConfiguration opts
             let manager = runnerHttpManager opts
             launchOneEC2WithTimeout' ec2 manager (4 * 60) (return . Left) $ \_inst session -> do
                 -- Block outgoing.
@@ -450,7 +450,7 @@ instance ProblemRunnerClass ArtGallery where
             runBreakTest :: BreakTest -> DatabaseM (Maybe (Bool, Bool))
             runBreakTest (BreakTestCorrectness commands batchM) =
                 -- Start EC2. 
-                let ec2 = runnerEC2Configuration opts in
+                let ec2 = runnerCloudConfiguration opts in
                 let manager = runnerHttpManager opts in
                 launchOneEC2WithTimeout ec2 manager 60 systemFail $ \_inst session -> do
                     resultE <- runErrorT $ do
@@ -509,7 +509,7 @@ instance ProblemRunnerClass ArtGallery where
                     let uniqueFilename = "_correctness_" <> show (keyToInt submissionId)
                     let encodedArgs = Text.decodeUtf8 $ B64.encode $ BSL.toStrict $ Aeson.encode args
                     let destArgs = "/tmp/correctness_args"
-                    breakErrorSystemT $ uploadString session uniqueFilename encodedArgs destArgs
+                    breakErrorSystemT $ uploadString' session uniqueFilename encodedArgs destArgs
 
                     -- Run test on oracle.
                     let oracleProgram = FilePath.joinPath [oracleDestDirectory, program]
@@ -576,7 +576,7 @@ instance ProblemRunnerClass ArtGallery where
                     let args = ["-K",token] ++ args' ++ [logFile]
 
                     -- Launch EC2
-                    let ec2 = runnerEC2Configuration opts
+                    let ec2 = runnerCloudConfiguration opts
                     let manager = runnerHttpManager opts
                     launchOneEC2WithTimeout' ec2 manager 60 (return . Left . BreakErrorSystem) $ \_inst session -> do
                         -- Setup firewall. 
@@ -617,7 +617,7 @@ instance ProblemRunnerClass ArtGallery where
                         let uniqueA = "_integ_args_" <> show (keyToInt submissionId)
                         let encodedArgs = Text.decodeUtf8 $ B64.encode $ BSL.toStrict $ Aeson.encode args
                         let destArgs = "/tmp/args"
-                        breakErrorSystemT $ uploadString session uniqueA encodedArgs destArgs
+                        breakErrorSystemT $ uploadString' session uniqueA encodedArgs destArgs
 
                         -- Run on log file.
                         (Result logOut _ logExit) <- executioner session "server" ("/home/builder/" <> targetTeamIdS <> "/code/build/logread") destArgs
@@ -712,7 +712,7 @@ instance ProblemRunnerClass ArtGallery where
                     let args = ["-K",token] ++ args' ++ [logFile]
 
                     -- Launch EC2
-                    let ec2 = runnerEC2Configuration opts
+                    let ec2 = runnerCloudConfiguration opts
                     let manager = runnerHttpManager opts
                     launchOneEC2WithTimeout' ec2 manager 60 (return . Left . BreakErrorSystem) $ \_inst session -> do
                         -- Setup firewall. 
@@ -734,7 +734,7 @@ instance ProblemRunnerClass ArtGallery where
                         let uniqueA = "_conf_args_" <> show (keyToInt submissionId)
                         let encodedArgs = Text.decodeUtf8 $ B64.encode $ BSL.toStrict $ Aeson.encode args
                         let destArgs = "/tmp/conf_args"
-                        breakErrorSystemT $ uploadString session uniqueA encodedArgs destArgs
+                        breakErrorSystemT $ uploadString' session uniqueA encodedArgs destArgs
 
                         -- Run args.
                         res@(Result out _ exit) <- executioner session "server" ("/home/builder/" <> targetTeamIdS <> "/code/build/logread") destArgs
@@ -812,7 +812,7 @@ instance ProblemRunnerClass ArtGallery where
             archiveLocation <- fixErrorSystemT $ getFixArchiveLocation fix opts
 
             -- Start EC2. 
-            let ec2 = runnerEC2Configuration opts
+            let ec2 = runnerCloudConfiguration opts
             let manager = runnerHttpManager opts
             launchOneEC2WithTimeout' ec2 manager 60 (return . Left . FixErrorSystem) $ \_inst session -> do
                 -- Block outgoing.
@@ -960,7 +960,7 @@ instance ProblemRunnerClass ArtGallery where
                     let uniqueFilename = "_correctness_" <> show (keyToInt fixId)
                     let encodedArgs = Text.decodeUtf8 $ B64.encode $ BSL.toStrict $ Aeson.encode args
                     let destArgs = "/tmp/correctness_args"
-                    fixErrorSystemT $ uploadString session uniqueFilename encodedArgs destArgs
+                    fixErrorSystemT $ uploadString' session uniqueFilename encodedArgs destArgs
 
                     -- Run test on oracle.
                     let oracleProgram = FilePath.joinPath [oracleDestDirectory, program]
@@ -1048,18 +1048,18 @@ instance FromJSON BuildTest where
 
     parseJSON _ = mzero
 
-uploadString' :: (MonadIO m) => Session -> FilePath -> ByteString -> String -> ErrorT String m ()
-uploadString' session uniqueFilename contents targetFile = do
-    let tmpFile = "/tmp/bibifi_" <> uniqueFilename
-    liftIO $ BS.writeFile tmpFile contents
-    let err = "Could not send file: " <> uniqueFilename
-    _ <- runSSH err $ sendFile session 0o666 tmpFile targetFile
-    removeIfExists tmpFile
-    return ()
+-- uploadString' :: (MonadIO m) => Session -> FilePath -> ByteString -> String -> ErrorT String m ()
+-- uploadString' session uniqueFilename contents targetFile = do
+--     let tmpFile = "/tmp/bibifi_" <> uniqueFilename
+--     liftIO $ BS.writeFile tmpFile contents
+--     let err = "Could not send file: " <> uniqueFilename
+--     _ <- runSSH err $ sendFile session 0o666 tmpFile targetFile
+--     removeIfExists tmpFile
+--     return ()
 
-uploadString :: (MonadIO m) => Session -> FilePath -> Text -> String -> ErrorT String m ()
-uploadString session uniqueFilename contents targetFile = 
-    uploadString' session uniqueFilename (Text.encodeUtf8 contents) targetFile
+uploadString' :: (MonadIO m) => Session -> FilePath -> Text -> String -> ErrorT String m ()
+uploadString' session uniqueFilename contents targetFile = 
+    uploadString session uniqueFilename (Text.encodeUtf8 contents) targetFile
 
 
 testCompare' :: ByteString -> ByteString -> Bool
@@ -1241,7 +1241,7 @@ generateTestScript' path userT testIOs =
 
 uploadTestScript :: (MonadIO m, PersistEntity record) => Session -> Key record -> Text -> ErrorT String m ()
 uploadTestScript session submissionId scriptB64 = do
-    uploadString session ("test_script" <> show (keyToInt submissionId)) scriptB64 "/home/ubuntu/scriptB64"
+    uploadString' session ("test_script" <> show (keyToInt submissionId)) scriptB64 "/home/ubuntu/scriptB64"
     let err = "Could not decode test script"
     (Result _ _ exit) <- runSSH err $ execCommand session "base64 -d /home/ubuntu/scriptB64 > /home/ubuntu/script.sh"
     when (exit /= ExitSuccess) $ 
@@ -1252,7 +1252,7 @@ maybeUploadBatchScript :: (MonadIO m, PersistEntity record) => Session -> String
 maybeUploadBatchScript session user submissionId batchM =
     whenJust batchM $ \batchB64 -> do
         -- Should already be base64 encoded. 
-        uploadString session ("batch64_" <> show (keyToInt submissionId)) batchB64 "/home/ubuntu/batch64"
+        uploadString' session ("batch64_" <> show (keyToInt submissionId)) batchB64 "/home/ubuntu/batch64"
         -- putLog $ "sudo -i -u " <> user <> " bash -c \"base64 -d /home/ubuntu/batch64 > /home/" <> user <> "/batch\""
         (Result _ _ exit) <- runSSH "Could not decode batch file" $ execCommand session $ "sudo -i -u " <> user <> " bash -c \"base64 -d /home/ubuntu/batch64 > /home/" <> user <> "/batch\""
         when (exit /= ExitSuccess) $ do
@@ -1334,11 +1334,17 @@ sudoMove session src tgt user = do
     (Result _ _ exit) <- runSSH "Could not chown file" $ execCommand session $ "sudo chown -R " <> user <> " " <> tgt
     when (exit /= ExitSuccess) $ 
         fail "Could not chown file"
-
--- | Provided for backwards compatibility. Shouldn't use this anymore.
-runnerEC2Configuration :: RunnerOptions -> EC2Configuration
-runnerEC2Configuration = f . runnerCloudConfiguration
-    where
-        f (CloudEC2Configuration c) = c
-        f _ = error "runnerEC2Configuration: Not given a CloudConfigurationEC2"
-
+-- 
+-- launchOneInstanceWithTimeout' :: (MonadBaseControl IO m, MonadIO m, MonadThrow m) =>
+--     CloudConfiguration -> HTTP.Manager -> Int -> (String -> IO (Either e b)) -> (CloudInstance -> Session -> ErrorT e (CloudT m) b) -> ErrorT e m (Maybe b)
+-- launchOneInstanceWithTimeout' ec2 manager timer e f = ErrorT $ do
+--     resM <- launchOneInstanceWithTimeout ec2 manager timer e $ \i s -> do
+--         f i s
+--     case resM of
+--         Nothing ->
+--             return $ Right Nothing
+--         Just (Left e) ->
+--             return $ Left e
+--         Just (Right r) ->
+--             return $ Right $ Just r
+-- 
