@@ -4,13 +4,13 @@ module Problem.ArtGallery where
 import Core (keyToInt)
 import Core.SSH
 import Control.Monad.Error
-import Control.Monad.Trans.Resource
+-- import Control.Monad.Trans.Resource
 import Data.Aeson (FromJSON(..),(.:),(.:?),(.!=),(.=),Value(..))
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
+-- import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
@@ -18,7 +18,7 @@ import qualified Data.Char as Char
 import qualified Data.IORef.Lifted as IO
 import qualified Data.List as List
 import Data.Monoid
-import Data.String (IsString)
+-- import Data.String (IsString)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
@@ -26,7 +26,7 @@ import qualified Data.Text.Encoding.Error as Text
 import Data.Text.Encoding.Error (lenientDecode)
 import qualified Data.Vector as Vector
 import qualified Database.Esqueleto as E
-import qualified Network.HTTP.Conduit as HTTP
+-- import qualified Network.HTTP.Conduit as HTTP
 import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -34,11 +34,10 @@ import qualified Text.Read as Text
 import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
-import Cloud.EC2
 import Common
 import Core.Score
 import Problem.Class
-import Problem.Shared (getBuildArchiveLocation, getFixArchiveLocation, OracleErr(..), BuildError(..))
+import Problem.Shared (getBuildArchiveLocation, getFixArchiveLocation, OracleErr(..), BuildError(..), BreakError(..), FixError(..))
 import Scorer.Class
 
 newtype ArtGallery = ArtGallery (Entity Contest)
@@ -410,7 +409,7 @@ instance ProblemRunnerClass ArtGallery where
                 files' <- liftIO $ Directory.getDirectoryContents basePath
                 let files = List.filter (List.isPrefixOf logFile) files'
                 when (List.length files == 0) $ 
-                    throwError $ BreakErrorReject "Invalid log file."
+                    throwError $ BreakErrorRejected "Invalid log file."
                 mapM (\name -> do
                         contents <- safeReadFileLazyReject $ FilePath.joinPath [basePath,name]
                         return (name, BSL.toStrict contents)
@@ -444,13 +443,13 @@ instance ProblemRunnerClass ArtGallery where
                 res@(Result out _err _exit) <- runSSH (strMsg "Could not run test on target.") $ execCommand session $ "sudo -i -u " <> user <> " bash -c '/usr/bin/executioner " <> destProgram <> " " <> destArgs <> "'"
                 case out of
                     "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout" -> 
-                        throwError $ BreakErrorReject "Command timed out"
+                        throwError $ BreakErrorRejected "Command timed out"
                     _ ->
                         return res
 
             sanitizeTokenArgs args = 
                 when (List.any (\arg -> "-K" == map Char.toUpper arg) args) $
-                    throwError $ BreakErrorReject "Invalid argument: -K"
+                    throwError $ BreakErrorRejected "Invalid argument: -K"
 
             runBreakTest :: BreakTest -> DatabaseM (Maybe (Bool, Bool))
             runBreakTest (BreakTestCorrectness commands batchM) = do
@@ -498,7 +497,15 @@ instance ProblemRunnerClass ArtGallery where
                     --     runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
                     Left (BreakErrorSystem err) ->
                         systemFail err
-                    Left (BreakErrorReject msg) -> do
+                    Left (BreakErrorBuildFail stdout' stderr') -> do
+                        let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                        let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                        runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                        userFail "Build failed"
+                    Left BreakErrorTimeout ->
+                        -- Timeout.
+                        return Nothing
+                    Left (BreakErrorRejected msg) -> do
                         -- lift $ lift $ update' BreakTested (Just BreakIncorrect) $ Just msg
                         update' BreakRejected Nothing $ Just msg
                         userFail msg
@@ -533,7 +540,7 @@ instance ProblemRunnerClass ArtGallery where
                     
                     -- breakErrorSystemT $ runSSH "Could not run test on target." $ execCommand session $ "sudo -i -u client bash -c '/usr/bin/executioner " <> targetProgram <> " " <> destArgs <> "'"
 
-                    _ <- error "TODO: Check that it isn't an optional feature XXX"
+                    -- _ <- error "TODO: Check that it isn't an optional feature XXX"
 
                     -- Compare outputs. 
                     if testCompare' oracleOut out && oracleExit == exit then -- testCompare' oracleErr err && 
@@ -552,23 +559,23 @@ instance ProblemRunnerClass ArtGallery where
                 resultE <- runErrorT $ do
                     -- Check that it's logread.
                     when (program /= "logread") $
-                        throwError $ BreakErrorReject "Program must be logread"
+                        throwError $ BreakErrorRejected "Program must be logread"
                     -- Check limit.
                     let teamId = breakSubmissionTeam submission
                     let targetId = breakSubmissionTargetTeam submission
                     attackC <- lift $ runDB $ count [BreakSubmissionTeam ==. teamId, BreakSubmissionTargetTeam ==. targetId, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionResult !=. Just BreakIncorrect, BreakSubmissionType ==. Just BreakIntegrity]
                     when (attackC >= 2) $
-                        throwError $ BreakErrorReject "You may only submit one integrity attack against a team."
+                        throwError $ BreakErrorRejected "You may only submit one integrity attack against a team."
                     
                     -- Check that log file name is alphanumeric. 
                     when (not $ List.all Char.isAlphaNum logFile) $
-                        throwError $ BreakErrorReject "Invalid log file."
+                        throwError $ BreakErrorRejected "Invalid log file."
                         
                     -- Read log files. 
                     let logBase = FilePath.joinPath [basePath, "round2/teamdirs",targetTeamIdS,"integ"]
                     logFiles <- getLogFiles logBase logFile
 
-                    -- logContents <- breakErrorRejectT (Just "Invalid log file.") $ 
+                    -- logContents <- BreakErrorRejectedT (Just "Invalid log file.") $ 
                     --     fmap BSL.toStrict $ ErrorT $ safeReadFileLazy logF
 
                     -- Read log file token. 
@@ -588,7 +595,7 @@ instance ProblemRunnerClass ArtGallery where
                     -- Launch EC2
                     let ec2 = runnerCloudConfiguration opts
                     let manager = runnerHttpManager opts
-                    launchOneEC2WithTimeout' ec2 manager 60 (return . Left . BreakErrorSystem) $ \_inst session -> do
+                    launchOneInstanceWithTimeout ec2 manager 60 $ \_inst session -> do
                         -- Setup firewall. 
                         -- breakErrorSystemT $ setupFirewall session
 
@@ -600,7 +607,7 @@ instance ProblemRunnerClass ArtGallery where
                                 let name = maybe logFile Text.unpack name'
                                 let contents = B64.decodeLenient $ Text.encodeUtf8 contents'
                                 when (List.any (== '/') name) $ 
-                                    throwError $ BreakErrorReject "Invalid replacement log file name."
+                                    throwError $ BreakErrorRejected "Invalid replacement log file name."
                                 return (name,contents)
                               ) replacement
                         mapM_ (uploadLogFile session "/home/client" "client") replacementLogs
@@ -635,7 +642,7 @@ instance ProblemRunnerClass ArtGallery where
 
                         -- Make sure exit's 0 and does not print "invalid". 
                         when (logExit /= ExitSuccess || testCompare' logOut "" || testCompare' logOut "invalid" || testCompare' logOut "integrity violation") $ do
-                            throwError $ BreakErrorReject "Invoking command with unmodified log printed 'integrity violation' or did not exit 0."
+                            throwError $ BreakErrorRejected "Invoking command with unmodified log printed 'integrity violation' or did not exit 0."
 
                         -- Run on replacement log file.
                         (Result out _ exit) <- executioner session "client" ("/home/builder/" <> targetTeamIdS <> "/code/build/logread") destArgs
@@ -647,21 +654,26 @@ instance ProblemRunnerClass ArtGallery where
                             return ()
                         else
                             -- throwError $ BreakErrorIncorrect
-                            throwError $ BreakErrorReject "Invoking command with modified log did not exit 0 or printed 'integrity violation' or did not differ in output."
+                            throwError $ BreakErrorRejected "Invoking command with modified log did not exit 0 or printed 'integrity violation' or did not differ in output."
                 
                 case resultE of
-                    Left (BreakErrorReject msg) -> do
+                    Left (BreakErrorRejected msg) -> do
                         update' BreakRejected Nothing $ Just msg
                         userFail msg
+                    Left (BreakErrorBuildFail stdout' stderr') -> do
+                        let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                        let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                        runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                        userFail "Build failed"
                     Left (BreakErrorSystem err) ->
                         systemFail err
                     -- Left (BreakErrorIncorrect msg) -> do
                     --     update' BreakTested (Just BreakIncorrect) $ Just msg
                     --     fmap Just $ userFail msg
-                    Right Nothing ->
+                    Left (BreakErrorTimeout) ->
                         -- Timeout.
                         return Nothing
-                    Right (Just ()) -> do
+                    Right () -> do
                         update' BreakTested (Just BreakExploit) Nothing
                         return $ Just (True, True)
                         
@@ -682,28 +694,28 @@ instance ProblemRunnerClass ArtGallery where
                 resultE <- runErrorT $ do
                     -- Check that it's logread.
                     when (program /= "logread") $
-                        throwError $ BreakErrorReject "Program must be logread"
+                        throwError $ BreakErrorRejected "Program must be logread"
 
                     -- Check that guessed output is not 'invalid'.
                     when (testCompare guessedOut "invalid" || testCompare guessedOut "integrity violation") $ 
-                        throwError $ BreakErrorReject "'integrity violation' is not an accepted output"
+                        throwError $ BreakErrorRejected "'integrity violation' is not an accepted output"
 
                     -- Check limit.
                     let teamId = breakSubmissionTeam submission
                     let targetId = breakSubmissionTargetTeam submission
                     attackC <- lift $ runDB $ count [BreakSubmissionTeam ==. teamId, BreakSubmissionTargetTeam ==. targetId, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionResult !=. Just BreakIncorrect, BreakSubmissionType ==. Just BreakConfidentiality]
                     when (attackC >= 2) $
-                        throwError $ BreakErrorReject "You may only submit one confidentiality attack against a team."
+                        throwError $ BreakErrorRejected "You may only submit one confidentiality attack against a team."
 
                     -- Check that log file name is alphanumeric. 
                     when (not $ List.all Char.isAlphaNum logFile) $
-                        throwError $ BreakErrorReject "Invalid log file."
+                        throwError $ BreakErrorRejected "Invalid log file."
                         
                     -- Read log files. 
                     let logBase = FilePath.joinPath [basePath, "round2/teamdirs",targetTeamIdS,"conf"]
                     logFiles <- getLogFiles logBase logFile
 
-                    -- logContents <- breakErrorRejectT (Just "Invalid log file.") $ 
+                    -- logContents <- BreakErrorRejectedT (Just "Invalid log file.") $ 
                     --     fmap BSL.toStrict $ ErrorT $ safeReadFileLazy logF
 
                     -- Read log file token. 
@@ -723,7 +735,7 @@ instance ProblemRunnerClass ArtGallery where
                     -- Launch EC2
                     let ec2 = runnerCloudConfiguration opts
                     let manager = runnerHttpManager opts
-                    launchOneEC2WithTimeout' ec2 manager 60 (return . Left . BreakErrorSystem) $ \_inst session -> do
+                    launchOneInstanceWithTimeout ec2 manager 60 $ \_inst session -> do
                         -- Setup firewall. 
                         -- breakErrorSystemT $ setupFirewall session
 
@@ -753,24 +765,29 @@ instance ProblemRunnerClass ArtGallery where
                         when (testCompare' out "" || testCompare' out "invalid" || testCompare' out "integrity violation" || exit /= ExitSuccess) $ do
                             putLog $ show args
                             putLog $ show res
-                            throwError $ BreakErrorReject "Running logread returned 'integrity violation', had zero-length output, or did not exit 0."
+                            throwError $ BreakErrorRejected "Running logread returned 'integrity violation', had zero-length output, or did not exit 0."
 
                         -- Check that out == guessOut. 
                         if testCompare' out (Text.encodeUtf8 guessedOut) then
                             return ()
                         else
-                            throwError $ BreakErrorReject "Guessed output did not match."
+                            throwError $ BreakErrorRejected "Guessed output did not match."
 
                 case resultE of
-                    Left (BreakErrorReject msg) -> do
+                    Left (BreakErrorBuildFail stdout' stderr') -> do
+                        let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                        let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                        runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                        userFail "Build failed"
+                    Left (BreakErrorRejected msg) -> do
                         update' BreakRejected Nothing $ Just msg
                         userFail msg
                     Left (BreakErrorSystem err) ->
                         systemFail err
-                    Right Nothing ->
+                    Left (BreakErrorTimeout) ->
                         -- Timeout.
                         return Nothing
-                    Right (Just ()) -> do
+                    Right () -> do
                         update' BreakTested (Just BreakExploit) Nothing
                         return $ Just (True, True)
 
@@ -781,7 +798,7 @@ instance ProblemRunnerClass ArtGallery where
                 -- Done and no need to rescore. 
                 return $ Just (True, False)
 
-            -- breakErrorRejectT = breakErrorT BreakErrorReject
+            -- BreakErrorRejectedT = breakErrorT BreakErrorRejected
             -- breakErrorSystemT = breakErrorT BreakErrorSystem Nothing
             -- breakErrorT const msgM e = ErrorT $ do
             --     resE <- runErrorT e
@@ -814,15 +831,15 @@ instance ProblemRunnerClass ArtGallery where
             breaks <- mapM (loadBreak opts) breaks'
 
             -- Parse core tests.
-            coreTests <- fixErrorSystemT $ mapM parseCoreTest coreTests'
+            coreTests <- mapM parseCoreTest coreTests'
             
             -- Get fix tar.
-            archiveLocation <- fixErrorSystemT $ getFixArchiveLocation fix opts
+            archiveLocation <- getFixArchiveLocation fix opts
 
             -- Start EC2. 
             let ec2 = runnerCloudConfiguration opts
             let manager = runnerHttpManager opts
-            launchOneEC2WithTimeout' ec2 manager 60 (return . Left . FixErrorSystem) $ \_inst session -> do
+            launchOneInstanceWithTimeout ec2 manager 60 $ \_inst session -> do
                 -- Block outgoing.
                 -- fixErrorSystemT $ setupFirewall session
 
@@ -832,30 +849,30 @@ instance ProblemRunnerClass ArtGallery where
                 let oracleDestAppend = FilePath.joinPath [oracleDestDirectory,"logappend"]
                 let oracleRead = FilePath.joinPath [oracleBasePath,"logread"]
                 let oracleDestRead = FilePath.joinPath [oracleDestDirectory,"logread"]
-                _ <- fixErrorSystemT $ runSSH "Could not send logappend oracle to instance." $ sendFile session 0o777 oracleAppend oracleDestAppend
-                _ <- fixErrorSystemT $ runSSH "Could not send logread oracle to instance." $ sendFile session 0o777 oracleRead oracleDestRead
+                _ <- runSSH (FixErrorSystem "Could not send logappend oracle to instance.") $ sendFile session 0o777 oracleAppend oracleDestAppend
+                _ <- runSSH (FixErrorSystem "Could not send logread oracle to instance.") $ sendFile session 0o777 oracleRead oracleDestRead
 
                 -- Send submission.
                 putLog "Sending fix submission."
                 let destArchiveLocation = "/home/ubuntu/submission.tar.gz"
-                _ <- fixErrorSystemT $ runSSH "Could not send submission" $ sendFile session 0o666 archiveLocation destArchiveLocation
+                _ <- runSSH (FixErrorSystem "Could not send submission") $ sendFile session 0o666 archiveLocation destArchiveLocation
 
                 -- Setup directory.
-                (Result _ _ exit) <- fixErrorSystemT $ runSSH "Could not make test directory." $ execCommand session "sudo -i -u builder mkdir /home/builder/test"
+                (Result _ _ exit) <- runSSH (strMsg "Could not make test directory.") $ execCommand session "sudo -i -u builder mkdir /home/builder/test"
                 when (exit /= ExitSuccess) $
                     throwError $ FixErrorSystem "Could not make test directory."
 
                 -- Extract submission.
                 putLog "Extracting build submission."
-                (Result _ _ exit) <- fixErrorSystemT $ runSSH "Could not extract submission" $ execCommand session ("cd /home/builder/test; sudo -u builder tar -xf " <> destArchiveLocation)
+                (Result _ _ exit) <- runSSH (strMsg "Could not extract submission") $ execCommand session ("cd /home/builder/test; sudo -u builder tar -xf " <> destArchiveLocation)
                 when (exit /= ExitSuccess) $
                     throwError $ FixErrorSystem "Could not extract submission."
 
                 -- Build submission. 
                 putLog "Building submission."
-                (Result _ _ exit) <- fixErrorT (const FixErrorBuildFail) Nothing $ runSSH "build failed" $ execCommand session "sudo -i -u builder make -B -C /home/builder/test/fix/code"
+                (Result stdout stderr exit) <- runSSH (FixErrorSystem "build failed") $ execCommand session "sudo -i -u builder make -B -C /home/builder/test/fix/code"
                 when (exit /= ExitSuccess) $
-                    throwError FixErrorBuildFail
+                    throwError $ FixErrorBuildFail stdout stderr
 
                 -- Map over correctness tests.
                 mapM_ (runTest session fixId) coreTests
@@ -869,21 +886,23 @@ instance ProblemRunnerClass ArtGallery where
                 -- Testing fix failed so mark as pending.
                 putLog err
                 return $ Just (False, False)
-            Left (FixErrorReject msg) -> do
+            Left (FixErrorRejected msg) -> do
                 -- User error so reject fix. 
-                update' FixRejected $ Just msg
+                updateFix FixRejected ( Just msg) Nothing Nothing
                 putLog msg
                 return $ Just (True, False)
-            Left FixErrorBuildFail -> do
+            Left (FixErrorBuildFail stdout' stderr') -> do
                 -- Building fix submission failed.
-                update' FixBuildFail Nothing
+                let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                updateFix FixRejected (Just "Building submission failed") stdout stderr
                 return $ Just (True, False)
-            Right Nothing -> do
+            Left FixErrorTimeout ->
                 -- Timeout.
                 return Nothing
-            Right (Just ()) -> do
+            Right () -> do
                 -- All tests passed so mark for judgement. 
-                update' FixJudging Nothing
+                updateFix FixJudging Nothing Nothing Nothing
                 return $ Just (True, True)
 
         where
@@ -892,22 +911,23 @@ instance ProblemRunnerClass ArtGallery where
 
             oracleBasePath = runnerProblemDirectory opts
 
-            update' status msgM = 
-                runDB $ update fixId [FixSubmissionStatus =. status, FixSubmissionMessage =. msgM]
+            updateFix status msg stdout stderr = 
+                runDB $ update fixId [FixSubmissionStatus =. status, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
 
-            fixErrorSystemT :: Monad m => ErrorT String m b -> ErrorT FixError m b
-            fixErrorSystemT = fixErrorT FixErrorSystem Nothing
 
-            fixErrorT :: Monad m => (String -> e) -> Maybe String -> ErrorT String m b -> ErrorT e m b
-            fixErrorT constr msgM e = ErrorT $ do
-                resE <- runErrorT e
-                case (resE, msgM) of
-                    (Right r,_) ->
-                        return $ Right r
-                    (Left _, Just err) -> 
-                        return $ Left $ constr err
-                    (Left err, Nothing) -> 
-                        return $ Left $ constr err
+            -- fixErrorSystemT :: Monad m => ErrorT String m b -> ErrorT FixError m b
+            -- fixErrorSystemT = fixErrorT FixErrorSystem Nothing
+
+            -- fixErrorT :: Monad m => (String -> e) -> Maybe String -> ErrorT String m b -> ErrorT e m b
+            -- fixErrorT constr msgM e = ErrorT $ do
+            --     resE <- runErrorT e
+            --     case (resE, msgM) of
+            --         (Right r,_) ->
+            --             return $ Right r
+            --         (Left _, Just err) -> 
+            --             return $ Left $ constr err
+            --         (Left err, Nothing) -> 
+            --             return $ Left $ constr err
 
             loadBreak :: (MonadIO m) => RunnerOptions -> Entity BreakSubmission -> ErrorT FixError m (Entity BreakSubmission, BreakTest)
             loadBreak opts bsE@(Entity bsId bs) = do
@@ -936,7 +956,7 @@ instance ProblemRunnerClass ArtGallery where
                     E.where_ (fsb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&. (fs E.^. FixSubmissionStatus E.!=. E.val FixRejected E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixBuildFail E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixInvalidBugId))
                     return fsb -- TODO: E.countRows
                 when (List.length fixes > 1) $
-                    throwError $ FixErrorReject $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
+                    throwError $ FixErrorRejected $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
 
                 -- Include break if it's a correctness violation.
                 if breakSubmissionType bs == Just BreakCorrectness then
@@ -951,23 +971,23 @@ instance ProblemRunnerClass ArtGallery where
 
             runBreakTest' session fixId bsE commands batchM = do
                 -- Create new user. 
-                (oracleUser, _) <- fixErrorSystemT $ createNewUser' session bsE $ "breakoracle" <> (show $ keyToInt fixId)
-                (user, _) <- fixErrorSystemT $ createNewUser' session bsE $ "break" <> (show $ keyToInt fixId)
+                (oracleUser, _) <- createNewUser' session bsE $ "breakoracle" <> (show $ keyToInt fixId)
+                (user, _) <- createNewUser' session bsE $ "break" <> (show $ keyToInt fixId)
 
                 -- Maybe upload batch for oracle.
-                fixErrorSystemT $ maybeUploadBatch session fixId batchM ("/home/" <> oracleUser <> "/batch") oracleUser
+                maybeUploadBatch session fixId batchM ("/home/" <> oracleUser <> "/batch") oracleUser
 
                 -- Maybe upload batch for log. 
-                fixErrorSystemT $ maybeUploadBatch session fixId batchM ("/home/" <> user <> "/batch") user
+                maybeUploadBatch session fixId batchM ("/home/" <> user <> "/batch") user
 
                 -- Run the commands.
                 mapM (runCommands session fixId bsE oracleUser user) commands
 
-            runCommands session fixId (Entity bsId bs) oracleUser user (BreakTestCommand program args _) = do
+            runCommands session _fixId (Entity bsId bs) oracleUser user (BreakTestCommand program args _) = do
                     -- Upload test.
                     let encodedArgs = Text.decodeUtf8 $ B64.encode $ BSL.toStrict $ Aeson.encode args
                     let destArgs = "/tmp/correctness_args"
-                    fixErrorSystemT $ uploadString' session encodedArgs destArgs
+                    uploadString' session encodedArgs destArgs
 
                     -- Run test on oracle.
                     let oracleProgram = FilePath.joinPath [oracleDestDirectory, program]
@@ -981,7 +1001,7 @@ instance ProblemRunnerClass ArtGallery where
                     if testCompare' oracleOut out && oracleExit == exit then -- testCompare' oracleErr err && 
                         return ()
                     else
-                        throwError $ FixErrorReject $ "Fix failed break submission '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> "). Expected(" <> printRet oracleExit <> "): '" <> printOut oracleOut <> "'. Got(" <> printRet exit <> "): '" <> printOut out <> "'."
+                        throwError $ FixErrorRejected $ "Fix failed break submission '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> "). Expected(" <> printRet oracleExit <> "): '" <> printOut oracleOut <> "'. Got(" <> printRet exit <> "): '" <> printOut out <> "'."
 
             printRet ExitSuccess = "0"
             printRet (ExitFailure ret) = show ret
@@ -990,35 +1010,35 @@ instance ProblemRunnerClass ArtGallery where
             printOut = show . Text.decodeUtf8With Text.lenientDecode
 
             executioner session user destProgram destArgs = do
-                res@(Result out _err _exit) <- fixErrorSystemT $ runSSH "Could not run test on target." $ execCommand session $ "sudo -i -u " <> user <> " bash -c '/usr/bin/executioner " <> destProgram <> " " <> destArgs <> "'"
+                res@(Result out _err _exit) <- runSSH (FixErrorSystem "Could not run test on target.") $ execCommand session $ "sudo -i -u " <> user <> " bash -c '/usr/bin/executioner " <> destProgram <> " " <> destArgs <> "'"
                 case out of
                     "thisisatimeoutthisisatimeoutthisisatimeoutthisisatimeout" -> 
-                        throwError $ FixErrorReject "Command timed out"
+                        throwError $ FixErrorRejected "Command timed out"
                     _ ->
                         return res
 
             runTest session fixId (BuildCoreTest testE@(Entity _ test) testIOs batchM) = do
                 -- Create new user.
-                (user, userT) <- fixErrorSystemT $ createNewUser' session testE "core"
+                (user, userT) <- createNewUser' session testE "core"
 
                 -- Generate script.
                 let scriptB64 = generateTestScript' "fix/code/" userT testIOs
 
                 -- Upload script.
-                fixErrorSystemT $ uploadTestScript session fixId scriptB64
+                uploadTestScript session fixId scriptB64
 
                 -- Maybe upload batch script
-                fixErrorSystemT $ maybeUploadBatchScript session user fixId batchM
+                maybeUploadBatchScript session user fixId batchM
 
                 -- Run script.
-                _ <- fixErrorSystemT $ runSSH "Could not run test script" $ execCommand session $ "sudo bash /home/ubuntu/script.sh"
+                _ <- runSSH (FixErrorSystem "Could not run test script") $ execCommand session $ "sudo bash /home/ubuntu/script.sh"
 
                 -- Parse Results.
-                timeM <- fixErrorSystemT $ parseTestResults user session testIOs
+                timeM <- parseTestResults user session testIOs
 
                 case timeM of
                     Left err ->
-                        throwError $ FixErrorReject $ "Failed core test '" <> Text.unpack (contestCoreTestName test) <> "'. " <> err
+                        throwError $ FixErrorRejected $ "Failed core test '" <> Text.unpack (contestCoreTestName test) <> "'. " <> err
                     Right _ ->
                         return ()
             
@@ -1028,8 +1048,8 @@ instance ProblemRunnerClass ArtGallery where
 safeReadFileLazyReject f  = do
     contentsE <- safeReadFileLazy f
     case contentsE of
-        Left e ->
-            throwError $ BreakErrorReject "Invalid log file."
+        Left _e ->
+            throwError $ BreakErrorRejected "Invalid log file."
         Right contents ->
             return contents
 
@@ -1168,21 +1188,21 @@ instance FromJSON BreakTest where
 
     parseJSON _ = mzero
 
-data BreakError = 
-      BreakErrorSystem String
-    | BreakErrorReject String
---    | BreakErrorIncorrect String
+-- data BreakError = 
+--       BreakErrorSystem String
+--     | BreakErrorRejected String
+-- --    | BreakErrorIncorrect String
+-- 
+-- instance Error BreakError where
+--     strMsg = BreakErrorSystem . ("noMsg:default_error:" <>)
 
-instance Error BreakError where
-    strMsg = BreakErrorSystem . ("noMsg:default_error:" <>)
-
-data FixError = 
-      FixErrorSystem String
-    | FixErrorReject String
-    | FixErrorBuildFail -- String
-
-instance Error FixError where
-    strMsg = FixErrorSystem . ("noMsg:default_error:" <>)
+-- data FixError = 
+--       FixErrorSystem String
+--     | FixErrorReject String
+--     | FixErrorBuildFail -- String
+-- 
+-- instance Error FixError where
+--     strMsg = FixErrorSystem . ("noMsg:default_error:" <>)
 
 parseCoreTest :: (Error e, Monad m) => Entity ContestCoreTest -> ErrorT e m BuildTestType
 parseCoreTest test = parseTest contestCoreTestTestScript test $ \(tests,batchM,_) ->
@@ -1255,7 +1275,7 @@ generateTestScript' path userT testIOs =
     Text.decodeUtf8 $ B64.encode $ Text.encodeUtf8 script
 
 uploadTestScript :: (MonadIO m, Error e, PersistEntity record) => Session -> Key record -> Text -> ErrorT e m ()
-uploadTestScript session submissionId scriptB64 = do
+uploadTestScript session _submissionId scriptB64 = do
     uploadString' session scriptB64 "/home/ubuntu/scriptB64"
     let err = "Could not decode test script"
     (Result _ _ exit) <- runSSH (strMsg err) $ execCommand session "base64 -d /home/ubuntu/scriptB64 > /home/ubuntu/script.sh"
@@ -1264,7 +1284,7 @@ uploadTestScript session submissionId scriptB64 = do
 
 -- For build-it tests.
 maybeUploadBatchScript :: (MonadIO m, Error e, PersistEntity record) => Session -> String -> Key record -> Maybe Text -> ErrorT e m ()
-maybeUploadBatchScript session user submissionId batchM =
+maybeUploadBatchScript session user _submissionId batchM =
     whenJust batchM $ \batchB64 -> do
         -- Should already be base64 encoded. 
         uploadString' session batchB64 "/home/ubuntu/batch64"
@@ -1332,7 +1352,7 @@ parseTestResults user session testIOs =
 maybeUploadBatch :: (MonadIO m, PersistEntity record, Error e) => Session -> Key record -> Maybe Text -> String -> String -> ErrorT e m ()
 maybeUploadBatch _ _ Nothing _ _ = 
     return ()
-maybeUploadBatch session submissionId (Just batch64) destFile user = do
+maybeUploadBatch session _submissionId (Just batch64) destFile user = do
     let batch = B64.decodeLenient $ Text.encodeUtf8 batch64
     -- let uniq = "_batch_" <> show (keyToInt submissionId)
     let tmp = "/tmp/_bibifi_maybeUploadBatch"
