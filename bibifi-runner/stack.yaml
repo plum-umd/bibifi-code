@@ -9,7 +9,7 @@ packages:
 - '../bibifi-core'
 - '../dependencies/aws-sdk'
 - '../dependencies/simplessh'
-- '../dependencies/docker-hs-streaming' # TODO: remove this once the new library is released
+# - '../dependencies/docker-hs-streaming' # TODO: remove this once the new library is released
 - '.'
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
@@ -24,6 +24,7 @@ extra-deps:
 - strptime-1.0.10
 - pipes-http-1.0.2
 - directory-1.2.7.1
+- docker-0.4.0.0
 # - esqueleto-2.5.1
 # - http-client-0.4.31.2
 # - hashmap-1.3.1.1
