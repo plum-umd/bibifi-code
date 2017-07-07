@@ -540,7 +540,9 @@ instance ProblemRunnerClass ArtGallery where
                     
                     -- breakErrorSystemT $ runSSH "Could not run test on target." $ execCommand session $ "sudo -i -u client bash -c '/usr/bin/executioner " <> targetProgram <> " " <> destArgs <> "'"
 
-                    -- _ <- error "TODO: Check that it isn't an optional feature XXX"
+                    -- Check that it isn't an optional feature.
+                    when (testCompare' out "unimplemented") $
+                        throwError $ BreakErrorRejected "Breaking unimplemented optional feature."
 
                     -- Compare outputs. 
                     if testCompare' oracleOut out && oracleExit == exit then -- testCompare' oracleErr err && 
