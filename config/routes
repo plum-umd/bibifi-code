@@ -89,6 +89,7 @@
 /admin/contest/#Text/break_submissions AdminContestBreakSubmissionsR GET
 /admin/contest/#Text/fix_submissions AdminContestFixSubmissionsR GET
 /admin/contest/#Text/edit AdminContestEditR GET POST
+/admin/contest/#Text/makejudge AdminContestMakeJudgeR GET POST
 /admin/contest/#Text/judgeinfo AdminContestJudgeEmailsR GET
 /admin/contest/#Text/judgements AdminContestJudgementsR GET
 /admin/contest/#Text/judgements/#BuildSubmissionId/build_assignment AdminContestJudgementsAssignBuildR GET POST

@@ -54,6 +54,7 @@ library
                      Handler.Admin.Contest.FixSubmissions
                      Handler.Admin.Contest.Create
                      Handler.Admin.Contest.Edit
+                     Handler.Admin.Contest.MakeJudge
                      Handler.Admin.Contest.JudgeEmails
                      Handler.Admin.Contest.Judgements
                      Handler.Admin.Contest.Judgements.AssignBuild

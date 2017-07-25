@@ -52,8 +52,8 @@ getAdminContestR url = runLHandler $ do
                     <h3>
                         Judges
                     <p>
-                        <a href="@{TodoR}">
-                            Add judges.
+                        <a href="@{AdminContestMakeJudgeR url}">
+                            Add judge.
                     <p>
                         <a href="@{AdminContestJudgeEmailsR url}">
                             View judges's information.

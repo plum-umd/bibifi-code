@@ -38,6 +38,7 @@ import Handler.Admin.Contest.BreakSubmissions
 import Handler.Admin.Contest.FixSubmissions
 import Handler.Admin.Contest.Create
 import Handler.Admin.Contest.Edit
+import Handler.Admin.Contest.MakeJudge
 import Handler.Admin.Contest.JudgeEmails
 import Handler.Admin.Contest.Judgements
 import Handler.Admin.Contest.Judgements.AssignBuild
