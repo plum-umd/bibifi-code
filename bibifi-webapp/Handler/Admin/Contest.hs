@@ -42,15 +42,18 @@ getAdminContestR url = runLHandler $ do
                         Submissions
                     <p>
                         <a href="@{AdminContestBuildSubmissionsR url}">
-                            View build submissions
+                            View build submissions.
                     <p>
                         <a href="@{AdminContestBreakSubmissionsR url}">
-                            View break submissions
+                            View break submissions.
                     <p>
                         <a href="@{AdminContestFixSubmissionsR url}">
-                            View fix submissions
+                            View fix submissions.
                     <h3>
                         Judges
+                    <p>
+                        <a href="@{TodoR}">
+                            Add judges.
                     <p>
                         <a href="@{AdminContestJudgeEmailsR url}">
                             View judges's information.
