@@ -132,6 +132,9 @@ getAdminContestJudgementsR url = runLHandler $ do
                 [whamlet|
                     <a href="@{AdminContestR url}" type="button" class="btn btn-primary">
                         Back
+                |]
+                assignW
+                [whamlet|
                     <h2>
                         Judgements
                         <small>
@@ -154,6 +157,26 @@ getAdminContestJudgementsR url = runLHandler $ do
                 |]
                 clickableDiv
     where
+        assignW :: LWidget
+        assignW = do
+            show <- handlerToWidget $ runDB $ do
+                -- JP: Build judgements too??
+                -- Get break, fix judgements that have not been assigned 
+                breaks <- getUnassignedBreaks
+                fixes <- getUnassignedFixes
+                return $ length breaks > 0 || length fixes > 0
+            when show $ do
+                (widget, enctype) <- handlerToWidget $ generateFormPost distributeForm
+                [whamlet|
+                    <h2>
+                        Assign judges
+                    <p>
+                        Judges are not automatically assigned to judgements. Click here to distribute judging jobs between judges. 
+                    <form method=post action=@{AdminContestDistributeJudgementsR url} enctype=#{enctype}>
+                        ^{widget}
+                        <input type=submit class="btn btn-primary" value="Distribute judgements">
+                |]
+
         rulingToHtml ruling = case ruling of
             Nothing ->
               [shamlet|
@@ -170,3 +193,91 @@ getAdminContestJudgementsR url = runLHandler $ do
                   <span .text-warning>
                       Complete (Fail)
               |]
+
+getUnassignedBreaks = [lsql|
+        select BreakDispute.break from BreakDispute
+        left outer join BreakJudgement on BreakDispute.break == BreakJudgement.submission
+        where BreakJudgement.id is null
+    |]
+
+getUnassignedFixes = [lsql|
+        select FixSubmission.id from FixSubmission
+        left outer join FixJudgement on FixSubmission.id == FixJudgement.submission
+        where FixJudgement.id is null
+    |]
+
+data DistributeJudgements = DistributeJudgements ()
+
+distributeForm :: Form DistributeJudgements
+distributeForm = renderDivs $ DistributeJudgements
+    <$> pure ()
+
+postAdminContestDistributeJudgementsR :: Text -> Handler Html
+postAdminContestDistributeJudgementsR url = runLHandler $ do
+    -- Check admin
+    res <- retrieveContest $ Just url
+    Admin.layout Admin.Contests $ do
+        case res of
+            Nothing ->
+                Admin.contestNotFound
+            Just (Entity cId _) -> do
+                -- Parse POST.
+                ((res, _), _) <- handlerToWidget $ runFormPost distributeForm
+                case res of
+                    FormMissing -> 
+                        failH
+                    FormFailure _ ->
+                        failH
+                    FormSuccess _ -> do
+                        -- Cycle judges.
+                        judges <- fmap (fmap entityKey) $ 
+                            handlerToWidget $ runDB $ selectList [JudgeContest ==. cId] []
+
+                        -- Fail if there are no judges.
+                        if length judges == 0 then do
+                            render <- getUrlRenderParams
+                            setMessage $ [hamlet|
+                                <div class="container">
+                                    <div class="alert alert-danger">
+                                        Could not distribute judging assignments. There are no judges for this contest. Create some <a href="@{AdminContestMakeJudgeR url}">here</a>.
+                            |] render 
+
+                            redirect $ AdminContestJudgementsR url
+                        else do
+                            
+                            handlerToWidget $ runDB $ do
+                                -- Get unassigned breaks and fixes.
+                                breaks <- getUnassignedBreaks
+                                fixes <- getUnassignedFixes
+
+                                -- Assign judgements to judges.
+                                cycleZipMap judges breaks $ \(judge, break) -> do
+                                    insert_ $ BreakJudgement judge break Nothing Nothing
+
+                                cycleZipMap judges fixes $ \(judge, fix) -> 
+                                    insert_ $ FixJudgement judge fix Nothing Nothing
+
+                            -- Set message.
+                            setMessage [shamlet|
+                                <div class="container">
+                                    <div class="alert alert-success">
+                                        Distributed judging assignments!
+                            |]
+                            
+                            -- Redirect.
+                            redirect $ AdminContestJudgementsR url
+
+    where
+        failH = do
+            setMessage [shamlet|
+                <div class="container">
+                    <div class="alert alert-danger">
+                        Could not distribute judging assignments.
+            |]
+            redirect $ AdminContestJudgementsR url
+
+        cycleZipMap c l f = mapM_ f $ zipR (cycle c) l
+
+        zipR _ [] = []
+        zipR (cH:cT) (lH:lT) = (cH,lH):zipR cT lT
+
