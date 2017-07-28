@@ -68,9 +68,15 @@ jumbotronWidget = do
                     <p>
                         If you are interested in the scientific results from this research project, check out a <a href="http://arxiv.org/abs/1606.01881">pre-print of our paper</a>.
                     <p>
-                        The Build it Break it Fix it contest for <a href="@{StaticR doc_flyer2016_pdf}">Fall 2016</a> will start on September 22, 2016. 
-                        <a href="@{ContestSignupR}">Sign up</a>! 
+                        There are currently no public contests planned at this time. 
+                    <p>
+                        We are looking for partners to run BIBIFI in the classroom! 
+                        We will share our infrastructure and provide support.
+                        Contact us at #{emailLink} if you are interested. 
     |]
+                    -- <p>
+                    --     The Build it Break it Fix it contest for <a href="@{StaticR doc_flyer2016_pdf}">Fall 2016</a> will start on September 22, 2016. 
+                    --     <a href="@{ContestSignupR}">Sign up</a>! 
 
 prizesWidget :: Widget
 prizesWidget = [whamlet'|
@@ -83,7 +89,8 @@ prizesWidget = [whamlet'|
                 <p>
                     Thanks to our sponsors for providing prizes for contestants! 
                     Prizes are awarded to teams with the top builder and breaker scores. 
-                    The prize pool for the fall 2016 contest will be up to <b>$13,500</b>.
+                    The prize pool for the fall 2016 contest was <b>$13,500</b>.
+                    /*The prize pool for the fall 2016 contest will be up to <b>$13,500</b>.*/
                     /*Prizes for the Fall 2015 contest are <b>$4000</b> for each first place team and <b>$2500</b> for each second place team. */
                     /*Prizes vary between each run of the contest, but can range from technical books to thousands of dollars.*/
                     Prizes must be shared between team members. 
@@ -134,7 +141,7 @@ detailsWidget = [whamlet'|
                     -->
                     The contest takes place online so participants can compete anywhere with internet access. 
                     <a href="@{AnnouncementsR}">Click here</a> to view the latest announcements for the contest. 
-                    Funding for the contest infrastructure is provided by the National Science Foundation. 
+                    Funding for the contest infrastructure is provided by the National Science Foundation and the <a href="https://research.googleblog.com/2017/02/google-research-awards-2016.html">Google Research Awards</a>. 
                     More details about the contest can be found <a href="@{DetailsR}">here</a>.
                     Check out blog posts by <a href="http://www.pl-enthusiast.net/?p=35">Michael Hicks</a> and <a href="https://blog.trailofbits.com/2014/07/30/education-initiative-spotlight-build-it-break-it/">Trail of Bits</a> discussing the contest. 
     |]
