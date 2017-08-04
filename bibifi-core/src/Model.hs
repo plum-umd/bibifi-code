@@ -5,8 +5,12 @@ module Model where
 import Prelude
 import Yesod
 import Control.Monad.Trans.Reader
+import qualified Data.Aeson as Aeson
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Base64 as B64
 import Data.Text (Text)
+import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Lazy as Text
 import Database.LEsqueleto
 import Database.LPersist
 import Database.LPersist.Labeler
@@ -17,6 +21,7 @@ import Data.Typeable (Typeable)
 import Data.Time
 import LMonad.Label.DisjunctionCategory
 import LMonad.TCB
+import qualified Text.Blaze.Html.Renderer.Text as Blaze
 import Yesod.Auth.HashDB (HashDBUser(..))
 -- import Database.Persist.TH
 import PostDependencyType
@@ -105,3 +110,15 @@ class ContestSubmission k where
 --         bsM <- E.get $ sId
 --         return $ maybe [] (\bs -> [breakSubmissionTeam bs, breakSubmissionTargetTeam bs]) bsM
 -- 
+
+instance ToJSON Html where
+    toJSON = Aeson.String . Text.toStrict . Blaze.renderHtml
+
+instance FromJSON Html where
+    parseJSON = Aeson.withText "Html" $ return . preEscapedToMarkup
+
+instance ToJSON ByteString where
+    toJSON = Aeson.String . Text.decodeUtf8 . B64.encode
+
+instance FromJSON ByteString where
+    parseJSON = Aeson.withText "ByteString" $ either (fail "Not base 64 encoded.") return . B64.decode . Text.encodeUtf8
