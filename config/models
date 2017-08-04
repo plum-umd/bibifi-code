@@ -1,6 +1,6 @@
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)
 
-User
+User json
     ident Text
     UniqueUser ident
     password Text
@@ -15,14 +15,14 @@ User
     deriving Typeable
 
 
-CourseraUser
+CourseraUser json
     courseraId Text
     UniqueCourseraId courseraId
     user UserId
     UniqueCourseraUser user
     token Text
 
-UserInformation
+UserInformation json
     user UserId
     school Text Maybe <Const Admin || Field user, Field user, _>
     major Text Maybe <Const Admin || Field user, Field user, _>
@@ -57,12 +57,12 @@ UserInformation
     deriving Eq Ord
     
 
-UserConfirmation
+UserConfirmation json
     user UserId
     confirmation Text
     UniqueConfirmation confirmation
 
-Contest
+Contest json
     url Text
     title Text
     buildStart UTCTime
@@ -73,13 +73,13 @@ Contest
     fixEnd UTCTime
     UniqueContest url
 
-CourseraContest        -- Absence of this row means a contest isn't a coursera one.
+CourseraContest json        -- Absence of this row means a contest isn't a coursera one.
     contest ContestId
     UniqueCourseraContest contest
     courseId Int -- Course id
     sessionId Int -- Session id
 
-Post
+Post json
     title Text <_, Const Admin, Const Admin>
     contest ContestId
     timestamp UTCTime default=now() AT TIME ZONE ‘UTC’
@@ -88,56 +88,56 @@ Post
     content Html <_, Const Admin, Const Admin>
     markdown Text <_, Const Admin, Const Admin>
 
-PostDependency
+PostDependency json
     contest ContestId
     post PostId
     dependency PostDependencyType
 
-Judge
+Judge json
     judge UserId
     contest ContestId
     UniqueContestJudge judge contest
     assignedCount Int default=0
 
-JudgeConflict
+JudgeConflict json
     judge JudgeId
     team TeamContestId
     UniqueJudgeConflict judge team
 
-BuildJudgement
+BuildJudgement json
     judge JudgeId
     submission BuildSubmissionId
     ruling Bool Maybe <_, Field judge || Const Admin, Const Admin> -- True means pass/accepted
     comments Text Maybe <_, Field judge || Const Admin, Const Admin>
     UniqueBuildJudgement submission
 
-BreakJudgement
+BreakJudgement json
     judge JudgeId
     submission BreakSubmissionId
     ruling Bool Maybe <_, Field judge || Const Admin, Const Admin>
     comments Text Maybe <_, Field judge || Const Admin, Const Admin>
     UniqueBreakJudgement submission
 
-FixJudgement
+FixJudgement json
     judge JudgeId
     submission FixSubmissionId
     ruling Bool Maybe <_, Field judge || Const Admin, Const Admin>
     comments Text Maybe <_, Field judge || Const Admin, Const Admin>
     UniqueFixJudgement submission
 
-BreakDispute
+BreakDispute json
     break BreakSubmissionId
     justification Text
     UniqueBreakDispute break
 
-Team
+Team json
     name Text
     leader UserId
     -- leader UserId < Const Admin || Id, Const Admin || Id, _>
     UniqueTeam name
     deriving Eq Ord
 
-TeamContest
+TeamContest json
     team TeamId
     contest ContestId
     gitUrl Text default=''
@@ -150,25 +150,25 @@ TeamContest
  --  -- submission BuildCommitId
  --     UniquePermutationMap permutationMap
 
-TeamMember
+TeamMember json
     team TeamId
     user UserId
     UniqueTeamMember team user
 
-TeamInvite
+TeamInvite json
     invite Text
     team TeamId
     email Text
     UniqueTeamInvite invite
 
-PasswordResetInvite
+PasswordResetInvite json
     account UserId
     invite Text <_, _, Const Admin>
     -- invite Text <_, Const Admin, Const Admin>
     expiration UTCTime
     UniquePasswordResetInvite invite
 
-ContestCoreTest
+ContestCoreTest json
     contest ContestId
     name Text
     inputFile Text
@@ -176,7 +176,7 @@ ContestCoreTest
     testScript Text
     deriving Show Eq
 
-ContestPerformanceTest
+ContestPerformanceTest json
     contest ContestId
     name Text
     inputFile Text
@@ -185,7 +185,7 @@ ContestPerformanceTest
     optional Bool default=FALSE
     deriving Show Eq
 
-ContestOptionalTest
+ContestOptionalTest json
     contest ContestId
     name Text
     inputFile Text
@@ -213,7 +213,7 @@ TeamBuildScore
     fixScore Double Maybe
     timestamp UTCTime
 
-OracleSubmission
+OracleSubmission json
     team TeamContestId
     timestamp UTCTime
     name Text
@@ -222,7 +222,7 @@ OracleSubmission
     status OracleSubmissionStatus
     deriving Eq
 
-BuildSubmission
+BuildSubmission json
     team TeamContestId
     timestamp UTCTime
     commitHash Text
@@ -230,13 +230,13 @@ BuildSubmission
     stdout Textarea Maybe default=null
     stderr Textarea Maybe default=null
 
-BreakOracleSubmission
+BreakOracleSubmission json
     team TeamContestId <_, Const Admin, Const Admin>
     timestamp UTCTime <_, Const Admin, Const Admin>
     description Text <_, Const Admin, Const Admin>
     valid Bool <_, Const Admin, Const Admin>
 
-BreakSubmission
+BreakSubmission json
     team TeamContestId
     targetTeam TeamContestId
     timestamp UTCTime
@@ -246,13 +246,13 @@ BreakSubmission
     fixed Bool default=FALSE
     bayesianScore Double Maybe default=null
     name Text default=''
-    type BreakType Maybe
+    breakType BreakType Maybe
     message String Maybe
     json Text Maybe default=null
     stdout Textarea Maybe default=null
     stderr Textarea Maybe default=null
 
-FixSubmission
+FixSubmission json
     team TeamContestId
     timestamp UTCTime
     commitHash Text
@@ -265,11 +265,11 @@ FixSubmission
     stderr Textarea Maybe default=null
     UniqueFixSubmissionName team name
 
-FixSubmissionBugs
+FixSubmissionBugs json
     fix FixSubmissionId
     bugId BreakSubmissionId
 
-BuildCoreResult
+BuildCoreResult json
     submission BuildSubmissionId
     test ContestCoreTestId
     pass Bool
@@ -277,7 +277,7 @@ BuildCoreResult
     UniqueBuildCoreSubmission submission test
     deriving Show Eq
 
-BuildPerformanceResult
+BuildPerformanceResult json
     submission BuildSubmissionId
     test ContestPerformanceTestId
     time Double Maybe -- pass is implicitly false when Nothing
@@ -285,7 +285,7 @@ BuildPerformanceResult
     UniqueBuildPerformanceSubmission submission test
     deriving Show Eq
 
-BuildOptionalResult
+BuildOptionalResult json
     submission BuildSubmissionId
     test ContestOptionalTestId
     pass Bool
@@ -339,17 +339,17 @@ BuildOptionalResult
  --     
  --     
 
-Configuration
+Configuration json
     key Text <_, Const Admin, Const Admin>
     value Text <_, Const Admin, Const Admin>
     UniqueKey key
 
-CacheExpiration
+CacheExpiration json
     key Text
     expiration UTCTime default=now() AT TIME ZONE ‘UTC’
     UniqueCache key
 
-CacheBuildersCode
+CacheBuildersCode json
     team Text
     teamId TeamContestId
     UniqueCacheBuilderCodeTeam teamId
@@ -359,24 +359,24 @@ CacheBuildersCode
     bugsFound Int
     vulnerabilitiesFound Int
 
-StoredFile
+StoredFile json
     owner UserId Maybe
     name Text
     contentType Text
     content ByteString
 
-Error
+Error json
     handlerName Text
     errorText Text
     time UTCTime default=now() AT TIME ZONE 'UTC'
 
-RateLimitLog
+RateLimitLog json
     action Int
     limiter Int
     time UTCTime default=now() AT TIME ZONE 'UTC'
 
 -- If one of these exists for a contest, a score request is pending.
-ScorePending
+ScorePending json
     contest ContestId
     round ContestRound
     UniqueScorePending contest round

@@ -129,7 +129,7 @@ displayBreakSubmissionsTable contest viewer submissions = do
         row BreakSubmissionVictim (Entity sId s, attacker) = do
             let status = prettyBreakStatusVictim $ breakSubmissionStatus s
             let result = prettyBreakResultVictim $ breakSubmissionResult s
-            let bType = maybe dash prettyBreakType $ breakSubmissionType s
+            let bType = maybe dash prettyBreakType $ breakSubmissionBreakType s
             fixStatus <- prettyFixStatus sId
             time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
             now <- getCurrentTime

@@ -309,7 +309,7 @@ defaultScoreBuildRound cId = do
 
 isBreakCrash :: BreakSubmission -> Bool
 isBreakCrash submission =
-    let breakTypeM = breakSubmissionType submission in
+    let breakTypeM = breakSubmissionBreakType submission in
     breakTypeM == Just BreakCrash
 
 defaultScoreBreakRound :: ContestId -> DatabaseM ()

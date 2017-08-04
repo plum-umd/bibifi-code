@@ -76,14 +76,14 @@ breakBaseFilters bsId submitteamid targetteamid = [BreakSubmissionStatus !=. Bre
 checkIntegrityLimit :: () => Entity BreakSubmission -> ErrorT BreakError DatabaseM ()
 checkIntegrityLimit (Entity bsId bs) = do
                 let integrityLimit = 1
-                previousCount <- lift $ runDB $ count $ (BreakSubmissionType ==. Just BreakIntegrity):breakBaseFilters bsId (breakSubmissionTeam bs) (breakSubmissionTargetTeam bs)
+                previousCount <- lift $ runDB $ count $ (BreakSubmissionBreakType ==. Just BreakIntegrity):breakBaseFilters bsId (breakSubmissionTeam bs) (breakSubmissionTargetTeam bs)
                 when (previousCount >= integrityLimit) $ 
                     throwError $ BreakErrorRejected "You may only submit one integrity attack against a team."
 
 checkConfidentialityLimit :: () => Entity BreakSubmission -> ErrorT BreakError DatabaseM ()
 checkConfidentialityLimit (Entity bsId bs) = do
     let limit = 1
-    previousCount <- lift $ runDB $ count $ (BreakSubmissionType ==. Just BreakConfidentiality):breakBaseFilters bsId (breakSubmissionTeam bs) (breakSubmissionTargetTeam bs)
+    previousCount <- lift $ runDB $ count $ (BreakSubmissionBreakType ==. Just BreakConfidentiality):breakBaseFilters bsId (breakSubmissionTeam bs) (breakSubmissionTargetTeam bs)
     when (previousCount >= limit) $ 
         throwError $ BreakErrorRejected "You may only submit one confidentiality attack against a team."
 
@@ -102,7 +102,7 @@ loadBreakSubmissionJSON bsId location = do
                 return breakTest
                 
     where
-        storeJSONandUpdateSubmissionType j t = lift $ runDB $ update bsId [BreakSubmissionJson =. Just (Text.decodeUtf8With Text.lenientDecode (BSL.toStrict j)), BreakSubmissionType =. Just (breakTestToType t)]
+        storeJSONandUpdateSubmissionType j t = lift $ runDB $ update bsId [BreakSubmissionJson =. Just (Text.decodeUtf8With Text.lenientDecode (BSL.toStrict j)), BreakSubmissionBreakType =. Just (breakTestToType t)]
             
 -- | Check that the break 'description.txt' exists. 
 checkForBreakDescription :: (MonadIO m) => BreakSubmission -> RunnerOptions -> ErrorT BreakError m ()
@@ -206,7 +206,7 @@ breakTestTypeToSuccessfulResult BreakSecurity = BreakExploit
 
 breakTestToJSONBreakTest :: (Error r, MonadError r m) => Entity BreakSubmission -> m (JSONBreakTest, BreakSubmission)
 breakTestToJSONBreakTest (Entity bsId bs) = do
-    constr <- case breakSubmissionType bs of
+    constr <- case breakSubmissionBreakType bs of
             Just BreakCorrectness -> return JSONBreakCorrectnessTest
             Just BreakCrash -> return JSONBreakCrashTest
             Just BreakConfidentiality -> return JSONBreakConfidentialityTest

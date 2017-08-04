@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 module PostDependencyType where
 
+import qualified Data.Aeson.TH as Aeson
 import Data.Text (Text)
 import Database.Persist.TH
 import Prelude
@@ -9,14 +10,17 @@ import Yesod
 data PostDependencyType = Round1Start | Round1End | Round2Start | Round2End | Round3Start | Round3End
     deriving (Show, Read, Eq)
 derivePersistField "PostDependencyType"
+Aeson.deriveJSON Aeson.defaultOptions ''PostDependencyType
 
 data ContestRound = ContestRoundBuild | ContestRoundBreak | ContestRoundFix
     deriving (Show, Read, Eq)
 derivePersistField "ContestRound"
+Aeson.deriveJSON Aeson.defaultOptions ''ContestRound
 
 data OracleSubmissionStatus = OraclePending | OracleRunning | OracleFinished | OracleError
     deriving (Show, Read, Eq)
 derivePersistField "OracleSubmissionStatus"
+Aeson.deriveJSON Aeson.defaultOptions ''OracleSubmissionStatus
 
 prettyOracleStatus :: OracleSubmissionStatus -> Html
 prettyOracleStatus OraclePending = [shamlet|
@@ -39,10 +43,12 @@ prettyOracleStatus OracleError = [shamlet|
 data BuildSubmissionStatus = BuildPullFail | BuildPending | BuildBuilding | BuildBuildFail | BuildBuilt | BuildTimeout
     deriving (Show, Read, Eq)
 derivePersistField "BuildSubmissionStatus"
+Aeson.deriveJSON Aeson.defaultOptions ''BuildSubmissionStatus
 
 data BreakSubmissionStatus = BreakPullFail | BreakPending | BreakTesting | BreakTested | BreakRejected | BreakJudging | BreakJudged | BreakTimeout
     deriving (Show, Read, Eq)
 derivePersistField "BreakSubmissionStatus"
+Aeson.deriveJSON Aeson.defaultOptions ''BreakSubmissionStatus
 
 -- TODO: Collapse to a boolean. 
 data BreakSubmissionResult = 
@@ -51,6 +57,7 @@ data BreakSubmissionResult =
     | BreakExploit -- Valid exploit
         deriving (Show, Read, Eq)
 derivePersistField "BreakSubmissionResult"
+Aeson.deriveJSON Aeson.defaultOptions ''BreakSubmissionResult
 
 data BreakType = 
       BreakCorrectness
@@ -60,15 +67,18 @@ data BreakType =
     | BreakSecurity
         deriving (Show, Read, Eq)
 derivePersistField "BreakType"
+Aeson.deriveJSON Aeson.defaultOptions ''BreakType
 
 data FixSubmissionStatus = FixPending | FixBuilding | FixBuilt | FixJudging | FixJudged | FixTimeout | FixRejected
     | FixBuildFail | FixPullFail | FixInvalidBugId -- Deprecated.
     deriving (Show, Read, Eq)
 derivePersistField "FixSubmissionStatus"
+Aeson.deriveJSON Aeson.defaultOptions ''FixSubmissionStatus
 
 data FixSubmissionResult = FixFixed | FixNotFixed | FixDisqualified
     deriving (Show, Read, Eq)
 derivePersistField "FixSubmissionResult"
+Aeson.deriveJSON Aeson.defaultOptions ''FixSubmissionResult
 
 prettyBuildStatus :: BuildSubmissionStatus -> Html
 prettyBuildStatus s = case s of 

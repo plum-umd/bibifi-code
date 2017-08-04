@@ -29,6 +29,7 @@ executable translator
   main-is:             main.hs
   other-modules:
                        Common,
+                       Dump,
                        Extract,
                        Judgements,
                        Migrate,
@@ -39,6 +40,7 @@ executable translator
                        Tests
   build-depends:       base >=4.6,
                        bibifi-core,
+                       cryptohash,
                        csv,
                        persistent,
                        persistent-postgresql >= 1.2,
