@@ -72,7 +72,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                 <span>
                     #{msg}
                 |]
-        let testType = case breakSubmissionType bs of
+        let testType = case breakSubmissionBreakType bs of
               Nothing -> dash
               Just typ -> prettyBreakType typ 
         time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp bs

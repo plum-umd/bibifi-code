@@ -70,7 +70,7 @@ generateView url jId bs bdM formW enctype msg = do
                 keyToInt bjId
             _ ->
                 -1
-    let breakType = case breakSubmissionType bs of
+    let breakType = case breakSubmissionBreakType bs of
             Nothing ->
                 dash
             Just typ ->
