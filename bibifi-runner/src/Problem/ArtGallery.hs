@@ -391,13 +391,13 @@ instance ProblemRunnerClass ArtGallery where
             targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam submission
 
             updateBreakSubmissionType (BreakTestCorrectness _ _) = 
-                runDB $ update submissionId [BreakSubmissionType =. Just BreakCorrectness]
+                runDB $ update submissionId [BreakSubmissionBreakType =. Just BreakCorrectness]
             updateBreakSubmissionType (BreakTestCrash _ _) = 
-                runDB $ update submissionId [BreakSubmissionType =. Just BreakCrash]
+                runDB $ update submissionId [BreakSubmissionBreakType =. Just BreakCrash]
             updateBreakSubmissionType (BreakTestIntegrity _ _ _) = 
-                runDB $ update submissionId [BreakSubmissionType =. Just BreakIntegrity]
+                runDB $ update submissionId [BreakSubmissionBreakType =. Just BreakIntegrity]
             updateBreakSubmissionType (BreakTestConfidentiality _ _) = 
-                runDB $ update submissionId [BreakSubmissionType =. Just BreakConfidentiality]
+                runDB $ update submissionId [BreakSubmissionBreakType =. Just BreakConfidentiality]
 
             update' status resultM msgM = 
                 runDB $ update submissionId [BreakSubmissionStatus =. status, BreakSubmissionResult =. resultM, BreakSubmissionMessage =. msgM]
@@ -565,7 +565,7 @@ instance ProblemRunnerClass ArtGallery where
                     -- Check limit.
                     let teamId = breakSubmissionTeam submission
                     let targetId = breakSubmissionTargetTeam submission
-                    attackC <- lift $ runDB $ count [BreakSubmissionTeam ==. teamId, BreakSubmissionTargetTeam ==. targetId, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionResult !=. Just BreakIncorrect, BreakSubmissionType ==. Just BreakIntegrity]
+                    attackC <- lift $ runDB $ count [BreakSubmissionTeam ==. teamId, BreakSubmissionTargetTeam ==. targetId, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionResult !=. Just BreakIncorrect, BreakSubmissionBreakType ==. Just BreakIntegrity]
                     when (attackC >= 2) $
                         throwError $ BreakErrorRejected "You may only submit one integrity attack against a team."
                     
@@ -705,7 +705,7 @@ instance ProblemRunnerClass ArtGallery where
                     -- Check limit.
                     let teamId = breakSubmissionTeam submission
                     let targetId = breakSubmissionTargetTeam submission
-                    attackC <- lift $ runDB $ count [BreakSubmissionTeam ==. teamId, BreakSubmissionTargetTeam ==. targetId, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionResult !=. Just BreakIncorrect, BreakSubmissionType ==. Just BreakConfidentiality]
+                    attackC <- lift $ runDB $ count [BreakSubmissionTeam ==. teamId, BreakSubmissionTargetTeam ==. targetId, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionResult !=. Just BreakIncorrect, BreakSubmissionBreakType ==. Just BreakConfidentiality]
                     when (attackC >= 2) $
                         throwError $ BreakErrorRejected "You may only submit one confidentiality attack against a team."
 
@@ -961,7 +961,7 @@ instance ProblemRunnerClass ArtGallery where
                     throwError $ FixErrorRejected $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
 
                 -- Include break if it's a correctness violation.
-                if breakSubmissionType bs == Just BreakCorrectness then
+                if breakSubmissionBreakType bs == Just BreakCorrectness then
                     return $ bsE:acc
                 else
                     return acc

@@ -523,7 +523,7 @@ instance ProblemRunnerClass ATMSpec where
                     throwError $ FixErrorRejected $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
 
                 -- Include break if it's a correctness violation.
-                if breakSubmissionType bs == Just BreakCorrectness then
+                if breakSubmissionBreakType bs == Just BreakCorrectness then
                     return $ bsE:acc
                 else
                     return acc
