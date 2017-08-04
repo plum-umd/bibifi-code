@@ -11,6 +11,7 @@ import qualified Data.ByteString.Base64 as B64
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Text
 import qualified Data.Text.Lazy as Text
+import Database.Persist.Sql (fromSqlKey)
 import Database.LEsqueleto
 import Database.LPersist
 import Database.LPersist.Labeler
@@ -122,3 +123,9 @@ instance ToJSON ByteString where
 
 instance FromJSON ByteString where
     parseJSON = Aeson.withText "ByteString" $ either (fail "Not base 64 encoded.") return . B64.decode . Text.encodeUtf8
+
+instance ToJSON (Entity TeamBuildScore) where
+    toJSON e = Aeson.object ["key" .= fromSqlKey ( entityKey e), "value" .= entityVal e]
+
+instance ToJSON (Entity TeamBreakScore) where
+    toJSON e = Aeson.object ["key" .= fromSqlKey ( entityKey e), "value" .= entityVal e]
