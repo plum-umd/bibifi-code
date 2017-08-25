@@ -85,7 +85,7 @@ Once `bibifi-core` is built, you can compile the web application by running `sta
 
 Run executable:
 
-	stack exec -- bibifi-webapp Production --port YOURPORT
+	stack exec -- bibifi Production --port YOURPORT
 
 To create a contest, visit `/admin/contests/create` and fill out the form. 
 
