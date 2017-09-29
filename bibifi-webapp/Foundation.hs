@@ -36,24 +36,12 @@ import Text.Lucius
 import Yesod.Core.Types (Logger)
 -- import qualified Admin
 
+import Contest
 import Database.Persist.RateLimit
 import RateLimit
 import Yesod.Auth.OAuth2.Coursera
 
 
-
--- | The site argument for your application. This can be a good place to
--- keep settings and values requiring initialization before your application
--- starts running, such as database connections. Every handler will have
--- access to the data present here.
-data App = App
-    { settings :: AppConfig DefaultEnv Extra
-    , getStatic :: Static -- ^ Settings for static file serving.
-    , connPool :: Database.Persist.PersistConfigPool Settings.PersistConf -- ^ Database connection pool.
-    , httpManager :: Manager
-    , persistConfig :: Settings.PersistConf
-    , appLogger :: Logger
-    }
 
 -- Set up i18n messages. See the message folder.
 mkMessage "App" "messages" "en"
@@ -264,8 +252,24 @@ navbar contest = do
     |]
 
     where
-        participantNav contest u = undefined
-                  -- If logged in and participating in the contest, link to ContestParticipationR url
+        -- If logged in and participating in the contest, link to ContestParticipationR url
+        participantNav contest Nothing = return mempty
+        participantNav Nothing u = do
+            contestM <- defaultContest
+            case contestM of
+                Nothing -> return mempty
+                Just _ -> participantNav contestM u
+        participantNav (Just (Entity contestId contest)) (Just (Entity userId _)) = do
+            signedUp <- userIsSignedupForContest userId contestId
+
+            if signedUp then
+                return [hamlet|
+                    <li>
+                        <a href="@{ContestParticipationR $ contestUrl contest}">
+                            PARTICIPANTS
+                |]
+            else
+                return mempty
 
 -- Custom layout.
 type LayoutData = Maybe (Entity Contest)

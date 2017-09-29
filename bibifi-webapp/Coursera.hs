@@ -2,7 +2,7 @@ module Coursera where
 
 import qualified Data.List as List
 import Database.LPersist
-import Foundation
+-- import Foundation
 import LYesod
 import Model
 import Prelude
