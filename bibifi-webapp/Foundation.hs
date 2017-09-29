@@ -186,6 +186,8 @@ css =
 -- TODO: check current path and site..
 navbar :: LayoutData -> Handler (HtmlUrl (Route App))
 navbar contest = do
+    mauth <- maybeAuth
+    participantLinks <- participantNav contest mauth
     contestLinks <- case contest of
         Just (Entity _ c) ->
             let url = contestUrl c in
@@ -205,7 +207,6 @@ navbar contest = do
                 <a href=@{ScoreboardR}>
                     SCOREBOARD
         |]
-    mauth <- maybeAuth
     accountLinks <- case mauth of
         Just (Entity _ u) ->
             let adminNav =
@@ -244,6 +245,7 @@ navbar contest = do
                         <li>
                             <a href=@{SponsorshipR}>
                                 SPONSORSHIP OPPORTUNITIES
+                        ^{participantLinks}
                         ^{contestLinks}
                         <li>
                             <a href=@{DetailsR}>
@@ -260,6 +262,10 @@ navbar contest = do
                     <a class="brand" href="/">
                         <img src=@{StaticR img_builditbreakitfixit_svg}>
     |]
+
+    where
+        participantNav contest u = undefined
+                  -- If logged in and participating in the contest, link to ContestParticipationR url
 
 -- Custom layout.
 type LayoutData = Maybe (Entity Contest)
