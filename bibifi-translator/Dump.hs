@@ -3,8 +3,10 @@ module Dump where
 import Control.Monad.Trans.Class (lift)
 import Crypto.Hash.SHA256 (hash)
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BSLC
 import qualified Data.Char as C
+import Data.Hex (hex)
 import qualified Data.Text.Encoding as Text
 import Database.Persist
 
@@ -152,5 +154,7 @@ dump [anon] | fmap C.toLower anon == "anonymize" = do
     
 dump _ = boolFail "error: incorrect number of arguments"
 
-hashText = Text.decodeUtf8 . hash . Text.encodeUtf8
+hashText = Text.decodeUtf8 . hex . dropEnd 2 . hash . Text.encodeUtf8
+
+    where dropEnd i s = BS.take (BS.length s - i) s
 
