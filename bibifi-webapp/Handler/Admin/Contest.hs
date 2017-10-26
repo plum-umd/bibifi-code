@@ -18,20 +18,42 @@ getAdminContestR url = runLHandler $ do
                     <h2>
                         #{contestTitle c}
                     <h3>
+                        Edit
+                    <p>
+                        <a href="@{AdminContestEditR url}">
+                            Edit contest name, date, etc.
+                    <p>
+                        <a href="@{AdminContestTestsR url}">
+                            View, create, and edit build-it tests.
+                    <h3>
                         Announcements
                     <p>
-                        <a href="@{TodoR}">
+                        <a href="@{AdminAnnouncementsR}">
                             Create new announcements, edit them, delete them, etc. 
                     <h3>
                         Participants
                     <p>
-                        <a href="@{TodoR}">
-                            View participants, inspect their submissions, etc.
+                        <a href="@{AdminContestTeamsR url}">
+                            View participating teams. 
                     <p>
                         <a href="@{AdminContestParticipantEmailsR url}">
                             View participants' emails.
                     <h3>
+                        Submissions
+                    <p>
+                        <a href="@{AdminContestBuildSubmissionsR url}">
+                            View build submissions.
+                    <p>
+                        <a href="@{AdminContestBreakSubmissionsR url}">
+                            View break submissions.
+                    <p>
+                        <a href="@{AdminContestFixSubmissionsR url}">
+                            View fix submissions.
+                    <h3>
                         Judges
+                    <p>
+                        <a href="@{AdminContestMakeJudgeR url}">
+                            Add judge.
                     <p>
                         <a href="@{AdminContestJudgeEmailsR url}">
                             View judges's information.

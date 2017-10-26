@@ -1,37 +1,47 @@
-{-# LANGUAGE OverloadedStrings #-}
+module Problem.API where
 
-module Core.Modular.EHR where
-
-import Core (keyToInt)
+import Control.Monad
 import Control.Monad.Error
+import Data.Aeson ((.=), FromJSON)
 import qualified Data.Aeson as Aeson
 import qualified Data.IORef.Lifted as IO
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.List as List
-import Data.Monoid
+import Data.Monoid ((<>))
+import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified Data.Text.Encoding.Error as Text
 import qualified Database.Esqueleto as E
 import Network.SSH.Client.SimpleSSH
+import qualified System.Directory as Directory
+import System.FilePath ((</>))
 import qualified System.FilePath as FilePath
 import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
 import Common
--- import Core.DatabaseM
-import Core.Modular.Class
-import Core.Modular.Shared
+import Core (keyToInt)
 import Core.Score
 import Core.SSH
+import Problem.Class
+import Problem.Shared hiding (grader, runBuildTest, runTestAt)
+import Scorer.Class
 
-newtype EHRSpec = EHRSpec (Entity Contest)
+newtype APIProblem = APIProblem (Entity Contest)
 
-instance ModularContest EHRSpec where
-    scoreContestBuild (EHRSpec (Entity cId _)) _ = defaultScoreBuildRound cId
-    scoreContestBreak (EHRSpec (Entity cId _)) _ = defaultScoreBreakRound cId
-    scoreContestFix (EHRSpec (Entity cId _)) _ = defaultScoreFixRound cId
+instance ExtractContest APIProblem where
+    extractContest (APIProblem c) = c
 
-    runOracleSubmission (EHRSpec _contest) opts (Entity submissionId submission) =
+instance ScorerClass APIProblem where
+    scoreContestBuild p _ = defaultScoreBuildRound $ extractContestId p
+    scoreContestBreak p _ = defaultScoreBreakRound $ extractContestId p
+    scoreContestFix p _ = defaultScoreFixRound $ extractContestId p
+
+instance ProblemRunnerClass APIProblem where
+    runOracleSubmission (APIProblem _) opts (Entity submissionId submission) = 
         -- Parse oracle input.
         let inputObjectM = Aeson.decodeStrict' $ Text.encodeUtf8 $ oracleSubmissionInput submission in
         case inputObjectM of
@@ -47,15 +57,15 @@ instance ModularContest EHRSpec where
                 let conf = runnerCloudConfiguration opts
                 let manager = runnerHttpManager opts
                 resultE <- runErrorT $ launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
-                    -- Send oracle.
-                    putLog "Sending oracle files."
-                    let oracleFile = runnerOracleDirectory opts ++ "server"
-                    let oracleDestFile = "/home/ubuntu/server"
-                    _ <- runSSH (OracleErr "Could not send oracle to instance.") $ sendFile session 0o777 oracleFile oracleDestFile
 
                     -- setupFirewall session
 
-                    runOracle session oracleDestFile inputObject
+                    -- Send oracle.
+                    putLog "Sending oracle files."
+                    uploadFolder session (runnerProblemDirectory opts) "/problem"
+
+                    -- Run oracle.
+                    runOracle session inputObject
 
                 -- Return result.
                 case resultE of
@@ -75,7 +85,31 @@ instance ModularContest EHRSpec where
                         runDB $ update submissionId [OracleSubmissionOutput =. output, OracleSubmissionStatus =. status]
                         return $ Just True
 
-    runBuildSubmission (EHRSpec (Entity contestId _contest)) opts (Entity submissionId submission) = do
+        where
+            runOracle :: (BackendError e, MonadIO m) => Session -> Aeson.Value -> ErrorT e m (Maybe OracleOutput)
+            runOracle session input = do
+                let json = BSL.toStrict $ Aeson.encode $ Aeson.object [
+                        "type" .= ("oracle" :: String)
+                      , "input" .= input
+                      ]
+
+                -- Upload json input.
+                uploadString session json destJson
+
+                -- Launch oracle.
+                (Result resOut' resErr exitCode) <- executioner' session testUser "/problem/grader" [destJson]
+                when ( exitCode /= ExitSuccess) $ do
+                    putLog $ BS8.unpack resOut'
+                    putLog $ BS8.unpack resErr
+
+                -- Drop newline.
+                let (resOut, _) = BS.breakSubstring "\n" resOut'
+                -- putLog $ show resOut
+
+                -- Parse resOut.
+                return $ Aeson.decodeStrict' resOut
+
+    runBuildSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
         -- Retrieve tests from database.
         coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
         performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId] []
@@ -84,10 +118,9 @@ instance ModularContest EHRSpec where
         coreDoneRef <- IO.newIORef False
         resultsE <- runErrorT $ do
             -- Parse tests.
-            let toPath c f t = (c t, "/home/ubuntu/gradertests/" <> f (entityVal t) <> ".json")
-            let coreTests = map (toPath BuildTestCore contestCoreTestName) coreTests'
-            let performanceTests = map (toPath BuildTestPerformance contestPerformanceTestName) performanceTests'
-            let optionalTests = map (toPath BuildTestOptional contestOptionalTestName) optionalTests'
+            coreTests <- mapM parseCoreTest coreTests'
+            performanceTests <- mapM parsePerformanceTest performanceTests'
+            optionalTests <- mapM parseOptionalTest optionalTests'
 
             -- Make sure build submission tar and MITMs exist.
             archiveLocation <- getBuildArchiveLocation submission opts 
@@ -97,6 +130,7 @@ instance ModularContest EHRSpec where
             lift $ runDB $ deleteWhere [BuildPerformanceResultSubmission ==. submissionId]
             lift $ runDB $ deleteWhere [BuildOptionalResultSubmission ==. submissionId]
 
+            -- Run instance.
             let conf = runnerCloudConfiguration opts
             let manager = runnerHttpManager opts
             launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
@@ -123,9 +157,14 @@ instance ModularContest EHRSpec where
                 when (exit /= ExitSuccess) $
                     throwError $ BuildFail stderr stdout
 
+                -- Upload problem files.
+                putLog "Sending problem files."
+                uploadFolder session (runnerProblemDirectory opts) "/problem"
+
                 -- Map over tests.
                 let (requiredTests, optTests) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests <> optionalTests)
-                requiredResults <- mapM (runTestAt' session) requiredTests
+                portRef <- initialPort
+                requiredResults <- mapM (runBuildTest session portRef) requiredTests
                 mapM_ (recordBuildResult submissionId) requiredResults
 
                 -- Indicate core tests passed. 
@@ -133,9 +172,11 @@ instance ModularContest EHRSpec where
 
                 -- Continue running optional tests.
                 mapM_ (\test -> do
-                    result <- runTestAt' session test 
+                    result <- runBuildTest session portRef test 
                     (recordBuildResult submissionId) result
                   ) optTests
+
+
 
         case (resultsE :: Either BuildError ()) of
             Left (BuildFail stdout' stderr') -> do
@@ -163,8 +204,7 @@ instance ModularContest EHRSpec where
                 runDB $ update submissionId [BuildSubmissionStatus =. BuildBuilt]
                 return $ Just (True, True)
 
-
-    runBreakSubmission (EHRSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = do
+    runBreakSubmission (APIProblem (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = do
         resultE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
 
@@ -180,16 +220,12 @@ instance ModularContest EHRSpec where
                 -- Setup firewall.
                 -- setupFirewall session
 
-                -- Upload Oracle.
-                putLog "Sending oracle files."
-                oracleFileName <- getOracleFileName $ breakSubmissionTargetTeam submission
-                let oracleFile = FilePath.joinPath [oracleBasePath, oracleFileName]
-                let oracleDestFile = "/tmp/server"
-                _ <- runSSH (BreakErrorSystem "Could not send oracle to instance.") $ sendFile session 0o700 oracleFile oracleDestFile
-                (Result _ _ exit) <- runSSH (BreakErrorSystem "Could not make oracle runnable") $ execCommand session ("sudo chmod o+x " ++ oracleDestFile)
-                when (exit /= ExitSuccess) $ 
-                    fail "Could not chmod oracle"
+                -- Upload problem files.
+                putLog "Sending problem files."
+                uploadFolder session (runnerProblemDirectory opts) "/problem"
 
+                -- Upload break folder.
+                uploadFolder session breakDir "/break"
 
                 -- Upload target.
                 putLog "Sending target submission."
@@ -210,11 +246,18 @@ instance ModularContest EHRSpec where
                 when (exit /= ExitSuccess) $
                     fail "Building target failed"
 
-                -- Run grader.
-                let targetDestFile = "/home/builder/submission/build/server"
-                res <- runJSONBreakTest session targetDestFile oracleDestFile breakTest
+                -- Build break if there's a Makefile.
+                makefileExists <- liftIO $ Directory.doesFileExist breakMakefile
+                when makefileExists $ do
+                    putLog "Building break submission."
+                    (Result stderr stdout exit) <- runSSH (BreakErrorSystem "Could not run make") $ execCommand session $ "sudo -i -u breaker make -B -C /break"
+                    when (exit /= ExitSuccess) $
+                        throwError $ BreakErrorBuildFail stderr stdout
 
+                portRef <- initialPort
+                res <- runBreakTest session portRef breakTest
                 return (res, breakTest)
+
 
         -- Record result.
         case resultE of
@@ -241,10 +284,12 @@ instance ModularContest EHRSpec where
                 runDB $ update submissionId [BreakSubmissionStatus =. BreakTested, BreakSubmissionResult =. Just result, BreakSubmissionMessage =. Nothing]
                 return $ Just ( True, True)
 
+
         where
             basePath = runnerRepositoryPath opts
-            oracleBasePath = runnerOracleDirectory opts
             breakJSONFile = FilePath.addExtension (FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName, "test"]) "json"
+            breakDir = FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName]
+            breakMakefile = FilePath.joinPath [breakDir, "Makefile"]
             targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam submission
             submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
             breakName = Text.unpack $ breakSubmissionName submission
@@ -256,8 +301,7 @@ instance ModularContest EHRSpec where
                 putLog err
                 return $ Just (False, False)
 
-
-    runFixSubmission (EHRSpec (Entity contestId _contest)) opts (Entity submissionId submission) = do
+    runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
         -- Retrieve tests from database.
         coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
         performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId, ContestPerformanceTestOptional ==. False] []
@@ -273,9 +317,8 @@ instance ModularContest EHRSpec where
             checkForFixDescription submission opts
 
             -- Parse tests.
-            let toPath c f t = (c t, "/home/ubuntu/gradertests/" <> f (entityVal t) <> ".json")
-            let coreTests = map (toPath BuildTestCore contestCoreTestName) coreTests'
-            let performanceTests = map (toPath BuildTestPerformance contestPerformanceTestName) performanceTests'
+            coreTests <- mapM parseCoreTest coreTests'
+            performanceTests <- mapM parsePerformanceTest performanceTests'
 
             -- Verify breaks fixed and filter them (only include automatically tested ones).
             breaks' <- verifyAndFilterBreaksForFix breaks'' $ \bs -> breakSubmissionStatus bs == BreakTested
@@ -286,24 +329,21 @@ instance ModularContest EHRSpec where
             -- Make sure build submission tar and MITMs exist.
             archiveLocation <- getFixArchiveLocation submission opts 
 
+            -- Start instance.
             let conf = runnerCloudConfiguration opts
             let manager = runnerHttpManager opts
-            launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
+            launchOneInstanceWithTimeout conf manager 30 $ \_inst session -> do
+                -- Setup firewall.
+                -- setupFirewall session
+
+                -- Send build submission.
                 putLog "Sending build submission."
                 let destArchiveLocation = "/home/ubuntu/submission.tar.gz"
                 _ <- runSSH (FixErrorSystem "Could not send submission") $ sendFile session 0o666 archiveLocation destArchiveLocation
 
-                -- setupFirewall session
-
-                -- Upload Oracle.
-                putLog "Sending oracle files."
-                oracleFileName <- getOracleFileName $ fixSubmissionTeam submission
-                let oracleFile = FilePath.joinPath [oracleBasePath, oracleFileName]
-                let oracleDestFile = "/tmp/server"
-                _ <- runSSH (FixErrorSystem "Could not send oracle to instance.") $ sendFile session 0o700 oracleFile oracleDestFile
-                (Result _ _ exit) <- runSSH (FixErrorSystem "Could not make oracle runnable") $ execCommand session ("sudo chmod o+x " ++ oracleDestFile)
-                when (exit /= ExitSuccess) $ 
-                    fail "Could not chmod oracle"
+                -- Upload problem files.
+                putLog "Sending problem files."
+                uploadFolder session (runnerProblemDirectory opts) "/problem"
 
                 -- Setup directory.
                 (Result _ _ exit) <- runSSH (FixErrorSystem "Could not make test directory.") $ execCommand session "sudo -i -u builder mkdir /home/builder/submission"
@@ -322,13 +362,57 @@ instance ModularContest EHRSpec where
                 when (exit /= ExitSuccess) $
                     throwError $ FixErrorBuildFail stderr stdout
 
+                (Result _ _ exit) <- runSSH (FixErrorSystem "Could not delete build dir") $ execCommand session "sudo rm -rf /home/builder/submission/build"
+                when (exit /= ExitSuccess) $
+                    fail "Could not delete build dir"
+
+                (Result _ _ exit) <- runSSH (FixErrorSystem "Could not move build dir") $ execCommand session "sudo mv /home/builder/submission/fix/code/build /home/builder/submission/build"
+                when (exit /= ExitSuccess) $
+                    fail "Could not move build dir"
+
+                -- Run core tests.
                 let (requiredTests, _) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests)
-                mapM_ (runCoreTest session) requiredTests
+                portRef <- initialPort
+                mapM_ (\t -> do
+                    (test, BuildResult pass msgM _) <- runBuildTest session portRef t
+                    when ( not pass) $ 
+                        let msg = maybe "" Text.unpack msgM in
+                        throwError $ FixErrorRejected $ "Failed core test: " <> Text.unpack (buildTestName test) <> ". " <> msg
+                  ) requiredTests
 
-                -- Run break tests.
-                let targetDestFile = "/home/builder/submission/fix/code/build/server"
-                mapM_ (runBreakTest session targetDestFile oracleDestFile) breaks
 
+                -- Run each break test.
+                mapM_ (\(t, bs) -> do
+                    -- Delete break directory.
+                    (Result _ _ exit) <- runSSH (FixErrorSystem "Could not delete break directory.") $ execCommand session "sudo rm -rf /break"
+                    when (exit /= ExitSuccess) $
+                        fail "Could not delete break directory."
+
+                    -- Upload break.
+                    let breakName = Text.unpack $ breakSubmissionName bs
+                    let submitTeamIdS = show $ keyToInt $ breakSubmissionTeam bs
+                    let breakDir = FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName]
+                    let breakMakefile = FilePath.joinPath [breakDir, "Makefile"]
+                    uploadFolder session breakDir "/break"
+
+                    -- Build break if there's a Makefile.
+                    makefileExists <- liftIO $ Directory.doesFileExist breakMakefile
+                    when makefileExists $ do
+                        putLog "Building break submission."
+                        (Result _ _ exit) <- runSSH (FixErrorSystem "Could not build break") $ execCommand session $ "sudo -i -u breaker make -B -C /break"
+                        when (exit /= ExitSuccess) $
+                            fail "Could not build break"
+
+                    -- Run break test.
+                    res <- runBreakTest session portRef t
+                    case res of
+                        BreakResult (Just False) _ ->
+                            return ()
+                        BreakResult (Just True) _ ->
+                            throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
+                        BreakResult Nothing _ ->
+                            throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
+                  ) breaks
 
         -- Record result.
         case resultsE of
@@ -349,6 +433,8 @@ instance ModularContest EHRSpec where
                 return $ Just (True, True)
 
         where
+            basePath = runnerRepositoryPath opts
+
             updateFix status msg stdout stderr = 
                 runDB $ update submissionId [FixSubmissionStatus =. status, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
 
@@ -359,57 +445,124 @@ instance ModularContest EHRSpec where
                 putLog err
                 return $ Just (False, False)
 
-            oracleBasePath = runnerOracleDirectory opts
+-- Could use a state transformer...
+initialPort :: MonadIO m => m (IO.IORef Int)
+initialPort = liftIO $ IO.newIORef 6300
 
-            runCoreTest session test = do
-                result <- runTestAt' session test
-                case result of
-                    (_, BuildResult True _ _) ->
-                        return ()
-                    (test, BuildResult False _ _) ->
-                        throwError $ FixErrorRejected $ "Failed core test: " ++ Text.unpack (buildTestName test)
+getNextPort :: MonadIO m => IO.IORef Int -> m Int
+getNextPort portRef = liftIO $ do
+    port <- IO.readIORef portRef
+    IO.writeIORef portRef (port + 20)
+    return port
 
-            runBreakTest session targetDestFile oracleDestFile (test, bs) = do
-                res <- runJSONBreakTest session targetDestFile oracleDestFile test
-                case res of
-                    BreakResult (Just False) _ -> 
-                        return ()
-                    BreakResult (Just True) _ ->
-                        throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
-                    BreakResult Nothing _ ->
-                        throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
-        
-getOracleFileName targetId = do
-    submissionM <- lift $ lift $ runDB $ selectFirst [BuildSubmissionTeam ==. targetId] [Desc BuildSubmissionTimestamp]
-    case submissionM of
-        Nothing ->
-            throwError $ strMsg $ "Could not find build submission for team: " ++ show targetId
-        Just (Entity submissionId _) -> lift $ lift $ do
-            passedFunc <- helper submissionId ["testfunc1", "testfunc2", "testfunc3"]
-            passedFilter <- helper submissionId ["testfilter1", "testfilter2"]
-            passedLet <- helper submissionId ["testlet1", "testlet2", "testlet3"]
-            if passedLet then
-                return ("server" :: String)
-            else if passedFilter then
-                return "server2"
-            else if passedFunc then
-                return "server1"
-            else
-                return "server0"
+runBreakTest session portRef breakTest = do
+    port <- getNextPort portRef
+    let json = BSL.toStrict $ Aeson.encode $ Aeson.object [
+            "test" .= jsonTest
+          , "port" .= port
+          , "type" .= ("break" :: String)
+          , "classification" .= testType
+          ]
+
+    -- Upload json input.
+    uploadString session json destJson
+
+    runTestAt session $ Text.pack destJson
 
     where
-        helper :: Key BuildSubmission -> [Text.Text] -> DatabaseM Bool
-        helper submissionId testNames = do
-            r <- runDB $ E.select $ E.from $ \(t `E.InnerJoin` r) -> do
-                E.on (r E.^. BuildOptionalResultTest E.==. t E.^. ContestOptionalTestId)
-                E.where_ (
-                    (r E.^. BuildOptionalResultPass E.==. E.val True)
-                    E.&&. (r E.^. BuildOptionalResultSubmission E.==. E.val submissionId)
-                    E.&&. ((t E.^. ContestOptionalTestName) `E.in_` (E.valList testNames)))
-                return r
-            return $ List.length r == List.length testNames
+        testType = case breakTest of
+          JSONBreakCorrectnessTest _ -> "correctness" :: Text
+          JSONBreakIntegrityTest _ -> "integrity"
+          JSONBreakConfidentialityTest _ -> "confidentiality"
+          JSONBreakCrashTest _ -> "crash"
+          JSONBreakSecurityTest _ -> "security"
+            
+        jsonTest = case breakTest of
+          JSONBreakCorrectnessTest v -> v
+          JSONBreakIntegrityTest v -> v
+          JSONBreakConfidentialityTest v -> v
+          JSONBreakCrashTest v -> v
+          JSONBreakSecurityTest v -> v
+            
 
-runTestAt' session (test, location) = do
-    res <- runTestAt session location
+runBuildTest session portRef (test, input) = do
+    port <- getNextPort portRef
+    let json = BSL.toStrict $ Aeson.encode $ Aeson.object [
+            "type" .= ("build" :: String)
+          , "port" .= port
+          , "input" .= input
+          ]
+
+    -- Upload json input.
+    uploadString session json destJson
+
+    res <- runTestAt session $ Text.pack destJson
+
     return ( test, res)
+
+runTestAt :: (BackendError e, MonadIO m, FromJSON a) => Session -> Text -> ErrorT e m a
+runTestAt session location = do
+    -- Launch grader.
+    (Result resOut' resErr _) <- executioner' session testUser "/problem/grader" [Text.unpack location]
+    putLog "Output received."
+
+    -- Drop newline. 
+    let (resOut, _) = BS.breakSubstring "\n" resOut'
+    putLog $ show resErr
+    putLog $ show resOut
+
+    -- Parse resOut.
+    output <- ErrorT $ case Aeson.decodeStrict' resOut of
+        Nothing ->
+            return $ Left $ strMsg $ "Could not decode test output: " <> BS8.unpack resOut
+        Just r ->
+            return $ Right r
+
+    return output
+
+
+uploadFolder session localDir destDir' = do
+    -- Check destDir.
+    when ( FilePath.isRelative destDir || destDir == "/") $ 
+        throwError $ strMsg $ "Destination directory is not absolute: " <> destDir
+
+    -- TODO: Delete dest directory first XXX
+
+    -- Make target directory.
+    (Result _ _ exit) <- runSSH (strMsg ("Could not make directory `" <> destDir <> "`.")) $ 
+        execCommand session ( "sudo -i mkdir -p " <> destDir)
+    when (exit /= ExitSuccess) $
+        fail ( "Could not make directory `" <> destDir <> "`.")
+
+    -- Update permissions.
+    (Result _ _ exit) <- runSSH (strMsg ( "Could not update directory `" <> destDir <> "` permissions.")) $ 
+        execCommand session ( "sudo -i chmod -R 0777 " <> destDir)
+    when (exit /= ExitSuccess) $
+        fail ( "Could not update directory `" <> destDir <> "` permissions.")
+
+    -- Get contents.
+    contents' <- liftIO $ listDirectory localDir
+    let contents = fmap (\f -> (localDir </> f, destDir </> f)) contents'
+
+    mapM_ (\( local, dest) -> do
+        -- Check if it's a file or directory.
+        isFile <- liftIO $ Directory.doesFileExist local  
+        if isFile then do
+        
+            -- Upload file.
+            _ <- runSSH (strMsg $ "Could not send file: " ++ local) $ sendFile session 0o777 local dest
+            return ()
+
+        else
+
+            -- Recursively upload directory.
+            uploadFolder session local dest
+      
+      ) contents
+    
+    where
+        destDir = FilePath.normalise destDir'
+
+        listDirectory path = filter f <$> Directory.getDirectoryContents path
+            where f filename = filename /= "." && filename /= ".."
 

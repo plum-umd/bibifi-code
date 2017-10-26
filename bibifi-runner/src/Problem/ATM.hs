@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
-module Core.Modular.ATM where
+module Problem.ATM where
 
 import Core (keyToInt)
 import Core.DatabaseM
@@ -29,17 +29,22 @@ import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
 import Common
-import Core.Modular.Class
-import Core.Modular.Shared hiding (parseCoreTest, parseOptionalTest, parsePerformanceTest)
 import Core.SSH
+import Problem.Class
+import Problem.Shared hiding (parseCoreTest, parseOptionalTest, parsePerformanceTest)
+import Scorer.Class
 
 newtype ATMSpec = ATMSpec (Entity Contest)
 
-instance ModularContest ATMSpec where
+instance ExtractContest ATMSpec where
+    extractContest (ATMSpec c) = c
+
+instance ScorerClass ATMSpec where
     scoreContestBuild (ATMSpec (Entity cId _)) _ = defaultScoreBuildRound cId
     scoreContestBreak (ATMSpec (Entity cId _)) _ = defaultScoreBreakRound cId
     scoreContestFix (ATMSpec (Entity cId _)) _ = defaultScoreFixRound cId
 
+instance ProblemRunnerClass ATMSpec where
     runOracleSubmission (ATMSpec _contest) opts (Entity submissionId submission) = 
         -- Parse oracle input.
         let inputObjectM = Aeson.decodeStrict' $ Text.encodeUtf8 $ oracleSubmissionInput submission in
@@ -57,11 +62,19 @@ instance ModularContest ATMSpec where
                 resultE <- runErrorT $ launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
                     -- Send oracle bank. 
                     putLog "Sending oracle files."
+-- <<<<<<< HEAD:bibifi-runner/src/Core/Modular/ATM.hs
                     let oracleBankFile = runnerOracleDirectory opts ++ "/bank"
                     _ <- runSSH (OracleErr "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
 
                     -- Send oracle atm.
                     let oracleAtmFile = runnerOracleDirectory opts ++ "/atm"
+-- =======
+--                     let oracleBankFile = runnerProblemDirectory opts ++ "/dist/build/bank/bank"
+--                     _ <- runSSH (OracleErr "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
+-- 
+--                     -- Send oracle atm.
+--                     let oracleAtmFile = runnerProblemDirectory opts ++ "/dist/build/atm/atm"
+-- >>>>>>> da8e7b6e184073bad29969392b915bb67a9eadb5:bibifi-runner/src/Problem/ATM.hs
                     _ <- runSSH (OracleErr "Could not send atm oracle to instance.") $ sendFile session 0o700 oracleAtmFile oracleAtmDestFile
 
                     -- setupFirewall session
@@ -365,7 +378,7 @@ instance ModularContest ATMSpec where
             destBreakArchiveLocation = "/home/ubuntu/break.tar.gz"
             destTargetArchiveLocation = "/home/ubuntu/submission.zip"
             basePath = runnerRepositoryPath opts
-            oracleBasePath = runnerOracleDirectory opts
+            oracleBasePath = runnerProblemDirectory opts
             breakJSONFile = FilePath.addExtension (FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName, "test"]) "json"
             targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam submission
             submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
@@ -500,7 +513,7 @@ instance ModularContest ATMSpec where
                     Just (ATMBuildTestOutput False _msgM _) ->
                         return ()
 
-            oracleBasePath = runnerOracleDirectory opts
+            oracleBasePath = runnerProblemDirectory opts
 
             builderBaseDir = "/home/builder/submission/fix/code/build"
 
@@ -522,7 +535,7 @@ instance ModularContest ATMSpec where
                     throwError $ FixErrorRejected $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
 
                 -- Include break if it's a correctness violation.
-                if breakSubmissionType bs == Just BreakCorrectness then
+                if breakSubmissionBreakType bs == Just BreakCorrectness then
                     return $ bsE:acc
                 else
                     return acc

@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Import
     ( module Import
+    , getCurrentTime
     ) where
 
 import           Prelude              as Import hiding (head, init, last,
@@ -8,7 +9,10 @@ import           Prelude              as Import hiding (head, init, last,
 import           LYesod               as Import
 
 import           Control.Applicative  as Import (pure, (<$>), (<*>), (<*))
+import           Control.Monad        as Import
+import           Data.Either          as Import (isLeft)
 import           Data.Text            as Import (Text)
+import           Data.Time            as Import (UTCTime, addUTCTime, NominalDiffTime)
 
 import           Foundation           as Import
 import           Model                as Import
@@ -47,3 +51,21 @@ infixr 5 <>
 (<>) = mappend
 #endif
 
+import qualified Data.Time.Clock      as Clock
+
+getCurrentTime = liftIO Clock.getCurrentTime
+
+whenJust (Just _) m = m
+whenJust Nothing _ = return ()
+
+data FormAndHandler = forall a . FormAndHandler (Form a) (FormResult a -> Widget -> Enctype -> LWidget)
+
+runMultipleFormsPost :: [FormAndHandler] -> LWidget
+runMultipleFormsPost [] = return ()
+runMultipleFormsPost ((FormAndHandler form handler):t) = do
+    ((res, widget), enctype) <- handlerToWidget $ runFormPost form
+    case res of
+        FormMissing ->
+            runMultipleFormsPost t
+        _ ->
+            handler res widget enctype

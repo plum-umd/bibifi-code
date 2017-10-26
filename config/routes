@@ -52,14 +52,17 @@
 /participation/#TeamContestId/new/oraclesubmission ParticipationOracleSubmissionCreateR GET POST
 /participation/#TeamContestId/buildsubmissions ParticipationBuildSubmissionsR GET
 /participation/#TeamContestId/buildsubmission/#BuildSubmissionId ParticipationBuildSubmissionR GET
+/participation/#TeamContestId/buildsubmission/#BuildSubmissionId/rerun ParticipationBuildSubmissionRerunR POST
 /participation/#TeamContestId/builderscode ParticipationBuildersCodeR GET
 /participation/#TeamContestId/breaksubmissions ParticipationBreakSubmissionsR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId ParticipationBreakSubmissionR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/delete ParticipationBreakSubmissionDeleteR POST
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/dispute ParticipationBreakSubmissionDisputeR POST
+/participation/#TeamContestId/breaksubmission/#BreakSubmissionId/rerun ParticipationBreakSubmissionRerunR POST
 /participation/#TeamContestId/fixsubmissions ParticipationFixSubmissionsR GET
 /participation/#TeamContestId/fixsubmission/#FixSubmissionId ParticipationFixSubmissionR GET
 /participation/#TeamContestId/fixsubmission/#FixSubmissionId/delete ParticipationFixSubmissionDeleteR POST
+/participation/#TeamContestId/fixsubmission/#FixSubmissionId/rerun ParticipationFixSubmissionRerunR POST
 
 /createteam CreateTeamR GET POST
 
@@ -79,10 +82,17 @@
 /admin AdminR GET
 
 /admin/contests AdminContestsR GET
+/admin/contests/create AdminContestCreateR GET POST
 
 /admin/contest/#Text AdminContestR GET
+/admin/contest/#Text/build_submissions AdminContestBuildSubmissionsR GET
+/admin/contest/#Text/break_submissions AdminContestBreakSubmissionsR GET
+/admin/contest/#Text/fix_submissions AdminContestFixSubmissionsR GET
+/admin/contest/#Text/edit AdminContestEditR GET POST
+/admin/contest/#Text/makejudge AdminContestMakeJudgeR GET POST
 /admin/contest/#Text/judgeinfo AdminContestJudgeEmailsR GET
 /admin/contest/#Text/judgements AdminContestJudgementsR GET
+/admin/contest/#Text/judgements/distribute AdminContestDistributeJudgementsR POST
 /admin/contest/#Text/judgements/#BuildSubmissionId/build_assignment AdminContestJudgementsAssignBuildR GET POST
 /admin/contest/#Text/judgements/#BreakSubmissionId/break_assignment AdminContestJudgementsAssignBreakR GET POST
 /admin/contest/#Text/judgements/#FixSubmissionId/fix_assignment AdminContestJudgementsAssignFixR GET POST
@@ -91,8 +101,20 @@
 /admin/contest/#Text/oracle_breaks AdminContestOracleBreaksR GET
 /admin/contest/#Text/oracle_breaks/create AdminContestOracleBreaksCreateR GET POST
 /admin/contest/#BreakOracleSubmissionId/oracle_breaks/edit AdminContestOracleBreaksEditR GET POST
+/admin/contest/#Text/teams AdminContestTeamsR GET
+/admin/contest/#Text/tests AdminContestTestsR GET
+/admin/contest/#Text/tests/create/correctness AdminContestTestsCreateCorrectnessR GET POST
+/admin/contest/#Text/tests/create/optional AdminContestTestsCreateOptionalR GET POST
+/admin/contest/#Text/tests/create/performance AdminContestTestsCreatePerformanceR GET POST
+/admin/contest/#Text/tests/correctness/#ContestCoreTestId AdminContestTestsCorrectnessR GET POST
+/admin/contest/#Text/tests/optional/#ContestOptionalTestId AdminContestTestsOptionalR GET POST
+/admin/contest/#Text/tests/performance/#ContestPerformanceTestId AdminContestTestsPerformanceR GET POST
 
 /admin/users AdminUsersR GET
+
+/admin/team/#TeamId AdminTeamR GET
+/admin/team/#TeamId/member/#UserId AdminTeamMemberR GET POST
+/admin/teams AdminTeamsR GET
 
 /admin/announcements AdminAnnouncementsR GET
 /admin/announcement/add AddAnnouncementR GET POST
@@ -101,6 +123,7 @@
 
 /admin/user/#UserId AdminUserR GET
 /admin/user/#UserId/reset AdminUserResetPasswordR GET POST
+/admin/user/#UserId/admin AdminUserSetAdminR GET POST
 
 /judges RedirectJudgesR GET
 /judges/#Text JudgesR GET

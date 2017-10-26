@@ -8,6 +8,8 @@ import Text.Blaze (ToMarkup)
 import Text.Julius (rawJS)
 import qualified Database.Esqueleto as E
 import Data.Set as S
+import qualified Data.Text as Text
+import Data.Time (formatTime, defaultTimeLocale, utcToZonedTime, parseTimeM, zonedTimeToUTC, ZonedTime(..), TimeZone)
 import System.FilePath.Posix
 import qualified Yesod.Form.Bootstrap3 as BS
 
@@ -53,6 +55,29 @@ boolField' = Field
       "false" -> Right $ Just False
       t -> Left $ SomeMessage $ MsgInvalidBool t
     showVal = either (\_ -> False)
+
+utcField :: (Monad m, RenderMessage (HandlerSite m) FormMessage) => TimeZone -> Field m UTCTime
+utcField tz =
+    let f = checkMMap toUtc toText textField in
+    f {
+        fieldView = \id name attrs res req -> do
+            toWidget [julius|
+                $('##{rawJS id}').datetimepicker();
+            |]
+            (fieldView f) id name attrs res req
+    }
+    
+    where
+        toUtc t = case parseTimeM True defaultTimeLocale "%Y/%m/%d %H:%M" (Text.unpack t) of
+            Nothing ->
+                return $ Left ("Invalid date" :: Text)
+            Just t ->
+                return $ Right $ zonedTimeToUTC $ ZonedTime t tz
+
+        toText :: UTCTime -> Text
+        toText t' = 
+            let t = utcToZonedTime tz t' in
+            Text.pack $ formatTime defaultTimeLocale "%Y/%m/%d %H:%M" t
 
 boolField'' :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Bool
 boolField'' = Field

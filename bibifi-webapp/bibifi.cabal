@@ -19,6 +19,7 @@ library
                      Common
                      Config
                      Contest
+                     Contest.Edit
                      Coursera
                      Css
                      FixSubmissions
@@ -37,6 +38,7 @@ library
                      Settings.Judges
                      Settings.StaticFiles
                      Sponsors
+                     Submissions
                      Team
                      TCB
                      User
@@ -47,6 +49,12 @@ library
                      Handler.Admin.AddAnnouncement
                      Handler.Admin.Contests
                      Handler.Admin.Contest
+                     Handler.Admin.Contest.BuildSubmissions
+                     Handler.Admin.Contest.BreakSubmissions
+                     Handler.Admin.Contest.FixSubmissions
+                     Handler.Admin.Contest.Create
+                     Handler.Admin.Contest.Edit
+                     Handler.Admin.Contest.MakeJudge
                      Handler.Admin.Contest.JudgeEmails
                      Handler.Admin.Contest.Judgements
                      Handler.Admin.Contest.Judgements.AssignBuild
@@ -57,9 +65,21 @@ library
                      Handler.Admin.Contest.OracleBreaks.Create
                      Handler.Admin.Contest.OracleBreaks.Edit
                      Handler.Admin.Contest.ParticipantEmails
+                     Handler.Admin.Contest.Teams
+                     Handler.Admin.Contest.Tests
+                     Handler.Admin.Contest.Tests.CreateCorrectness
+                     Handler.Admin.Contest.Tests.CreateOptional
+                     Handler.Admin.Contest.Tests.CreatePerformance
+                     Handler.Admin.Contest.Tests.Correctness
+                     Handler.Admin.Contest.Tests.Optional
+                     Handler.Admin.Contest.Tests.Performance
+                     Handler.Admin.Team
+                     Handler.Admin.Team.Member
+                     Handler.Admin.Teams
                      Handler.Admin.Users
                      Handler.Admin.User
                      Handler.Admin.User.ResetPassword
+                     Handler.Admin.User.SetAdmin
                      Handler.Announcements
                      Handler.Scoreboard
                      Handler.Contests
@@ -102,6 +122,7 @@ library
                      Handler.Feedback
                      Handler.Todo
                      Network.Wai.Middleware.ForceDomain
+                     Test
                      Forms.Survey
                      Yesod.Auth.OAuth2.Coursera
 
@@ -125,6 +146,8 @@ library
                 NoMonomorphismRestriction
                 DeriveDataTypeable
                 DoAndIfThenElse
+                RecordWildCards
+                ScopedTypeVariables
 
     build-depends: base                          >= 4          && < 5
 --                 , yesod-platform              
@@ -133,12 +156,13 @@ library
                  , yesod-auth                    
                  , yesod-auth-hashdb             
                  , yesod-static                  
-                 , yesod-form                    
+                 , yesod-form                    >= 1.4.10
                  , vector
                  , bytestring                     
                  , data-textual
                  , network                       
                  , network-ip
+                 , network-uri
                  , persistent                    
                  , persistent-ratelimit          
                  , persistent-postgresql         

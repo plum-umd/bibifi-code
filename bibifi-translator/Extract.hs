@@ -268,7 +268,7 @@ outputResult outputDir OutputData{..} = liftIO $ do
 			, ("status", toCSV . breakSubmissionStatus . entityVal . fst)
 			, ("result", toCSV . breakSubmissionResult . entityVal . fst)
 			, ("name", toCSV . breakSubmissionName . entityVal . fst)
-			, ("type", toCSV . breakSubmissionType . entityVal . fst)
+			, ("type", toCSV . breakSubmissionBreakType . entityVal . fst)
 			, ("message", toCSV . breakSubmissionMessage . entityVal . fst)
 			, ("judgeid", toCSV . fmap (breakJudgementJudge . entityVal) . snd)
 			, ("judge_accepted", toCSV . fmap (breakJudgementRuling . entityVal) . snd)

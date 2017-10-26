@@ -82,6 +82,8 @@ library
   build-depends:       
                        aeson
                      , base >=4.6
+                     , base64-bytestring
+                     , blaze-html
                      , bytestring
                      , containers
                      , esqueleto

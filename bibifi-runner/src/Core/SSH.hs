@@ -13,9 +13,9 @@ import System.Timeout.Lifted
 
 import Common
 
-createNewUser :: MonadIO m => Session -> String -> ErrorT String m ()
+createNewUser :: (Error e, MonadIO m) => Session -> String -> ErrorT e m ()
 createNewUser session user = do
-    (Result _ _ exit) <- runSSH "Could not create user" $ execCommand session $ "sudo adduser --disabled-password --gecos \"\" " <> user
+    (Result _ _ exit) <- runSSH (strMsg "Could not create user") $ execCommand session $ "sudo adduser --disabled-password --gecos \"\" " <> user
     when (exit /= ExitSuccess) $
         fail $ "Could not create user: " <> user
 

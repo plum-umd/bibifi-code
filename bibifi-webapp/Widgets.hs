@@ -11,6 +11,18 @@ buildSubmission :: Entity BuildSubmission -> ContestId -> Bool -> LWidget
 buildSubmission (Entity bsId bs) cId public = do
     let status = prettyBuildStatus $ buildSubmissionStatus bs
     time <- lLift $ lift $ displayTime $ buildSubmissionTimestamp bs
+    toWidget [lucius|
+        .message-column {
+            border-top-color: transparent !important;
+            padding: 0px !important;
+        }
+         .message-column pre {
+            margin: 8px;
+         }
+         .details-link {
+            margin-left: 6px;
+         }
+    |]
     judgementW <- do
         judgementM <- handlerToWidget $ runDB $ getBy $ UniqueBuildJudgement bsId
         extractWidget $ case judgementM of
@@ -96,13 +108,15 @@ buildSubmission (Entity bsId bs) cId public = do
             _ ->
                 mempty
     if (buildSubmissionStatus bs) == BuildBuilt then
-        let renderCores ((Entity _ test), mbr') = 
-              let result = case mbr' of 
+        let renderCores ((Entity _ test), mbr') = do
+              rowId <- newIdent
+              let ( result, message, collapse) = case mbr' of 
                     Nothing ->
-                        prettyPassResult False
+                        ( prettyPassResult False, mempty, mempty)
                     Just (Entity _ mbr) ->
-                        prettyPassResult $ buildCoreResultPass mbr
-              in
+                        let res = prettyPassResult $ buildCoreResultPass mbr in
+                        let (out, collapse) = testMessage rowId public $ buildCoreResultMessage mbr in
+                        ( res, out, collapse)
               [whamlet'|
                   <tr>
                       <td>
@@ -110,18 +124,21 @@ buildSubmission (Entity bsId bs) cId public = do
                       <td>
                           Correctness
                       <td>
-                          #{result}
+                          #{result} #{collapse}
                       <td>
                           #{dash}
               |]
+              message
         in
-        let renderOpts ((Entity _ test), mbr') =
-              let result = case mbr' of 
+        let renderOpts ((Entity _ test), mbr') = do
+              rowId <- newIdent
+              let (result, message, collapse) = case mbr' of 
                     Nothing ->
-                        prettyPassResult False
+                        (prettyPassResult False, mempty, mempty)
                     Just (Entity _ mbr) ->
-                        prettyPassResult $ buildOptionalResultPass mbr
-              in
+                        let res = prettyPassResult $ buildOptionalResultPass mbr in
+                        let (out, collapse) = testMessage rowId public $ buildOptionalResultMessage mbr in
+                        ( res, out, collapse)
               [whamlet'|
                   <tr>
                       <td>
@@ -129,29 +146,31 @@ buildSubmission (Entity bsId bs) cId public = do
                       <td>
                           Optional
                       <td>
-                          #{result}
+                          #{result} #{collapse}
                       <td>
                           #{dash}
               |]
+              when (not public) $
+                message
         in
-        let renderPerfs ((Entity _ test), mbr') =
-              let (result, period) = case mbr' of
+        let renderPerfs ((Entity _ test), mbr') = do
+              rowId <- newIdent
+              let (result, period, message, collapse) = case mbr' of
                     Nothing ->
-                        (prettyPassResult False, dash)
+                        (prettyPassResult False, dash, mempty, mempty)
                     Just (Entity _ mbr) ->
                         case buildPerformanceResultTime mbr of
                             Nothing ->
-                                ( prettyPassResult False, dash)
+                                let (out, collapse) = testMessage rowId public $ buildPerformanceResultMessage mbr in
+                                ( prettyPassResult False, dash, out, collapse)
                             Just t ->
                                 let period' = [shamlet|#{t}|] in
-                                ( prettyPassResult True, period')
-              in
+                                ( prettyPassResult True, period', mempty, mempty)
               let testType = 
                     if contestPerformanceTestOptional test then
                         "Performance" :: String
                     else
                         "Performance*"
-              in
               [whamlet'|
                   <tr>
                       <td>
@@ -159,10 +178,11 @@ buildSubmission (Entity bsId bs) cId public = do
                       <td>
                           #{testType}
                       <td>
-                          #{result}
+                          #{result} #{collapse}
                       <td>
                           #{period}
               |]
+              message
         in
         do
         coreResults <- handlerToWidget $ runDB 
@@ -224,7 +244,7 @@ buildSubmission (Entity bsId bs) cId public = do
             let perfs = mconcat $ map renderPerfs performanceResults in
             let opts = mconcat $ map renderOpts optionalResults in
             [whamlet|
-                <table class="table table-hover">
+                <table class="table">
                     <thead>
                         <tr>
                             <th>
@@ -243,3 +263,24 @@ buildSubmission (Entity bsId bs) cId public = do
     else
         mempty
 
+    where
+        -- testMessage :: Maybe Text -> (Widget, Html)
+        testMessage _ True _ = 
+            (mempty, mempty)
+        testMessage _ False Nothing = 
+            (mempty, mempty)
+        testMessage rowId False (Just msg) =
+            let row = [whamlet'|
+                <tr>
+                    <td .message-column colspan="4">
+                        <div id="#{rowId}" .collapse>
+                            <pre>
+                                #{msg}
+              |]
+            in
+            let button = [shamlet|
+                <a href="##{rowId}" data-toggle="collapse" aria-expanded="false" aria-controls="#{rowId}" class="details-link">
+                    (Details)
+              |]
+            in
+            ( row, button)

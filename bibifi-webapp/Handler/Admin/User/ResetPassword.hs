@@ -20,6 +20,8 @@ generateWidget widget enctype msg uId = do
     Admin.setTitle "Password Reset"
     let msgH = mconcat $ map displayError msg
     [whamlet|
+        <a href="@{AdminUserR uId}" type="button" class="btn btn-primary">
+            Back
         <h2>
             Reset Password
         ^{msgH}

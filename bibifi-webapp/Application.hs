@@ -15,12 +15,15 @@ import Yesod.Default.Handlers
 import Network.Wai.Middleware.RequestLogger ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination)
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import qualified Database.Persist
+import qualified Data.ByteString.Char8 as BSC
+import qualified Data.Text as Text
 import Database.Persist.Sql (runMigration) -- (runMigration, printMigration)
 import Network.HTTP.Client.Conduit (newManager)
 import Data.Default (def)
 import Control.Monad.Logger (runLoggingT)
 import Control.Concurrent (forkIO, threadDelay)
 import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, flushLogStr)
+import qualified Network.URI as URI
 import Network.Wai.Logger (clockDateCacher)
 import Network.Wai.Middleware.ForceDomain
 import Yesod.Core.Types (loggerSet, Logger (Logger))
@@ -30,6 +33,12 @@ import Yesod.Core.Types (loggerSet, Logger (Logger))
 import Handler.Admin
 import Handler.Admin.Contests
 import Handler.Admin.Contest
+import Handler.Admin.Contest.BuildSubmissions
+import Handler.Admin.Contest.BreakSubmissions
+import Handler.Admin.Contest.FixSubmissions
+import Handler.Admin.Contest.Create
+import Handler.Admin.Contest.Edit
+import Handler.Admin.Contest.MakeJudge
 import Handler.Admin.Contest.JudgeEmails
 import Handler.Admin.Contest.Judgements
 import Handler.Admin.Contest.Judgements.AssignBuild
@@ -40,10 +49,22 @@ import Handler.Admin.Contest.MakeDefault
 import Handler.Admin.Contest.OracleBreaks
 import Handler.Admin.Contest.OracleBreaks.Create
 import Handler.Admin.Contest.OracleBreaks.Edit
+import Handler.Admin.Contest.Teams
+import Handler.Admin.Contest.Tests
+import Handler.Admin.Contest.Tests.CreateCorrectness
+import Handler.Admin.Contest.Tests.CreateOptional
+import Handler.Admin.Contest.Tests.CreatePerformance
+import Handler.Admin.Contest.Tests.Correctness
+import Handler.Admin.Contest.Tests.Optional
+import Handler.Admin.Contest.Tests.Performance
 -- import Handler.Admin.Contest.OracleBreaks.Edit
+import Handler.Admin.Team
+import Handler.Admin.Team.Member
+import Handler.Admin.Teams
 import Handler.Admin.Users
 import Handler.Admin.User
 import Handler.Admin.User.ResetPassword
+import Handler.Admin.User.SetAdmin
 import Handler.Announcements
 import Handler.Scoreboard
 import Handler.PerformanceRankings
@@ -78,7 +99,7 @@ import Handler.Splash
 import Handler.Sponsorship
 import Handler.Support
 import Handler.Team
-import Handler.TeamInvitation
+import Handler.TeamInvitation hiding (error)
 import Handler.Team.AddMembers
 import Handler.Team.Information
 import Handler.Team.Leave
@@ -94,9 +115,6 @@ import Handler.Admin.AddAnnouncement
 import Handler.Admin.Contests
 import Handler.Admin.Contest
 import Handler.Admin.Contest.MakeDefault
-import Handler.Admin.Users
-import Handler.Admin.User
-import Handler.Admin.User.ResetPassword
 import Handler.Todo
 
 -- This line actually creates our YesodDispatch instance. It is the second half
@@ -129,9 +147,23 @@ makeApplication conf = do
     let app = if development then
             app'
           else
+-- <<<<<<< HEAD
             let domain = "cmsc414-p4.cs.umd.edu" in
             forceDomain (\d -> if d /= domain then Just domain else Nothing) app'
+-- =======
+--             forceDomain (\d' -> 
+--                 let d = BSC.takeWhile (/= ':') d' in
+--                 if d /= domainName then Just domainName else Nothing
+--               ) app'
+-- >>>>>>> da8e7b6e184073bad29969392b915bb67a9eadb5
     return app
+
+    where
+        domainName = case (URI.parseURI $ Text.unpack $ appRoot conf) >>= URI.uriAuthority of
+            Nothing ->
+                error $ "Could not parse domain name: " <> Text.unpack (appRoot conf)
+            Just uri ->
+                BSC.pack $ URI.uriRegName uri
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.

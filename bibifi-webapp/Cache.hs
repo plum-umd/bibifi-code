@@ -6,7 +6,7 @@ import Control.Monad
 import qualified Data.List as List
 import Data.Bits
 import Data.Ord
-import Data.Time.Clock
+import Data.Time (addUTCTime, NominalDiffTime)
 import qualified Database.Esqueleto as E
 
 import Import
@@ -15,7 +15,7 @@ import PostDependencyType
 -- Checks if the cache for the given key is expired. Updates the expiration date by the given period.
 isExpired :: Text -> NominalDiffTime -> LHandler Bool
 isExpired key period = do
-    now <- lLift $ lift getCurrentTime
+    now <- getCurrentTime
     mCache <- runDB $ getBy $ UniqueCache key
     case mCache of
         Nothing ->

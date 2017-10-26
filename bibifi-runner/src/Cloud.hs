@@ -10,8 +10,9 @@ module Cloud (
 import Cloud.EC2
 import Cloud.Docker
 import Cloud.Internal as Export
-import Control.Monad.Trans.Resource
+import Control.Monad.Catch (MonadMask(..))
 import Control.Monad.Error
+import Control.Monad.Trans.Resource
 import Data.Yaml
 import Docker.Client
 import qualified Network.HTTP.Conduit as HTTP
@@ -22,7 +23,7 @@ import Network.SSH.Client.SimpleSSH
 
 import Common
 
-launchOneInstanceWithTimeout :: (MonadBaseControl IO m, MonadIO m, MonadThrow m, BackendError e) =>
+launchOneInstanceWithTimeout :: (MonadMask m, MonadBaseControl IO m, MonadIO m, MonadThrow m, BackendError e) =>
     CloudConfiguration -> HTTP.Manager -> Int -> (CloudInstance -> Session -> ErrorT e (CloudT m) b) -> ErrorT e m b
 launchOneInstanceWithTimeout (CloudEC2Configuration ec2) manager timer f = launchOneEC2WithTimeout'' ec2 manager timer f
 launchOneInstanceWithTimeout (CloudDockerConfiguration conf) manager timer f = launchOneDockerWithTimeout conf manager timer f

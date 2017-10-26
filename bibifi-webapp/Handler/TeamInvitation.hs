@@ -1,7 +1,6 @@
 module Handler.TeamInvitation where
 
 import Import as I
-import Data.Time
 import Control.Monad (foldM)
 import Data.Text as T
 
@@ -96,7 +95,7 @@ postTeamInvitationR invitation = runLHandler $ do
                                 generateHtml widget enctype [] $ Invalid "You are the team leader."
                             else do
                                 -- Check if user can join team by checking user and team against all contests that have not finished yet.
-                                now <- liftIO getCurrentTime
+                                now <- getCurrentTime
                                 contests <- runDB $ selectList [ContestFixEnd >=. now] []
                                 join <- foldM (\acc contest@(Entity contestId _) -> case acc of
                                     Left _ ->

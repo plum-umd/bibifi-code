@@ -307,6 +307,7 @@ customLayout d widget = do
                     , css_langdon_css
                     , css_jquery_ui_css
                     , css_bootstrap_tokenfield_min_css
+                    , css_jquery_datetimepicker_min_css
                     -- , css_bootstrap_theme_min_css
                     ])
                 (toWidget css)
@@ -316,6 +317,8 @@ customLayout d widget = do
                     [ js_jquery_min_js
                     , js_bootstrap_min_js
                     , js_jquery_ui_min_js
+                    , js_jquery_ui_min_js
+                    , js_jquery_datetimepicker_full_min_js
                     , js_bootstrap_tokenfield_js
                     -- , js_jquery_validate_min_js
                     ])

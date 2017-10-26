@@ -17,6 +17,15 @@ setTitle :: Text -> LWidget
 setTitle t =
     Import.setTitle [shamlet|#{t} - Admin Tools|]
 
+layoutContest :: Text -> (Entity Contest -> LWidget) -> LHandler Html
+layoutContest url content = do
+    res <- retrieveContest $ Just url
+    layout Contests $ case res of 
+        Nothing ->
+            contestNotFound
+        Just c ->
+            content c
+
 layout :: Page -> LWidget -> LHandler Html
 layout page content = 
     let unless v = (unless_v v ("active" :: Text) "") page in
@@ -49,7 +58,7 @@ layout page content =
                             <a href="@{AdminContestsR}">
                                 Contests
                         <li class="#{teamsActive}">
-                            <a href="@{TodoR}">
+                            <a href="@{AdminTeamsR}">
                                 Teams
                         <li class="#{usersActive}">
                             <a href="@{AdminUsersR}">

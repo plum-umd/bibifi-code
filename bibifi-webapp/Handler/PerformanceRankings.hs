@@ -3,7 +3,6 @@ module Handler.PerformanceRankings where
 
 import Control.Monad
 import Data.List (sortBy)
-import Data.Time.Clock
 import qualified Database.Esqueleto as E
 
 import BuildSubmissions
@@ -17,7 +16,7 @@ getPerformanceRankingsR url = runLHandler $ do
         setTitle $ toHtml title
         contestTemplate contest' "Performance Rankings" $ \(Entity cId contest) ->
             do
-            now <- lLift $ lift $ getCurrentTime
+            now <- getCurrentTime
             if now < (contestBuildStart contest) then
                 [whamlet|
                     <div class="row">
@@ -65,7 +64,7 @@ getSpecificPerformanceRankingsR url ptId = runLHandler $ do
                 Just pt | cId /= (contestPerformanceTestContest pt) ->
                     notFound
                 Just pt -> do
-                    now <- lLift $ lift $ getCurrentTime
+                    now <- getCurrentTime
                     if now < (contestBuildStart contest) then
                         [whamlet|
                             <div class="row">

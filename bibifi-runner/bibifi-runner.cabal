@@ -57,19 +57,21 @@ executable runner
                        Cloud.EC2
                        Cloud.Internal
                        Common
-                       Core.Modular
-                       Core.Modular.ATM
-                       Core.Modular.ArtGallery
-                       Core.Modular.Class
-                       Core.Modular.EHR
-                       Core.Modular.Shared
                        Core.SSH
                        Core.Score
                        Options
+                       Problem
+                       Problem.ATM
+                       Problem.ArtGallery
+                       Problem.API
+                       Problem.Class
+                       Problem.EHR
+                       Problem.Shared
                        Queue
                        Runner
                        Scheduler
                        Scorer  
+                       Scorer.Class
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:    
@@ -89,6 +91,7 @@ executable runner
                      , directory
                      , docker
                      , enclosed-exceptions
+                     , exceptions
                      , esqueleto
                      , filepath
                      , hashable
@@ -122,6 +125,8 @@ executable runner
                        MultiParamTypeClasses
                        RecordWildCards
                        ScopedTypeVariables
+                       OverloadedStrings
+                       ExistentialQuantification
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
