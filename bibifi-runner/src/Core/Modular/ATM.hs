@@ -164,8 +164,8 @@ instance ModularContest ATMSpec where
                 -- Map over tests.
                 let (requiredTests, optionalTests) = List.partition (isTestRequired . fst) (coreTests <> performanceTests <> optionalTests')
                 port <- IO.newIORef 3000 -- Fix when we can't reuse ports.
-                requiredResults <- mapM (runATMTest port session builderBaseDir) requiredTests
-                lift $ lift $ runDB $ mapM_ recorder requiredResults
+                mapM_ (\t -> runATMTest port session builderBaseDir t >>= (lift . lift . runDB . recorder)) requiredTests
+                -- lift $ lift $ runDB $ mapM_ recorder requiredResults
 
                 -- Indicate core tests passed. 
                 coreDoneRef `IO.writeIORef` True

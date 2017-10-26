@@ -1,8 +1,8 @@
 Docker:
   certificate: client-cert.pem
   secretKey: client-key.pem
-  imageId: bibifi/bibifi-image
-  address: bibivm01.proxy.umiacs.umd.edu
+  imageId: bibifi
+  address: 128.8.130.11
   port: 4000
   leaveRunning: false
   privateKeyFile: jp.pem

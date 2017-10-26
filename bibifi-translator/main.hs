@@ -23,7 +23,7 @@ main = do
                     usage
                 Just cmd -> do
                     -- Create database pool and config.
-                    db <- makeDatabaseConf "/fs/mc2-application/config/postgresql.yml" "Translator"
+                    db <- makeDatabaseConf "/home/bibifi/bibifi-code/config/postgresql.yml" "Translator"
                     -- db <- makeDatabaseConf productionDatabaseYML "Translator"
                     runDatabaseM db $ cmd args
         _ -> 
