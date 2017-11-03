@@ -2,7 +2,9 @@ module Coursera where
 
 import qualified Data.List as List
 import Database.LPersist
-import Foundation
+import Foundation.App
+import LMonad
+import LMonad.Label.DisjunctionCategory
 import LYesod
 import Model
 import Prelude
@@ -16,7 +18,7 @@ data CourseraStatus =
     deriving (Eq, Show)
 
 -- | Get enrollment status for coursera contests and users. 
-checkCourseraContest :: ContestId -> UserId -> LHandler CourseraStatus
+checkCourseraContest :: (YesodPersistBackend App ~ SqlBackend) => ContestId -> UserId -> LMonadT (DCLabel Principal) (HandlerT App IO) CourseraStatus
 checkCourseraContest contestId userId = do
     courseraM <- runDB $ getBy $ UniqueCourseraContest contestId
     case courseraM of

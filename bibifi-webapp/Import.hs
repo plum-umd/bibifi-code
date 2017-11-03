@@ -15,6 +15,7 @@ import           Data.Text            as Import (Text)
 import           Data.Time            as Import (UTCTime, addUTCTime, NominalDiffTime)
 
 import           Foundation           as Import
+import           Foundation.App       as Import
 import           Model                as Import
 import           Settings             as Import
 import           Settings.Development as Import

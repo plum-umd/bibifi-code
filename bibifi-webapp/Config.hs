@@ -4,7 +4,9 @@ import Prelude
 import LYesod
 import Data.Text (Text)
 import Database.LPersist
-import Foundation
+-- import Foundation
+import LMonad
+import LMonad.Label.DisjunctionCategory
 import Model
 
 -- TODO: Maybe move this typeclass somewhere else if it is generalizable?
@@ -19,7 +21,7 @@ instance ToText ConfigKey where
 
 -- TODO: memoize to reduce db queries?
 
-getConfig :: ConfigKey -> LHandler (Maybe Text)
+getConfig :: (YesodPersistBackend app ~ SqlBackend, YesodLPersist app, LMonad (HandlerT app IO)) => ConfigKey -> LMonadT (DCLabel Principal) (HandlerT app IO) (Maybe Text)
 getConfig key = do
     runDB $ do
         res <- getBy $ UniqueKey $ toText key
@@ -30,7 +32,7 @@ getConfig key = do
                 Just v
 
 -- TODO: improve this to use one query using something like repsert..
-setConfig :: ConfigKey -> Text -> LHandler ()
+setConfig :: (YesodLPersist app, LMonad (HandlerT app IO), YesodPersistBackend app ~ SqlBackend) => ConfigKey -> Text -> LMonadT (DCLabel Principal) (HandlerT app IO) ()
 setConfig key' value = 
     let key = toText key' in
     let new = Configuration key value in
