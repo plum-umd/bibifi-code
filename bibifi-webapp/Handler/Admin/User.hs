@@ -7,10 +7,10 @@ getAdminUserR :: UserId -> Handler Html
 getAdminUserR uId = runLHandler $ Admin.layout Admin.Users $ do
     res <- handlerToWidget $ runDB [lsql|
             select * from User
-            inner join UserInformation on User.id == UserInformation.user
             where User.id == #{uId}
             limit 1
         |]
+            -- inner join UserInformation on User.id == UserInformation.user
     -- $ E.select $ E.from $ \(u `E.InnerJoin` i) -> do
     --     E.on (u E.^. UserId E.==. i E.^. UserInformationUser)
     --     E.where_ (u E.^. UserId E.==. E.val uId)
@@ -19,7 +19,7 @@ getAdminUserR uId = runLHandler $ Admin.layout Admin.Users $ do
     case res of
         [] ->
             Admin.userNotFound
-        [(Entity _ user, Entity _ info)] -> do
+        [(Entity _ user)] -> do
             Admin.setTitle "User Information"
             [whamlet|
                 <a href="@{AdminUsersR}" type="button" class="btn btn-primary">
