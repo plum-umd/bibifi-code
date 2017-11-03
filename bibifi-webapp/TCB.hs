@@ -9,6 +9,7 @@ import Yesod (Entity(..))
 import qualified Yesod.Auth as Yesod
 
 import Foundation
+import Foundation.App
 import Model
 
 raiseUserLabel :: LHandler ()
