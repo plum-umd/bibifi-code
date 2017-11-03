@@ -9,7 +9,7 @@ import Database.LPersist
 import Model
 import Config
 import Coursera
-import Foundation
+-- import Foundation
 import Control.Monad (foldM)
 
 -- Check that none of the teams are registered for the contest. 
