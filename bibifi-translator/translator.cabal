@@ -42,6 +42,7 @@ executable translator
                        bibifi-core,
                        cryptohash,
                        csv,
+                       hex,
                        persistent,
                        persistent-postgresql >= 1.2,
                        yesod >= 1.2,
