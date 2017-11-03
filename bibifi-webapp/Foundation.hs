@@ -22,6 +22,7 @@ import qualified Settings
 import Settings.Development (development)
 import qualified Database.Persist
 import Database.Persist.Sql (SqlBackend)
+import Foundation.App
 import Settings.StaticFiles
 import Settings (Extra (..))
 import Model
@@ -151,7 +152,7 @@ css =
 navbar :: LayoutData -> Handler (HtmlUrl (Route App))
 navbar contest = do
     mauth <- maybeAuth
-    participantLinks <- participantNav contest mauth
+    participantLinks <- runLHandler $ participantNav contest mauth
     contestLinks <- case contest of
         Just (Entity _ c) ->
             let url = contestUrl c in
@@ -485,13 +486,6 @@ instance Yesod App where
  -- 
  -- --    afterPasswordRoute site = -- TODO set to contest/team registration?
  -- 
-
--- How to run database actions.
-instance YesodPersist App where
-    type YesodPersistBackend App = SqlBackend
-    runDB = defaultRunDB persistConfig connPool
-instance YesodPersistRunner App where
-    getDBRunner = defaultGetDBRunner connPool
 
 instance YesodAuth App where
     type AuthId App = UserId

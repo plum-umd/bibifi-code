@@ -1,6 +1,7 @@
 module Foundation.App where
 
 import Database.LPersist as LP
+import Database.Persist.Sql (SqlBackend)
 import Data.Text (Text)
 import qualified Database.Persist
 import LMonad
@@ -77,6 +78,13 @@ instance YesodLPersist App where
 
 runLHandler :: LHandler a -> Handler a
 runLHandler = runLMonad
+
+-- How to run database actions.
+instance Yesod.YesodPersist App where
+    type YesodPersistBackend App = SqlBackend
+    runDB = Yesod.defaultRunDB persistConfig connPool
+instance Yesod.YesodPersistRunner App where
+    getDBRunner = Yesod.defaultGetDBRunner connPool
 
 --
 -- End noninterference stuff. 

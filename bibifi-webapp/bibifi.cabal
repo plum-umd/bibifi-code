@@ -25,6 +25,7 @@ library
                      FixSubmissions
                      Forms
                      Foundation
+                     Foundation.App
                      Import
                      Judges
                      LYesod
