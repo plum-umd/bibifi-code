@@ -207,9 +207,6 @@ navbar contest = do
             <div class="container">
                 <div class="collapse navbar-collapse navbar-ex1-collapse linksbar">
                     <ul class="nav nav-pills navbar-right">
-                       <!--  <li>
-                            <a href=@{SponsorshipR}>
-                                SPONSORSHIP OPPORTUNITIES -->
                         ^{participantLinks}
                         ^{contestLinks}
                         <li>
