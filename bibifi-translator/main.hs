@@ -1,6 +1,8 @@
+import qualified Data.Char as C
+import Database.Persist
 import Prelude
 import qualified System.Environment as SE
-import qualified Data.Char as C
+import qualified Data.Text as Text
 import Common
 import qualified Extract
 import qualified Dump
@@ -15,18 +17,35 @@ import qualified Rescore
 main :: IO ()
 main = do
     args' <- SE.getArgs
-    case args' of
-        command:args ->
-            case lookup (fmap C.toLower command) dispatch of
+    -- Create database pool and config.
+    db <- makeDatabaseConf "/fs/mc2-application/config/postgresql.yml" "Translator"
+    runDatabaseM db $ case args' of
+        "-c":contest_url:command:args -> do
+            contestM <- runDB $ getBy $ UniqueContest $ Text.pack contest_url
+
+            case contestM of
                 Nothing ->
-                    usage
-                Just cmd -> do
-                    -- Create database pool and config.
-                    db <- makeDatabaseConf "/fs/mc2-application/config/postgresql.yml" "Translator"
-                    -- db <- makeDatabaseConf productionDatabaseYML "Translator"
-                    runDatabaseM db $ cmd args
+                    silentFail $ "Contest not found: " ++ contest_url
+                Just contest ->
+                    run contest db command args
+
+        command:args -> do
+            putLog "Warning: No contest specified. Assuming default contest."
+            contest <- activeContest
+
+            run contest db command args
         _ -> 
             usage
+
+    where
+        run contest db command args = case lookup (fmap C.toLower command) dispatch of
+            Nothing ->
+                usage
+            Just cmd -> do
+                -- db <- makeDatabaseConf productionDatabaseYML "Translator"
+                -- db <- makeDatabaseConf productionDatabaseYML "Translator"
+                cmd args
+            
 
 dispatch :: [(String, [String] -> DatabaseM ())]  
 dispatch = [( "request", Request.request), ( "submit", Submit.submit), ( "retrieve", Retrieve.retrieve), ( "tests", Tests.tests), ( "rescore", Rescore.rescore), ( "preparejudgements", Judgements.prepare), ("migrate", Migrate.migrate), ("extract", Extract.extract), ("dump", Dump.dump)]
