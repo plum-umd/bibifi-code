@@ -5,7 +5,6 @@ module Common (
     , module Core.DatabaseM
     , module Model
     , activeContest
-    , getContest
     , silentFail
     , maybeFail
     , boolFail
@@ -97,9 +96,6 @@ import Data.Hashable
 
 -- Common functions.
 
-getContest :: DatabaseM (Entity Contest)
-getContest = activeContest
-
 activeContest :: DatabaseM (Entity Contest)
 activeContest = do
     res <- runDB $ getBy $ UniqueKey "default_contest"
@@ -126,8 +122,7 @@ toKey v = case keyFromValues [PersistInt64 $ fromIntegral $ read v] of
 
 toTimestamp = P.posixSecondsToUTCTime . realToFrac . read
 
-checkWithinRound timestamp round = do
-    (Entity _ c) <- getContest
+checkWithinRound timestamp round (Entity _ c) = do
     ( start, end) <- case round of
           1 ->
               return ( contestBuildStart c, contestBuildEnd c)

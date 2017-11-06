@@ -9,8 +9,8 @@ import Common
 import PostDependencyType
 import Score
 
-submit :: [String] -> DatabaseM ()
-submit args' = do
+submit :: E.Entity Contest -> [String] -> DatabaseM ()
+submit c args' = do
     case args' of 
         [] ->
             usage
@@ -19,10 +19,10 @@ submit args' = do
                 Nothing ->
                     usage
                 Just cmd ->
-                    cmd args
+                    cmd c args
     liftIO $ putStrLn $ show True
 
-dispatch :: [(String, [String] -> DatabaseM ())]  
+dispatch :: [(String, E.Entity Contest -> [String] -> DatabaseM ())]  
 dispatch = [( "round1", round1),( "round2", round2), ( "round3", round3), ( "bayesianscores", bayesianScores)]
 
 usage :: MonadIO m => m ()
@@ -98,8 +98,8 @@ round1Built sId args'' = case args'' of
     _ ->
         boolFail "error: not enough arguments"
 
-round1 :: [String] -> DatabaseM ()
-round1 args' = case args' of
+round1 :: E.Entity Contest -> [String] -> DatabaseM ()
+round1 (E.Entity contestId _) args' = case args' of
     id':result':args ->
         let result = fmap C.toLower result' in
         let sId = toKey id' in
@@ -123,7 +123,6 @@ round1 args' = case args' of
                 update BuildBuilt
                 -- putStrLn "here 3"
                 -- hFlush stdout
-                (E.Entity contestId _) <- getContest
                 rescoreBuildRound contestId
                 -- putStrLn "here 4"
                 -- hFlush stdout
@@ -137,8 +136,8 @@ round1 args' = case args' of
         boolFail "error: incorrect number of arguments"
 
 -- TODO: only check eligible teams??
-round2 :: [String] -> DatabaseM ()
-round2 args' = case args' of 
+round2 :: E.Entity Contest -> [String] -> DatabaseM ()
+round2 (E.Entity contestId _) args' = case args' of 
     id':result':[] ->
         let result = fmap C.toLower result' in
         let sId = toKey id' in
@@ -152,7 +151,6 @@ round2 args' = case args' of
                 return ()
         in
         do
-        (E.Entity contestId _) <- getContest
         case result of 
             "correct" ->
                 do
@@ -177,8 +175,8 @@ round2 args' = case args' of
     _ ->
         boolFail "error: incorrect number of arguments"
     
-round3 :: [String] -> DatabaseM ()
-round3 args' = case args' of 
+round3 :: E.Entity Contest -> [String] -> DatabaseM ()
+round3 (E.Entity contestId _) args' = case args' of 
     id':result':[] ->
         let result = fmap C.toLower result' in
         let sId = toKey id' in
@@ -192,7 +190,6 @@ round3 args' = case args' of
                 return ()
         in
         do
-        (E.Entity contestId _) <- getContest
         case result of
             "fixed" ->
                 do
@@ -218,8 +215,8 @@ round3 args' = case args' of
     _ ->
         boolFail "error: incorrect number of arguments"
 
-bayesianScores :: [String] -> DatabaseM ()
-bayesianScores args' = case args' of
+bayesianScores :: E.Entity Contest -> [String] -> DatabaseM ()
+bayesianScores cE args' = case args' of
     [] ->
         return ()
     sId':score':args ->
@@ -233,6 +230,6 @@ bayesianScores args' = case args' of
         when (c /= 1) $
             boolFail "error: unable to update submission"
         -- Update rest of the bayesian scores.
-        bayesianScores args
+        bayesianScores cE args
     _ -> 
         boolFail "error: incorrect number of arguments"

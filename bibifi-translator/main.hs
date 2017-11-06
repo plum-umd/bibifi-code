@@ -44,10 +44,10 @@ main = do
             Just cmd -> do
                 -- db <- makeDatabaseConf productionDatabaseYML "Translator"
                 -- db <- makeDatabaseConf productionDatabaseYML "Translator"
-                cmd args
+                cmd contest args
             
 
-dispatch :: [(String, [String] -> DatabaseM ())]  
+dispatch :: [(String, Entity Contest -> [String] -> DatabaseM ())]  
 dispatch = [( "request", Request.request), ( "submit", Submit.submit), ( "retrieve", Retrieve.retrieve), ( "tests", Tests.tests), ( "rescore", Rescore.rescore), ( "preparejudgements", Judgements.prepare), ("migrate", Migrate.migrate), ("extract", Extract.extract), ("dump", Dump.dump)]
 
 usage :: MonadIO m => m ()

@@ -31,10 +31,10 @@ data OutputData = OutputData {
     -- TODO: BuildSubmissions, TestResults, BreakSubmissions, BreakJudgements, FixSubmissions, Adjusted scores, ... XXX
 
 -- Extract data from contests.
-extract :: [String] -> DatabaseM ()
-extract [] = boolFail "error: no output directory specified"
-extract [_dir] = boolFail "error: no contest url specified"
-extract (dir:contests) = do
+extract :: Entity Contest -> [String] -> DatabaseM ()
+extract _ [] = boolFail "error: no output directory specified"
+extract _ [_dir] = boolFail "error: no contest url specified"
+extract _ (dir:contests) = do
     -- Get data.
     dats <- mapM getData contests
 

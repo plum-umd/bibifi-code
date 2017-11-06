@@ -9,18 +9,18 @@ import Database.Esqueleto
 
 import Common
 
-prepare :: [String] -> DatabaseM ()
-prepare args' = case args' of
+prepare :: Entity Contest -> [String] -> DatabaseM ()
+prepare c args' = case args' of
     cmd':[] ->
         case lookup (fmap C.toLower cmd') dispatch of
             Nothing ->
                 usage
             Just cmd ->
-                cmd
+                cmd c
     _ ->
         usage
 
-dispatch :: [(String, DatabaseM ())]
+dispatch :: [(String, Entity Contest -> DatabaseM ())]
 dispatch = [ ( "round1", round1), ( "round2", round2), ( "round3", round3)]
 
 usage :: DatabaseM ()
@@ -40,9 +40,7 @@ instance ToJSON RetSubmission where
         ]
 
 
-round1 =
-    do
-    Entity cId _ <- getContest
+round1 (Entity cId _) = do
     -- Get judgements for given contest.
     res' <- runDB $ select $ from $ \(InnerJoin bj (InnerJoin bs tc)) -> do
         on (bs ^. BuildSubmissionTeam ==. tc ^. TeamContestId)
@@ -55,5 +53,5 @@ round1 =
           ) res'
     liftIO $ BS.putStrLn $ encode res
 
-round2 = silentFail "TODO"
-round3 = silentFail "TODO"
+round2 _ = silentFail "TODO"
+round3 _ = silentFail "TODO"
