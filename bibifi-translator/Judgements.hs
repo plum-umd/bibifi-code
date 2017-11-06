@@ -42,7 +42,7 @@ instance ToJSON RetSubmission where
 
 round1 =
     do
-    Entity cId _ <- activeContest
+    Entity cId _ <- getContest
     -- Get judgements for given contest.
     res' <- runDB $ select $ from $ \(InnerJoin bj (InnerJoin bs tc)) -> do
         on (bs ^. BuildSubmissionTeam ==. tc ^. TeamContestId)

@@ -26,7 +26,7 @@ usage = boolFail $ usageDispatch "RESCORE" dispatch
 round1 :: [String] -> DatabaseM ()
 round1 args' = case args' of
     [] -> do
-        (Entity contestId _) <- activeContest
+        (Entity contestId _) <- getContest
         rescoreBuildRound contestId
     _ ->
         boolFail "error: incorrect number of argumnets"
@@ -34,7 +34,7 @@ round1 args' = case args' of
 round2 :: [String] -> DatabaseM ()
 round2 args' = case args' of
     [] -> do
-        (Entity contestId _) <- activeContest
+        (Entity contestId _) <- getContest
         rescoreBreakRound contestId
     _ ->
         boolFail "error: incorrect number of argumnets"
@@ -42,7 +42,7 @@ round2 args' = case args' of
 round3 :: [String] -> DatabaseM ()
 round3 args' = case args' of
     [] -> do
-        (Entity contestId _) <- activeContest
+        (Entity contestId _) <- getContest
         rescoreFixRound contestId
     _ ->
         boolFail "error: incorrect number of argumnets"

@@ -4,7 +4,7 @@ module Common (
       module Control.Monad.IO.Class
     , module Core.DatabaseM
     , module Model
-    , activeContest
+    , getContest
     , silentFail
     , maybeFail
     , boolFail
@@ -94,6 +94,9 @@ import Data.Hashable
 --     return $ Global $ \f -> runStderrLoggingT $ runResourceT $ flip runReaderT workerConf f -- runStdoutLoggingT 
 
 -- Common functions.
+
+getContest :: DatabaseM (Entity Contest)
+getContest = activeContest
 
 activeContest :: DatabaseM (Entity Contest)
 activeContest = do

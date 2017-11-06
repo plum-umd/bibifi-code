@@ -35,7 +35,7 @@ processTest cId args = case args of
 
 tests :: [String] -> DatabaseM ()
 tests args = do
-    Entity cId c <- activeContest
+    Entity cId c <- getContest
     -- Check date
     now <- liftIO getCurrentTime
     if now > (contestBuildStart c) then

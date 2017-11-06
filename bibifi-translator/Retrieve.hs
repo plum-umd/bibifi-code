@@ -81,7 +81,7 @@ teams args =
     case args of 
         [] ->
             do
-            Entity c _ <- activeContest
+            Entity c _ <- getContest
             let toTeam (Entity teamId team) = runDB $ do
                   bss <- getLatestBuildSubmissions c $ \tc bs -> do
                       E.where_ (tc E.^. TeamContestId E.==. E.val teamId)
@@ -102,7 +102,7 @@ tests :: [String] -> DatabaseM ()
 tests args' = case args' of 
     [] ->
         do
-        Entity c _ <- activeContest
+        Entity c _ <- getContest
         coreTests' <- runDB $ selectList [ContestCoreTestContest ==. c] []
         let coreTests = fmap (toJSON . EntityCoreTest) coreTests'
         performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. c] []
@@ -115,7 +115,7 @@ tests args' = case args' of
 
 grades :: [String] -> DatabaseM ()
 grades [] = do
-    Entity cId _ <- activeContest
+    Entity cId _ <- getContest
     teams <- runDB $ selectList [TeamContestContest ==. cId] []
     mapM_ gradeTeam teams
 
@@ -204,7 +204,7 @@ grades _ = silentFail "error: too many arguments"
 missing :: [String] -> DatabaseM ()
 missing args' = case args' of
     [] -> do
-        Entity cId _ <- activeContest
+        Entity cId _ <- getContest
         -- Get list of teams. 
         teams <- runDB $ E.select $ E.from $ \(E.InnerJoin t tc) -> do
             E.on (t E.^. TeamId E.==. tc E.^. TeamContestTeam)
@@ -244,7 +244,7 @@ missing args' = case args' of
 resumes :: [String] -> DatabaseM ()
 resumes args' = case args' of
     [] -> do
-        Entity cId _ <- activeContest
+        Entity cId _ <- getContest
         users <- runDB $ E.select $ E.from $ \(E.InnerJoin u ui) -> do
             E.on (u E.^. UserId E.==. ui E.^. UserInformationUser)
             E.where_ ( ui E.^. UserInformationResumePermission E.==. E.val True 
@@ -299,7 +299,7 @@ plusM a b = case (a, b) of
 scores :: [String] -> DatabaseM ()
 scores args = case args of
     [] -> do
-        Entity cId _ <- activeContest
+        Entity cId _ <- getContest
         -- let cId = either (error "fail") id $ keyFromValues [ PersistInt64 5]
         teams <- runDB $ E.select $ E.from $ \(E.InnerJoin tc team) -> do
             E.on (tc E.^. TeamContestTeam E.==. team E.^. TeamId)
@@ -329,7 +329,7 @@ scores args = case args of
 removeTeams :: [String] -> DatabaseM ()
 removeTeams [] = do
     -- Rescore break and fix rounds. 
-    Entity cId _ <- activeContest
+    Entity cId _ <- getContest
     rescoreBreakRound cId
     rescoreFixRound cId
 removeTeams (teamid:rest) = do
@@ -364,7 +364,7 @@ removeTeams (teamid:rest) = do
 emails :: [String] -> DatabaseM ()
 emails [] = do
     -- Rescore break and fix rounds. 
-    Entity cId _ <- activeContest
+    Entity cId _ <- getContest
     teamContests <- runDB $ selectList [TeamContestContest ==. cId] []
     runDB $ mapM_ (\tcE@(Entity tcId tc) -> do
             let tId = teamContestTeam tc
@@ -395,7 +395,7 @@ emails [] = do
 --     --      return $ foldl (\ acc email -> email:acc) emails acc
 --     --in
 --     do
---     c <- activeContest g
+--     c <- getContest g
 --     --teams <- (liftDB g) $ runDB $ selectList [TeamContestContest ==. c] []
 --     teams <- (liftDB g) $ runDB $ E.select $ E.from $ \tc -> do
 --         E.where_ (tc E.^. TeamContestContest E.==. c)

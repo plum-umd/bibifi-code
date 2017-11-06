@@ -123,7 +123,7 @@ round1 args' = case args' of
                 update BuildBuilt
                 -- putStrLn "here 3"
                 -- hFlush stdout
-                (E.Entity contestId _) <- activeContest
+                (E.Entity contestId _) <- getContest
                 rescoreBuildRound contestId
                 -- putStrLn "here 4"
                 -- hFlush stdout
@@ -152,7 +152,7 @@ round2 args' = case args' of
                 return ()
         in
         do
-        (E.Entity contestId _) <- activeContest
+        (E.Entity contestId _) <- getContest
         case result of 
             "correct" ->
                 do
@@ -192,7 +192,7 @@ round3 args' = case args' of
                 return ()
         in
         do
-        (E.Entity contestId _) <- activeContest
+        (E.Entity contestId _) <- getContest
         case result of
             "fixed" ->
                 do
