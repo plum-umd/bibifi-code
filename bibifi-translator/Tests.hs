@@ -33,9 +33,8 @@ processTest cId args = case args of
         boolFail "error: invalid number of arguments while parsing tests"
 
 
-tests :: [String] -> DatabaseM ()
-tests args = do
-    Entity cId c <- activeContest
+tests :: Entity Contest -> [String] -> DatabaseM ()
+tests (Entity cId c) args = do
     -- Check date
     now <- liftIO getCurrentTime
     if now > (contestBuildStart c) then

@@ -12,8 +12,8 @@ import Database.Persist
 
 import Common
 
-dump :: [String] -> DatabaseM ()
-dump [anon] | fmap C.toLower anon == "anonymize" = do
+dump :: Entity Contest -> [String] -> DatabaseM ()
+dump _ [anon] | fmap C.toLower anon == "anonymize" = do
     -- Anonymize and dump database.
     user <- fmap (Aeson.toJSON . fmap anonymizeUser) $ runDB $ selectList ([] :: [Filter User]) []
     userInformation <- fmap (Aeson.toJSON . fmap anonymizeUserInformation) $ runDB $ selectList ([] :: [Filter UserInformation]) []
@@ -152,7 +152,7 @@ dump [anon] | fmap C.toLower anon == "anonymize" = do
     --     selectToJson :: Proxy a
     --     selectToJson = toJSON $ selectList [] []
     
-dump _ = boolFail "error: incorrect number of arguments"
+dump _ _ = boolFail "error: incorrect number of arguments"
 
 hashText = Text.decodeUtf8 . hex . dropEnd 2 . hash . Text.encodeUtf8
 

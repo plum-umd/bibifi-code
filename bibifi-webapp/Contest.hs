@@ -1,4 +1,4 @@
-module Contest ( userCanJoinTeamForContest, userIsSignedupForContest, retrieveContest, generateContestTitle, generatePageTitle, contestTemplate, isDefaultContest) where
+module Contest ( userCanJoinTeamForContest, userIsSignedupForContest, retrieveContest, generateContestTitle, generatePageTitle, contestTemplate, isDefaultContest, defaultContest) where
 
 import Prelude
 import LMonad.Yesod
@@ -9,7 +9,7 @@ import Database.LPersist
 import Model
 import Config
 import Coursera
-import Foundation
+import Foundation.App
 import Control.Monad (foldM)
 
 -- Check that none of the teams are registered for the contest. 
