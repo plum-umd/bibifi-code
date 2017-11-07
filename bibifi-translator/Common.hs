@@ -10,6 +10,7 @@ module Common (
     , boolFail
     , usageDispatch
     , keyToInt
+    , putLog
     , toKey
     , checkWithinRound
     , removeDuplicates
@@ -121,8 +122,7 @@ toKey v = case keyFromValues [PersistInt64 $ fromIntegral $ read v] of
 
 toTimestamp = P.posixSecondsToUTCTime . realToFrac . read
 
-checkWithinRound timestamp round = do
-    Entity _ c <- activeContest
+checkWithinRound timestamp round (Entity _ c) = do
     ( start, end) <- case round of
           1 ->
               return ( contestBuildStart c, contestBuildEnd c)
@@ -143,6 +143,8 @@ usageDispatch cmd dispatch =
     L.foldl (\acc (x,_) -> acc ++ "|" ++ (fmap C.toUpper x)) s $ L.tail dispatch
 
 printError = hPutStrLn stderr
+
+putLog s = liftIO $ hPutStrLn stderr s
 
 silentFail :: MonadIO m => String -> m a
 silentFail s = liftIO $ do

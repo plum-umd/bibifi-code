@@ -45,8 +45,8 @@ performanceTestMapping = [
     , (10, "45")
     ]
 
-migrate :: [String] -> DatabaseM ()
-migrate args = do
+migrate :: Entity Contest -> [String] -> DatabaseM ()
+migrate _ args = do
     let teamIds = map toKey args
     printSQL "BEGIN"
     print "DO $$"

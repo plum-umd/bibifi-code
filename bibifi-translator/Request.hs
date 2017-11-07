@@ -9,8 +9,8 @@ import qualified Database.Esqueleto as E
 import Common
 import PostDependencyType
 
-request :: [String] -> DatabaseM ()
-request args' = 
+request :: Entity Contest -> [String] -> DatabaseM ()
+request c args' = 
     case args' of 
         [] ->
             usage
@@ -19,30 +19,30 @@ request args' =
                 Nothing ->
                     usage
                 Just cmd ->
-                    cmd args
+                    cmd c args
 
-dispatch :: [(String, [String] -> DatabaseM ())]  
+dispatch :: [(String, Entity Contest -> [String] -> DatabaseM ())]  
 dispatch = [( "round1", round1), ( "round2", round2), ( "round3", round3)]
 
 usage :: MonadIO m => m ()
 usage = maybeFail $ usageDispatch "REQUEST" dispatch
 
-round1 :: [String] -> DatabaseM ()
-round1 args = case args of
+round1 :: Entity Contest -> [String] -> DatabaseM ()
+round1 c args = case args of
     teamid':timestamp':commithash':[] ->
         let teamid = toKey teamid' in
         let timestamp = toTimestamp timestamp' in
         let commithash = T.pack commithash' in
         let submission = BuildSubmission teamid timestamp commithash BuildPending Nothing Nothing in
         do
-        checkWithinRound timestamp 1
+        checkWithinRound timestamp 1 c
         sId' <- runDB $ insert submission
         liftIO $ putStrLn $ show $ Just $ keyToInt sId'
     _ ->
         maybeFail "error: incorrect number of arguments"
 
-round2 :: [String] -> DatabaseM ()
-round2 args = case args of
+round2 :: Entity Contest -> [String] -> DatabaseM ()
+round2 c args = case args of
     submitteamid':targetteamid':timestamp':commithash':name':[] ->
         let submitteamid = toKey submitteamid' in
         let targetteamid = toKey targetteamid' in
@@ -63,7 +63,7 @@ round2 args = case args of
         --         return ()
         -- in
         do
-        checkWithinRound timestamp 2
+        checkWithinRound timestamp 2 c
         -- checkSubmissionLimit
         -- if submitteamid == targetteamid then
         --     -- insert rejected
@@ -114,8 +114,8 @@ round2 args = case args of
     _ ->
         maybeFail "error: incorrect number of arguments"
 
-round3 :: [String] -> DatabaseM ()
-round3 args = case args of
+round3 :: Entity Contest ->  [String] -> DatabaseM ()
+round3 c args = case args of
     teamid':timestamp':commithash':diffsize':name':bugids' ->
         let teamid = toKey teamid' in
         let timestamp = toTimestamp timestamp' in
@@ -145,7 +145,7 @@ round3 args = case args of
                         return sId
         in
         do
-        checkWithinRound timestamp 3
+        checkWithinRound timestamp 3 c
         ( sId', successE) <- runDB $ do
             sId' <- getSubmission
             successE <- foldM (\acc bugid -> case acc of

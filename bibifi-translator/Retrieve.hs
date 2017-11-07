@@ -17,8 +17,8 @@ import Common
 import BuildSubmissions
 import PostDependencyType
 
-retrieve :: [String] -> DatabaseM ()
-retrieve args' =
+retrieve :: Entity Contest -> [String] -> DatabaseM ()
+retrieve c args' =
     case args' of 
         [] ->
             usage
@@ -27,9 +27,9 @@ retrieve args' =
                 Nothing ->
                     usage
                 Just cmd ->
-                    cmd args
+                    cmd c args
 
-dispatch :: [(String, [String] -> DatabaseM ())]  
+dispatch :: [(String, Entity Contest -> [String] -> DatabaseM ())]  
 dispatch = [ ( "teams", teams), ( "tests", tests), ( "resumes", resumes), ( "missing", missing), ("grades", grades), ("scores", scores), ("removeteam", removeTeams), ("emails", emails)]
 
 usage :: MonadIO m => m ()
@@ -76,12 +76,10 @@ instance ToJSON (EntityCoreTest) where
         "testid" .= id
         ]
 
-teams :: [String] -> DatabaseM ()
-teams args = 
+teams :: Entity Contest -> [String] -> DatabaseM ()
+teams (Entity c _) args = 
     case args of 
-        [] ->
-            do
-            Entity c _ <- activeContest
+        [] -> do
             let toTeam (Entity teamId team) = runDB $ do
                   bss <- getLatestBuildSubmissions c $ \tc bs -> do
                       E.where_ (tc E.^. TeamContestId E.==. E.val teamId)
@@ -98,11 +96,9 @@ teams args =
         _ ->
             silentFail "error: too many arguments"
 
-tests :: [String] -> DatabaseM ()
-tests args' = case args' of 
-    [] ->
-        do
-        Entity c _ <- activeContest
+tests :: Entity Contest -> [String] -> DatabaseM ()
+tests (Entity c _) args' = case args' of 
+    [] -> do
         coreTests' <- runDB $ selectList [ContestCoreTestContest ==. c] []
         let coreTests = fmap (toJSON . EntityCoreTest) coreTests'
         performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. c] []
@@ -113,9 +109,8 @@ tests args' = case args' of
     _ -> 
         silentFail "error: too many arguments"
 
-grades :: [String] -> DatabaseM ()
-grades [] = do
-    Entity cId _ <- activeContest
+grades :: Entity Contest -> [String] -> DatabaseM ()
+grades (Entity cId _) [] = do
     teams <- runDB $ selectList [TeamContestContest ==. cId] []
     mapM_ gradeTeam teams
 
@@ -199,12 +194,11 @@ grades [] = do
 
         maybeToNum Nothing = 0
         maybeToNum (Just x) = x
-grades _ = silentFail "error: too many arguments"
+grades _ _ = silentFail "error: too many arguments"
 
-missing :: [String] -> DatabaseM ()
-missing args' = case args' of
+missing :: Entity Contest -> [String] -> DatabaseM ()
+missing (Entity cId _) args' = case args' of
     [] -> do
-        Entity cId _ <- activeContest
         -- Get list of teams. 
         teams <- runDB $ E.select $ E.from $ \(E.InnerJoin t tc) -> do
             E.on (t E.^. TeamId E.==. tc E.^. TeamContestTeam)
@@ -241,10 +235,9 @@ missing args' = case args' of
                     members <- selectList [TeamMemberTeam ==. tId] []
                     return $ (teamLeader team):(map (\(Entity _ (TeamMember _ uId)) -> uId) members)
 
-resumes :: [String] -> DatabaseM ()
-resumes args' = case args' of
+resumes :: Entity Contest -> [String] -> DatabaseM ()
+resumes (Entity cId _) args' = case args' of
     [] -> do
-        Entity cId _ <- activeContest
         users <- runDB $ E.select $ E.from $ \(E.InnerJoin u ui) -> do
             E.on (u E.^. UserId E.==. ui E.^. UserInformationUser)
             E.where_ ( ui E.^. UserInformationResumePermission E.==. E.val True 
@@ -296,10 +289,9 @@ plusM a b = case (a, b) of
     (Nothing, Just b') -> b'
     (Nothing, Nothing) -> 0.0
 
-scores :: [String] -> DatabaseM ()
-scores args = case args of
+scores :: Entity Contest -> [String] -> DatabaseM ()
+scores (Entity cId _) args = case args of
     [] -> do
-        Entity cId _ <- activeContest
         -- let cId = either (error "fail") id $ keyFromValues [ PersistInt64 5]
         teams <- runDB $ E.select $ E.from $ \(E.InnerJoin tc team) -> do
             E.on (tc E.^. TeamContestTeam E.==. team E.^. TeamId)
@@ -326,15 +318,14 @@ scores args = case args of
     _ -> 
         silentFail "error: too many arguments"
 
-removeTeams :: [String] -> DatabaseM ()
-removeTeams [] = do
+removeTeams :: Entity Contest -> [String] -> DatabaseM ()
+removeTeams (Entity cId _) [] = do
     -- Rescore break and fix rounds. 
-    Entity cId _ <- activeContest
     rescoreBreakRound cId
     rescoreFixRound cId
-removeTeams (teamid:rest) = do
+removeTeams c (teamid:rest) = do
     removeTeam teamid
-    removeTeams rest
+    removeTeams c rest
 
     where
         removeTeam teamid' = runDB $ do
@@ -361,10 +352,9 @@ removeTeams (teamid:rest) = do
             -- Delete break.
             delete breakId
 
-emails :: [String] -> DatabaseM ()
-emails [] = do
+emails :: Entity Contest -> [String] -> DatabaseM ()
+emails (Entity cId _) [] = do
     -- Rescore break and fix rounds. 
-    Entity cId _ <- activeContest
     teamContests <- runDB $ selectList [TeamContestContest ==. cId] []
     runDB $ mapM_ (\tcE@(Entity tcId tc) -> do
             let tId = teamContestTeam tc
@@ -395,7 +385,7 @@ emails [] = do
 --     --      return $ foldl (\ acc email -> email:acc) emails acc
 --     --in
 --     do
---     c <- activeContest g
+--     c <- getContest g
 --     --teams <- (liftDB g) $ runDB $ selectList [TeamContestContest ==. c] []
 --     teams <- (liftDB g) $ runDB $ E.select $ E.from $ \tc -> do
 --         E.where_ (tc E.^. TeamContestContest E.==. c)

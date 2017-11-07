@@ -1,6 +1,6 @@
 Run the script as follows. Map each constructor to the corresponding case insensitive string. Logging (like database transactions) are written to standard error. Output is sent to standard out. 
 
-./translater command
+./translater [-c CONTEST-URL] command
 
 type command = 
     | Request request -> submissionid option
