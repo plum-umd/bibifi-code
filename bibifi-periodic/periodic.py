@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import sys
 import signal
 import hashlib
@@ -44,6 +45,13 @@ RUNNER_TOOL_PATH = "./ec2-runner/run.sh"
 BUILD_TEST_CMDLINE = "%s %s %s %s"
 #             unused        teamname commithash currentphase usertest
 BREAK_TEST_CMDLINE = "unused %s %s break %s"
+
+"""
+Global settings UGH
+"""
+
+settingRound = None
+settingContest = None
 
 """
 Classes and types
@@ -515,9 +523,12 @@ def test_team_loop(teamdata):
         break
     #old?? curdatetime = test_team_build(curteam, curdatetime)
 
-    changed = test_team_generic(curteam, testedset)
-    #changed = test_team_break(curteam, testedset)
-    #changed = test_team_fix(curteam, testedset)
+    if settingRound == "build":
+      changed = test_team_generic(curteam, testedset)
+    elif settingRound == "break":
+      changed = test_team_break(curteam, testedset)
+    elif settingRound == "fix":
+      changed = test_team_fix(curteam, testedset)
 
     if changed:
       f = file(".teamdata%s" % curteam.teamName, 'w')
@@ -526,8 +537,32 @@ def test_team_loop(teamdata):
     time.sleep(40)
   return
 
+def parseArgs():
+  global settingRound
+  global settingContest
+
+  parser = argparse.ArgumentParser(description='Repeatedly pull contestant repositories.')
+  parser.add_argument("c", nargs='?',default=None, help="Contest identifier")
+  parser.add_argument("r", help="Round (build | break | fix)")
+  args = parser.parse_args()
+
+  if args.c is None:
+    sys.stderr.write("Warning: No contest identifier specified. Assuming default contest.\n")
+  else:
+    settingContest = args.c
+  
+  r = args.r.lower()
+  if r in ["build","break","fix"]:
+    settingRound = r
+  else:
+    sys.stderr.write("Invalid round: " + r + "\n")
+    sys.exit( 1)
+    
+
 threads = []
 def main():
+  parseArgs()
+
   global threads
   logging.basicConfig(filename="periodic.log", level=logging.INFO)
   testing = set()
