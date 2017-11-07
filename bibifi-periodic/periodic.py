@@ -16,6 +16,7 @@ import time
 import json
 import argparse
 import random
+import re
 import shutil
 import traceback
 import xml.etree.ElementTree as ET
@@ -199,9 +200,9 @@ Helper functions
 """
 def make_translator_args():
   if settingContest is None:
-  	return [TRANSLATOR_PATH]
-	else:
-		return [TRANSLATOR_PATH,"-c", settingContest]
+    return [TRANSLATOR_PATH]
+  else:
+    return [TRANSLATOR_PATH,"-c", settingContest]
 
 def parse_team_list(s):
   elements = []
@@ -328,7 +329,7 @@ def test_team_generic(teamdata,testedset):
       return False
     testedset.add("commit:%s" % hexS)
     committmp = teamdata.getCommitToUpload(hexS)
-		args = make_translator_args()
+    args = make_translator_args()
     args.append("request")
     args.append("round1")
     args.append(teamdata.teamName)
@@ -386,7 +387,7 @@ def test_team_break(teamdata,testedset):
           shutil.make_archive(zippath, 'zip', testdirpath)
           # testedset.add(testhash)
           #push to database
-					args = make_translator_args()
+          args = make_translator_args()
           args.append("request")
           args.append("round2")
           args.append(teamdata.teamName)
@@ -484,7 +485,7 @@ def test_team_fix(teamdata, testedset):
         #report the current thing
         # nm = os.path.basename(os.path.splitext(fix)[0])
         # args = "%s Request ROUND3 %s %d %s %s %s %s" % (TRANSLATOR_PATH, teamdata.teamName, d, commithash, "0", nm, " ".join(breakids))
-				args = make_translator_args()
+        args = make_translator_args()
         args.append("request")
         args.append("ROUND3")
         args.append(teamdata.teamName)
@@ -544,18 +545,18 @@ def parseArgs():
   global settingContest
 
   parser = argparse.ArgumentParser(description='Repeatedly pull contestant repositories.')
-  parser.add_argument("c", nargs='?',default=None, help="Contest identifier")
-  parser.add_argument("r", help="Round (build | break | fix)")
+  parser.add_argument("-c", nargs='?',default=None, help="Contest identifier")
+  parser.add_argument("-r", help="Round (build | break | fix)")
   args = parser.parse_args()
 
   if args.c is None:
     sys.stderr.write("Warning: No contest identifier specified. Assuming default contest.\n")
   elif re.match(r'^[A-Za-z0-9_]+$', args.c):
     settingContest = args.c
-	else:
+  else:
     sys.stderr.write("Invalid contest identifier (must be underscore or alphanumeric): " + args.c + "\n")
     sys.exit( 1)
-		
+    
   
   r = args.r.lower()
   if r in ["build","break","fix"]:
