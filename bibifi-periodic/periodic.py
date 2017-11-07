@@ -197,6 +197,12 @@ class TeamData:
 """
 Helper functions
 """
+def make_translator_args():
+  if settingContest is None:
+  	return [TRANSLATOR_PATH]
+	else:
+		return [TRANSLATOR_PATH,"-c", settingContest]
+
 def parse_team_list(s):
   elements = []
   j = []
@@ -209,19 +215,18 @@ def parse_team_list(s):
     elements.append(TeamData(str(i['teamId']), i['gitURL']))
   return elements
 
-def get_teams_from_db():
-  args = []
-  args.append(TRANSLATOR_CWD+TRANSLATOR_PATH)
-  args.append("RETRIEVE")
-  args.append("TEAMS")
-  p = Popen(args, stdout=PIPE, stderr=PIPE, cwd=TRANSLATOR_CWD)
-  stdout, stderr = p.communicate()
-  logging.debug("requests teams from database, got %s %s" % (stdout, stderr))
-  return parse_team_list(stdout)
+# def get_teams_from_db():
+#   args = []
+#   args.append(TRANSLATOR_CWD+TRANSLATOR_PATH)
+#   args.append("RETRIEVE")
+#   args.append("TEAMS")
+#   p = Popen(args, stdout=PIPE, stderr=PIPE, cwd=TRANSLATOR_CWD)
+#   stdout, stderr = p.communicate()
+#   logging.debug("requests teams from database, got %s %s" % (stdout, stderr))
+#   return parse_team_list(stdout)
 
 def get_teams_from_db2():
-  args = []
-  args.append(TRANSLATOR_PATH)
+  args = make_translator_args()
   args.append("RETRIEVE")
   args.append("TEAMS")
   try:
@@ -323,8 +328,7 @@ def test_team_generic(teamdata,testedset):
       return False
     testedset.add("commit:%s" % hexS)
     committmp = teamdata.getCommitToUpload(hexS)
-    args = []
-    args.append(TRANSLATOR_PATH)
+		args = make_translator_args()
     args.append("request")
     args.append("round1")
     args.append(teamdata.teamName)
@@ -382,8 +386,7 @@ def test_team_break(teamdata,testedset):
           shutil.make_archive(zippath, 'zip', testdirpath)
           # testedset.add(testhash)
           #push to database
-          args = []
-          args.append(TRANSLATOR_PATH)
+					args = make_translator_args()
           args.append("request")
           args.append("round2")
           args.append(teamdata.teamName)
@@ -481,8 +484,7 @@ def test_team_fix(teamdata, testedset):
         #report the current thing
         # nm = os.path.basename(os.path.splitext(fix)[0])
         # args = "%s Request ROUND3 %s %d %s %s %s %s" % (TRANSLATOR_PATH, teamdata.teamName, d, commithash, "0", nm, " ".join(breakids))
-        args = []
-        args.append(TRANSLATOR_PATH)
+				args = make_translator_args()
         args.append("request")
         args.append("ROUND3")
         args.append(teamdata.teamName)
@@ -548,8 +550,12 @@ def parseArgs():
 
   if args.c is None:
     sys.stderr.write("Warning: No contest identifier specified. Assuming default contest.\n")
-  else:
+  elif re.match(r'^[A-Za-z0-9_]+$', args.c):
     settingContest = args.c
+	else:
+    sys.stderr.write("Invalid contest identifier (must be underscore or alphanumeric): " + args.c + "\n")
+    sys.exit( 1)
+		
   
   r = args.r.lower()
   if r in ["build","break","fix"]:
