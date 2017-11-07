@@ -231,6 +231,7 @@ def get_teams_from_db2():
   args.append("RETRIEVE")
   args.append("TEAMS")
   try:
+    # logging.info(str(args))
     p = Popen(args, stdout=PIPE, stderr=PIPE, cwd=TRANSLATOR_CWD)
   except Exception as e:
     logging.info("failed executing %s with: %s" % (str(args),str(e)))
