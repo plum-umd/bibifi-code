@@ -22,6 +22,8 @@ contestToProblemRunner :: Entity Contest -> ProblemRunner
 contestToProblemRunner contestE = helper $ contestUrl $ entityVal contestE
     where 
         helper "spring2015coursera" = ProblemRunner $ ArtGallery contestE
+        helper "test" = ProblemRunner $ ArtGallery contestE
+        helper "cmsc414fall2017" = ProblemRunner $ ArtGallery contestE
         helper "fall2015coursera" = ProblemRunner $ ATMSpec contestE
         helper "fall2015" = ProblemRunner $ ATMSpec contestE
         helper "fall2016" = ProblemRunner $ EHRSpec contestE

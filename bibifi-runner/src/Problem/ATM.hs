@@ -62,19 +62,11 @@ instance ProblemRunnerClass ATMSpec where
                 resultE <- runErrorT $ launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
                     -- Send oracle bank. 
                     putLog "Sending oracle files."
--- <<<<<<< HEAD:bibifi-runner/src/Core/Modular/ATM.hs
-                    let oracleBankFile = runnerOracleDirectory opts ++ "/bank"
+                    let oracleBankFile = runnerProblemDirectory opts ++ "/bank"
                     _ <- runSSH (OracleErr "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
 
                     -- Send oracle atm.
-                    let oracleAtmFile = runnerOracleDirectory opts ++ "/atm"
--- =======
---                     let oracleBankFile = runnerProblemDirectory opts ++ "/dist/build/bank/bank"
---                     _ <- runSSH (OracleErr "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
--- 
---                     -- Send oracle atm.
---                     let oracleAtmFile = runnerProblemDirectory opts ++ "/dist/build/atm/atm"
--- >>>>>>> da8e7b6e184073bad29969392b915bb67a9eadb5:bibifi-runner/src/Problem/ATM.hs
+                    let oracleAtmFile = runnerProblemDirectory opts ++ "/atm"
                     _ <- runSSH (OracleErr "Could not send atm oracle to instance.") $ sendFile session 0o700 oracleAtmFile oracleAtmDestFile
 
                     -- setupFirewall session
