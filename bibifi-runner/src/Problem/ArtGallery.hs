@@ -157,7 +157,7 @@ instance ProblemRunnerClass ArtGallery where
             -- Start EC2. 
             let ec2 = runnerCloudConfiguration opts
             let manager = runnerHttpManager opts
-            launchOneInstanceWithTimeout ec2 manager (4 * 60) $ \_inst session -> do
+            launchOneInstanceWithTimeout ec2 manager 60 $ \_inst session -> do
                 -- Block outgoing.
                 -- setupFirewall session
 
