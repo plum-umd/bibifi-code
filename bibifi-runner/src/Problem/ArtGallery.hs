@@ -243,7 +243,7 @@ instance ProblemRunnerClass ArtGallery where
                 maybeUploadBatchScript session user submissionId batchM
 
                 -- Run script.
-                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo bash /home/ubuntu/script.sh"
+                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo timeout 3601 bash /home/ubuntu/script.sh"
 
                 -- Parse results. 
                 timeM <- parseTestResults user session testIOs
@@ -270,7 +270,7 @@ instance ProblemRunnerClass ArtGallery where
                 maybeUploadBatchScript session user submissionId batchM
 
                 -- Run script.
-                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo bash /home/ubuntu/script.sh"
+                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo timeout 3601 bash /home/ubuntu/script.sh"
 
                 -- Parse results. 
                 timeM <- parseTestResults user session testIOs
@@ -327,7 +327,7 @@ instance ProblemRunnerClass ArtGallery where
                 maybeUploadBatchScript session user submissionId batchM
 
                 -- Run script.
-                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo bash /home/ubuntu/script.sh"
+                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo timeout 3601 bash /home/ubuntu/script.sh"
 
                 -- Parse results. 
                 timeM <- parseTestResults user session testIOs
