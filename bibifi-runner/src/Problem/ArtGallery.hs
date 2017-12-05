@@ -1174,9 +1174,9 @@ instance FromJSON BreakTest where
                 return $ BreakTestCorrectness commands batchM
             "crash" -> do
                 batchM <- o .:? "batch"
-                return $ BreakTestCorrectness commands batchM
+                -- return $ BreakTestCorrectness commands batchM
                 -- XXX: Temporary to run lowered crashes.
-                -- return $ BreakTestCrash commands batchM
+                return $ BreakTestCrash commands batchM
                 -- XXX
             "integrity" -> do
                 log <- o .: "logfile"
