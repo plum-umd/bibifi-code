@@ -1,6 +1,8 @@
 module Contest.Edit where
 
 import Control.Monad.Trans.Except (throwE, runExceptT)
+import Data.Char (isAlphaNum)
+import qualified Data.Text as Text
 
 import Import
 import Forms (utcField)
@@ -44,7 +46,7 @@ contestForm tz contestM = renderBootstrap3 BootstrapBasicForm $ FormData
         --     contestM <- runDB $ getBy $ UniqueContest url  
         --     return $ maybe (Left ("This URL is already taken" :: Text)) (const $ Right url) contestM
         --   ) textField
-        urlField = textField
+        urlField = check (\u -> if Text.all (\c -> isAlphaNum c || c == '_') u then Right u else Left ("URLs can only be made of underscores and alphanumerics." :: Text)) textField
 
 
 convertContest FormData{..} = Contest
