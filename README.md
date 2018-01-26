@@ -173,9 +173,10 @@ This process might vary depending on your problem.
 Once break-it starts, you will again need to run `periodic` and `runner` for the duration of the round. 
 
 When the round ends, you may need to manually judge some breaks. 
-TODO: Form to create a judge and autodistribute judgements.
+To make a user a judge, select your contest on the `/admin/contests` page and go to the "Add judge" page. 
+Once you have selected your judges, you need to assign judgements to your judges. 
+You can do this manually, or you can distribute the judgements evenly by going to the "View judgements" page and clicking "Distribute judgements". 
 Judges can see their assigned judgments on the `/judges` page.
-
 
 Fix-it
 ------
