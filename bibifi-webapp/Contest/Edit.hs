@@ -34,7 +34,7 @@ contestForm tz contestM = renderBootstrap3 BootstrapBasicForm $ FormData
 
     where
         nameSettings = withPlaceholder "Contest Name" $ bfs ("Contest Name" :: Text)
-        urlSettings = withPlaceholder "Contest URL" $ bfs ("Contest URL" :: Text) -- TODO: Verify placeholder is unique. XXX
+        urlSettings = withPlaceholder "Unique Contest Identifier" $ bfs ("Contest Identifier" :: Text) -- TODO: Verify placeholder is unique. XXX
         buildStartSettings = withPlaceholder "Build-it Start Date" $ bfs ("Build-it Start Date" :: Text)
         buildEndSettings = withPlaceholder "Build-it End Date" $ bfs ("Build-it End Date" :: Text)
         breakStartSettings = withPlaceholder "Break-it Start Date" $ bfs ("Break-it Start Date" :: Text)
@@ -46,7 +46,7 @@ contestForm tz contestM = renderBootstrap3 BootstrapBasicForm $ FormData
         --     contestM <- runDB $ getBy $ UniqueContest url  
         --     return $ maybe (Left ("This URL is already taken" :: Text)) (const $ Right url) contestM
         --   ) textField
-        urlField = check (\u -> if Text.all (\c -> isAlphaNum c || c == '_') u then Right u else Left ("URLs can only be made of underscores and alphanumerics." :: Text)) textField
+        urlField = check (\u -> if Text.all (\c -> isAlphaNum c || c == '_') u then Right u else Left ("Identifiers can only be made of underscores and alphanumerics." :: Text)) textField
 
 
 convertContest FormData{..} = Contest
