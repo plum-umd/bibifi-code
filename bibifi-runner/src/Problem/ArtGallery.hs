@@ -550,13 +550,78 @@ instance ProblemRunnerClass ArtGallery where
                     else
                         return $ Right ()
 
-            runBreakTest (BreakTestCrash _commands _batchM) = do
-                -- Judgement required for crashes. 
-                update' BreakJudging Nothing Nothing
+            runBreakTest (BreakTestCrash commands batchM) = do
+                -- Start EC2. 
+                let ec2 = runnerCloudConfiguration opts
+                let manager = runnerHttpManager opts
+                resultE <- runErrorT $ launchOneInstanceWithTimeout ec2 manager 60 $ \_inst session -> do
+                    -- Setup firewall. 
+                    -- breakErrorSystemT $ setupFirewall session
 
-                -- Return success and no need to rescore. 
-                return $ Just (True, False)
+                    -- Upload target.
+                    uploadTarget session
 
+                    -- Extract submission.
+                    extractSubmission session
+
+                    -- Build submission. 
+                    buildTarget session
+
+                    -- Maybe upload batch for log. 
+                    maybeUploadBatch session submissionId batchM "/home/client/batch" "client"
+
+                    -- Fold over commands.
+                    foldM (runCommands session) (Left "No commands given") commands
+
+                -- Record results
+                case (resultE :: Either BreakError (Either String ())) of
+                    Left (BreakErrorSystem err) ->
+                        systemFail err
+                    Left (BreakErrorBuildFail stdout' stderr') -> do
+                        let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
+                        let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                        runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                        userFail "Build failed"
+                    Left BreakErrorTimeout ->
+                        -- Timeout.
+                        return Nothing
+                    Left (BreakErrorRejected _) -> do
+                        update' BreakRejected Nothing $ Just msg
+                        userFail msg
+                    Right (Left _) -> do
+                        update' BreakRejected Nothing $ Just msg
+                        userFail msg
+                    Right (Right ()) -> do
+                        update' BreakTested (Just BreakCorrect) Nothing
+                        return $ Just (True, True)
+
+
+                        -- Alternative behavior:
+                        -- -- We could not automatically detect the crash so judgement is required for crashes. 
+                        -- update' BreakJudging Nothing Nothing
+
+                        -- -- Return success and no need to rescore. 
+                        -- return $ Just (True, False)
+
+                where
+                    msg = "Did not detect a crash."
+
+                    runCommands _ (Right ()) _ = return $ Right ()
+                    runCommands session (Left _) (BreakTestCommand program args _) = do
+                        -- Upload test.
+                        let encodedArgs = Text.decodeUtf8 $ B64.encode $ BSL.toStrict $ Aeson.encode args
+                        let destArgs = "/tmp/correctness_args"
+                        uploadString' session encodedArgs destArgs
+
+                        -- Run test on target.
+                        let targetProgram = FilePath.joinPath ["/home/builder", targetTeamIdS, "code/build", program]
+                        (Result _out _err exit) <- executioner session "client" targetProgram destArgs
+
+                        if exit == ExitFailure 139 then
+                            return $ Right ()
+                        else
+                            return $ Left msg
+                    
             runBreakTest (BreakTestIntegrity [BreakTestCommand program args' _] logFile (BreakTestReplacements replacement)) = do
                 resultE <- runErrorT $ do
                     -- Check that it's logread.
