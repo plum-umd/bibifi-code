@@ -617,7 +617,8 @@ instance ProblemRunnerClass ArtGallery where
                         let targetProgram = FilePath.joinPath ["/home/builder", targetTeamIdS, "code/build", program]
                         (Result _out _err exit) <- executioner session "client" targetProgram destArgs
 
-                        if exit == ExitFailure 139 then
+                        -- if exit == ExitFailure 139 then
+                        if exit == ExitFailure 245 then
                             return $ Right ()
                         else
                             return $ Left msg
