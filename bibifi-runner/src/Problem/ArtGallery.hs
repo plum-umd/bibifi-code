@@ -998,7 +998,7 @@ instance ProblemRunnerClass ArtGallery where
             --             return $ Left $ constr err
 
             loadBreak :: (MonadIO m) => RunnerOptions -> Entity BreakSubmission -> ErrorT FixError m (Entity BreakSubmission, BreakTest)
-            loadBreak opts bsE@(Entity bsId bs) = do
+            loadBreak opts bsE@(Entity _bsId bs) = do
                 -- let breakIdS = show $ keyToInt $ bsId
                 let breakNameS = Text.unpack $ breakSubmissionName bs
                 -- let targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam bs
