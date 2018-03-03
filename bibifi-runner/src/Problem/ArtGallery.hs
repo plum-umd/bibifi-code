@@ -999,11 +999,14 @@ instance ProblemRunnerClass ArtGallery where
 
             loadBreak :: (MonadIO m) => RunnerOptions -> Entity BreakSubmission -> ErrorT FixError m (Entity BreakSubmission, BreakTest)
             loadBreak opts bsE@(Entity bsId bs) = do
-                let breakIdS = show $ keyToInt $ bsId
+                -- let breakIdS = show $ keyToInt $ bsId
                 let breakNameS = Text.unpack $ breakSubmissionName bs
-                let targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam bs
-                -- ~/backend/round3/<targetteam>/<breakid>_<breakname>.json
-                let breakFilePath = FilePath.addExtension (FilePath.joinPath [runnerRepositoryPath opts, "round3", targetTeamIdS, breakIdS <> "_" <> breakNameS]) "json"
+                -- let targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam bs
+                let submittingTeamIdS = show $ keyToInt $ breakSubmissionTeam bs
+                -- -- ~/backend/round3/<targetteam>/<breakid>_<breakname>.json
+                -- let breakFilePath = FilePath.addExtension (FilePath.joinPath [runnerRepositoryPath opts, "round3", targetTeamIdS, breakIdS <> "_" <> breakNameS]) "json"
+                -- ~/backend/round3/<submittingteam>/<breakname>/test.json
+                let breakFilePath = FilePath.addExtension (FilePath.joinPath [runnerRepositoryPath opts, "round3", submittingTeamIdS, breakNameS, "test"]) "json"
                 -- Load input json. 
                 breakJSONE <- safeReadFileLazy breakFilePath
                 case breakJSONE of
