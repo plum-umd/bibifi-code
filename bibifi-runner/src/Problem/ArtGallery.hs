@@ -956,21 +956,21 @@ instance ProblemRunnerClass ArtGallery where
                 return $ Just (False, False)
             Left (FixErrorRejected msg) -> do
                 -- User error so reject fix. 
-                updateFix FixRejected ( Just msg) Nothing Nothing
+                updateFix FixRejected Nothing ( Just msg) Nothing Nothing
                 putLog msg
                 return $ Just (True, False)
             Left (FixErrorBuildFail stdout' stderr') -> do
                 -- Building fix submission failed.
                 let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
                 let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
-                updateFix FixRejected (Just "Building submission failed") stdout stderr
+                updateFix FixRejected Nothing (Just "Building submission failed") stdout stderr
                 return $ Just (True, False)
             Left FixErrorTimeout ->
                 -- Timeout.
                 return Nothing
             Right () -> do
                 -- All tests passed so mark for judgement. 
-                updateFix FixJudging Nothing Nothing Nothing
+                updateFix FixJudging Nothing Nothing Nothing Nothing
                 return $ Just (True, True)
 
         where
@@ -979,8 +979,8 @@ instance ProblemRunnerClass ArtGallery where
 
             oracleBasePath = runnerProblemDirectory opts
 
-            updateFix status msg stdout stderr = 
-                runDB $ update fixId [FixSubmissionStatus =. status, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
+            updateFix status result msg stdout stderr = 
+                runDB $ update fixId [FixSubmissionStatus =. status, FixSubmissionResult =. result, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
 
 
             -- fixErrorSystemT :: Monad m => ErrorT String m b -> ErrorT FixError m b
