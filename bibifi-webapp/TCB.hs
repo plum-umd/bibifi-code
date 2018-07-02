@@ -17,13 +17,15 @@ raiseUserLabel = maybeAuth >> return ()
 
 raiseUserLabel' :: Entity User -> LHandler ()
 raiseUserLabel' (Entity userId user) = 
-    let label' = dcSingleton $ PrincipalUser userId in
-    let label = if userAdmin user then
-            lub label' $ dcSingleton PrincipalAdmin
+    ()
+    let label' = dcIntegritySingleton $ PrincipalUser userId
+    let clearance' = dcConfidentialitySingleton $ PrincipalUser userId
+    let (label'', clearance'') = if userAdmin user then
+            (label' `glb` dcIntegritySingleton PrincipalAdmin, clearance' `lub` dcConfidentialitySingleton PrincipalAdmin)
           else
-            label'
-    in
-    raiseClearanceTCB label
+            (label', clearance')
+    raiseClearanceTCB clearance''
+    lowerLabelTCB label''
 
 maybeAuth :: LHandler (Maybe (Entity User))
 maybeAuth = do
@@ -79,3 +81,12 @@ raiseJudgeLabel =
         mapM_ (\(E.Value jId) -> raiseClearanceTCB $ dcSingleton $ PrincipalJudge jId) res
       )
 
+sendEmailToTeam tId email = do
+    protectedEmails <- runDB [lsql| pselect User.email from User inner join TeamMember on TeamMember.user == User.id where TeamMember.team == #{tId} |]
+    mapM_ (\protectedEmail -> do
+        address <- declassifyTCB protectedEmail
+        sendEmail address email
+      ) protectedEmails
+
+
+    
