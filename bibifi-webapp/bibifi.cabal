@@ -153,7 +153,7 @@ library
                 TypeSynonymInstances
                 FlexibleInstances
 
-    build-depends: base                          >= 4          && < 5
+    build-depends: base                          >= 4
 --                 , yesod-platform              
                  , yesod                         
                  , yesod-core                    
