@@ -82,7 +82,8 @@ postTeamLeaveR tId = runLHandler $ Team.layout Team.Leave tId $ \uId team -> do
                     redirect $ TeamInformationR tId
               ) cs
 
-        emailTeam tId team uId = do
+        -- emailTeam tId team uId = do
+        -- TODO use sendEmailToTeam XXX
             -- Get username.
             username <- do
                 userM <- handlerToWidget $ runDB $ get uId
