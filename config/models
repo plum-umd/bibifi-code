@@ -5,8 +5,8 @@ User json
     UniqueUser ident
     password Text
     salt Text
-    email Text
-    -- email Text <Const Admin || Id, Id, _>
+    -- email Text
+    email Text <Const Admin /\ Id, Id>
     UniqueEmail email
     created UTCTime default=now() AT TIME ZONE ‘UTC’
     admin Bool default=false
@@ -24,35 +24,35 @@ CourseraUser json
 
 UserInformation json
     user UserId
-    school Text Maybe <Const Admin || Field user, Field user, _>
-    major Text Maybe <Const Admin || Field user, Field user, _>
-    minor Text Maybe <Const Admin || Field user, Field user, _>
-    degreesHeld Text Maybe <Const Admin || Field user, Field user, _>
-    degree Text <Const Admin || Field user, Field user, _>
-    yearsInProgram Int Maybe <Const Admin || Field user, Field user, _>
-    yearsOfExperience Int Maybe <Const Admin || Field user, Field user, _>
-    languages Text Maybe <Const Admin || Field user, Field user, _>
-    favoriteLanguages Text Maybe <Const Admin || Field user, Field user, _>
-    yearsOfWork Int Maybe <Const Admin || Field user, Field user, _>
-    experienceClass Bool Maybe <Const Admin || Field user, Field user, _>
-    experiencePersonal Bool Maybe <Const Admin || Field user, Field user, _>
-    experienceInternship Bool Maybe <Const Admin || Field user, Field user, _>
-    experienceJob Bool Maybe <Const Admin || Field user, Field user, _>
-    securityTraining Bool Maybe <Const Admin || Field user, Field user, _>
-    securityExperience Bool Maybe <Const Admin || Field user, Field user, _>
-    softwareEngineering Bool Maybe <Const Admin || Field user, Field user, _>
-    securityClass Bool Maybe <Const Admin || Field user, Field user, _>
-    previousContest Bool Maybe <Const Admin || Field user, Field user, _>
-    resumePermission Bool default=false <Const Admin || Field user, Field user, _>
-    age Int Maybe default=0 <Const Admin || Field user, Field user, _>
-    nationality Text Maybe default='' <Const Admin || Field user, Field user, _>
-    gender Text Maybe default='' <Const Admin || Field user, Field user, _>
-    agreeToParticipate Bool default=true <Const Admin || Field user, Field user, _>
-    graduationYear Int Maybe default=-1 <Const Admin || Field user, Field user, _>
-    programmerRating Int Maybe default=-1 <Const Admin || Field user, Field user, _>
-    attackerRating Int Maybe default=-1 <Const Admin || Field user, Field user, _>
-    language Text Maybe <Const Admin || Field user, Field user, _>
-    timezone Text Maybe <Const Admin || Field user, Field user, _>
+    school Text Maybe <Const Admin /\ Field user, Field user>
+    major Text Maybe <Const Admin /\ Field user, Field user>
+    minor Text Maybe <Const Admin /\ Field user, Field user>
+    degreesHeld Text Maybe <Const Admin /\ Field user, Field user>
+    degree Text <Const Admin /\ Field user, Field user>
+    yearsInProgram Int Maybe <Const Admin /\ Field user, Field user>
+    yearsOfExperience Int Maybe <Const Admin /\ Field user, Field user>
+    languages Text Maybe <Const Admin /\ Field user, Field user>
+    favoriteLanguages Text Maybe <Const Admin /\ Field user, Field user>
+    yearsOfWork Int Maybe <Const Admin /\ Field user, Field user>
+    experienceClass Bool Maybe <Const Admin /\ Field user, Field user>
+    experiencePersonal Bool Maybe <Const Admin /\ Field user, Field user>
+    experienceInternship Bool Maybe <Const Admin /\ Field user, Field user>
+    experienceJob Bool Maybe <Const Admin /\ Field user, Field user>
+    securityTraining Bool Maybe <Const Admin /\ Field user, Field user>
+    securityExperience Bool Maybe <Const Admin /\ Field user, Field user>
+    softwareEngineering Bool Maybe <Const Admin /\ Field user, Field user>
+    securityClass Bool Maybe <Const Admin /\ Field user, Field user>
+    previousContest Bool Maybe <Const Admin /\ Field user, Field user>
+    resumePermission Bool default=false <Const Admin /\ Field user, Field user>
+    age Int Maybe default=0 <Const Admin /\ Field user, Field user>
+    nationality Text Maybe default='' <Const Admin /\ Field user, Field user>
+    gender Text Maybe default='' <Const Admin /\ Field user, Field user>
+    agreeToParticipate Bool default=true <Const Admin /\ Field user, Field user>
+    graduationYear Int Maybe default=-1 <Const Admin /\ Field user, Field user>
+    programmerRating Int Maybe default=-1 <Const Admin /\ Field user, Field user>
+    attackerRating Int Maybe default=-1 <Const Admin /\ Field user, Field user>
+    language Text Maybe <Const Admin /\ Field user, Field user>
+    timezone Text Maybe <Const Admin /\ Field user, Field user>
     UniqueUserInformation user
     deriving Eq Ord
     
@@ -80,13 +80,13 @@ CourseraContest json        -- Absence of this row means a contest isn't a cours
     sessionId Int -- Session id
 
 Post json
-    title Text <_, Const Admin, Const Admin>
+    title Text <_, Const Admin>
     contest ContestId
     timestamp UTCTime default=now() AT TIME ZONE ‘UTC’
     draft Bool
 --    author UserId
-    content Html <_, Const Admin, Const Admin>
-    markdown Text <_, Const Admin, Const Admin>
+    content Html <_, Const Admin>
+    markdown Text <_, Const Admin>
 
 PostDependency json
     contest ContestId
@@ -107,22 +107,22 @@ JudgeConflict json
 BuildJudgement json
     judge JudgeId
     submission BuildSubmissionId
-    ruling Bool Maybe <_, Field judge || Const Admin, Const Admin> -- True means pass/accepted
-    comments Text Maybe <_, Field judge || Const Admin, Const Admin>
+    ruling Bool Maybe <_, Field judge \/ Const Admin> -- True means pass/accepted
+    comments Text Maybe <_, Field judge \/ Const Admin>
     UniqueBuildJudgement submission
 
 BreakJudgement json
     judge JudgeId
     submission BreakSubmissionId
-    ruling Bool Maybe <_, Field judge || Const Admin, Const Admin>
-    comments Text Maybe <_, Field judge || Const Admin, Const Admin>
+    ruling Bool Maybe <_, Field judge \/ Const Admin>
+    comments Text Maybe <_, Field judge \/ Const Admin>
     UniqueBreakJudgement submission
 
 FixJudgement json
     judge JudgeId
     submission FixSubmissionId
-    ruling Bool Maybe <_, Field judge || Const Admin, Const Admin>
-    comments Text Maybe <_, Field judge || Const Admin, Const Admin>
+    ruling Bool Maybe <_, Field judge \/ Const Admin>
+    comments Text Maybe <_, Field judge \/ Const Admin>
     UniqueFixJudgement submission
 
 BreakDispute json
@@ -133,7 +133,7 @@ BreakDispute json
 Team json
     name Text
     leader UserId
-    -- leader UserId < Const Admin || Id, Const Admin || Id, _>
+    -- leader UserId < Const Admin /\ Id, Const Admin \/ Id>
     UniqueTeam name
     deriving Eq Ord
 
@@ -142,8 +142,8 @@ TeamContest json
     contest ContestId
     gitUrl Text default=''
     languages Text default=''
-    -- gitUrl Text default='' <Const Admin || Id, Id, _>
-    -- languages Text default='' <Const Admin || Id, Id, _>
+    -- gitUrl Text default='' <Const Admin /\ Id, Id>
+    -- languages Text default='' <Const Admin /\ Id, Id>
     UniqueTeamContest team contest
     professional Bool default=false
  --     permutationMap PermutationMapId
@@ -163,7 +163,7 @@ TeamInvite json
 
 PasswordResetInvite json
     account UserId
-    invite Text <_, _, Const Admin>
+    invite Text <_, Const Admin>
     -- invite Text <_, Const Admin, Const Admin>
     expiration UTCTime
     UniquePasswordResetInvite invite
@@ -231,10 +231,10 @@ BuildSubmission json
     stderr Textarea Maybe default=null
 
 BreakOracleSubmission json
-    team TeamContestId <_, Const Admin, Const Admin>
-    timestamp UTCTime <_, Const Admin, Const Admin>
-    description Text <_, Const Admin, Const Admin>
-    valid Bool <_, Const Admin, Const Admin>
+    team TeamContestId <_, Const Admin>
+    timestamp UTCTime <_, Const Admin>
+    description Text <_, Const Admin>
+    valid Bool <_, Const Admin>
 
 BreakSubmission json
     team TeamContestId
@@ -340,8 +340,8 @@ BuildOptionalResult json
  --     
 
 Configuration json
-    key Text <_, Const Admin, Const Admin>
-    value Text <_, Const Admin, Const Admin>
+    key Text <_, Const Admin>
+    value Text <_, Const Admin>
     UniqueKey key
 
 CacheExpiration json
