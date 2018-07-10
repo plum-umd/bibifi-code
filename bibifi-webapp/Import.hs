@@ -71,4 +71,4 @@ runMultipleFormsPost ((FormAndHandler form handler):t) = do
         _ ->
             handler res widget enctype
 
-runLMonad = runLMonadWith public
+runLMonad = runLMonadWith dcPublic dcPublic

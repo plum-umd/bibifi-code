@@ -1,11 +1,12 @@
-module TCB (raiseUserLabel, maybeAuth, maybeAuthId, requireAuth, requireAuthId, raiseTeamLabel, raiseJudgeLabel, raiseGroupLabel) where
+module TCB (raiseUserLabel, maybeAuth, maybeAuthId, requireAuth, requireAuthId, raiseTeamLabel, raiseJudgeLabel, raiseGroupLabel, sendEmailToTeam) where
 
 import qualified Database.Esqueleto as E
 import Database.LPersist
 import LMonad.Label.DisjunctionCategory
 import LMonad.TCB
+import Network.Mail.Mime (Mail(..), renderSendMail, Address(..))
 import Prelude
-import Yesod (Entity(..))
+import Yesod (Entity(..), liftIO)
 import qualified Yesod.Auth as Yesod
 
 import Foundation
@@ -80,12 +81,13 @@ raiseJudgeLabel =
         mapM_ (\(E.Value jId) -> raiseClearanceTCB $ dcSingleton $ PrincipalJudge jId) res
       )
 
-sendEmailToTeam tId email = do
+sendEmailToTeam :: Entity Team -> Mail -> LHandler ()
+sendEmailToTeam (Entity tId team) email = do
     protectedEmails <- runDB [lsql| pselect User.email from User inner join TeamMember on TeamMember.user == User.id where TeamMember.team == #{tId} |]
+    leaderM <- runDB $ pGet $ teamLeader team
+    let emails = (maybe id (\u es -> pUserEmail u : es) leaderM) protectedEmails
     mapM_ (\protectedEmail -> do
         address <- declassifyTCB protectedEmail
-        sendEmail address email
-      ) protectedEmails
-
-
+        lLift $ liftIO $ renderSendMail (email {mailTo = [Address Nothing address]})
+      ) emails
     

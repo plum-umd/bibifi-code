@@ -82,23 +82,14 @@ postTeamLeaveR tId = runLHandler $ Team.layout Team.Leave tId $ \uId team -> do
                     redirect $ TeamInformationR tId
               ) cs
 
-        -- emailTeam tId team uId = do
+        emailTeam tId team uId = do
         -- TODO use sendEmailToTeam XXX
             -- Get username.
             username <- do
                 userM <- handlerToWidget $ runDB $ get uId
                 return $ maybe "UNKNOWN" userIdent userM
 
-            -- Get their email addresses.
-            to <- handlerToWidget $ do
-                members <- runDB [lsql| select User.email from User inner join TeamMember on TeamMember.user == User.id where TeamMember.team == #{tId} |]
-                leaderM <- runDB $ get $ teamLeader team
-                let emails = case leaderM of
-                      Nothing ->
-                        members
-                      Just leader ->
-                        (userEmail leader):members
-                return $ map (Address Nothing) emails
+            -- Compose emails.
             let head = [("Subject", "A team member has left your team")]
             let text = Data.Text.Lazy.Encoding.encodeUtf8 [stext|
 Hi team #{teamName team},
@@ -133,8 +124,9 @@ BIBIFI organizers
                 partContent = html,
                 partHeaders = []
             }
-            lLift $ liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")
-                {mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]]}
+            let email = (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")
+                  {mailHeaders = head, mailParts = [[textPart, htmlPart]]}
+            handlerToWidget $ sendEmailToTeam (Entity tId team) email
 
 
 
