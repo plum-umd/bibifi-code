@@ -16,8 +16,7 @@ raiseUserLabel :: LHandler ()
 raiseUserLabel = maybeAuth >> return ()
 
 raiseUserLabel' :: Entity User -> LHandler ()
-raiseUserLabel' (Entity userId user) = 
-    ()
+raiseUserLabel' (Entity userId user) = do
     let label' = dcIntegritySingleton $ PrincipalUser userId
     let clearance' = dcConfidentialitySingleton $ PrincipalUser userId
     let (label'', clearance'') = if userAdmin user then

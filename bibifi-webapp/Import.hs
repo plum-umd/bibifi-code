@@ -25,7 +25,7 @@ import           Config               as Import
 import           Contest              as Import
 import           Common               as Import
 
-import           LMonad               as Import
+import           LMonad               as Import hiding (runLMonad)
 import           LMonad.Label.DisjunctionCategory as Import
 import           LMonad.Yesod         as Import
 import           TCB                  as Import
@@ -70,3 +70,5 @@ runMultipleFormsPost ((FormAndHandler form handler):t) = do
             runMultipleFormsPost t
         _ ->
             handler res widget enctype
+
+runLMonad = runLMonadWith public

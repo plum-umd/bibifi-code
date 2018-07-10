@@ -129,9 +129,9 @@ library
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
-        ghc-options:   -Wall -O0 -fno-warn-name-shadowing
+        ghc-options:   -Wall -O0 -fno-warn-name-shadowing -Wno-missing-signatures
     else
-        ghc-options:   -Wall -O2 -fno-warn-name-shadowing
+        ghc-options:   -Wall -O2 -fno-warn-name-shadowing -Wno-missing-signatures
 
     extensions: TemplateHaskell
                 QuasiQuotes
@@ -152,6 +152,8 @@ library
                 ViewPatterns
                 TypeSynonymInstances
                 FlexibleInstances
+                NoDisambiguateRecordFields
+-- https://ghc.haskell.org/trac/ghc/ticket/12130#comment:9
 
     build-depends: base                          >= 4
 --                 , yesod-platform              

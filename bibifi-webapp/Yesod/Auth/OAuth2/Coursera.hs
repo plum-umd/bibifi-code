@@ -72,7 +72,7 @@ oauth2Coursera clientId clientSecret scopes = do
 oauth2CourseraEnrollments :: Manager -> Text -> IO (OAuth2Result Enrollments)
 oauth2CourseraEnrollments manager token = do
     -- TODO: Do we need to add a refresh???
-    authGetJSON' manager (AccessToken (Text.encodeUtf8 token) Nothing Nothing Nothing) "https://api.coursera.org/api/users/v1/me/enrollments"
+    authGetJSON' manager (AccessToken (Text.encodeUtf8 token) Nothing Nothing Nothing Nothing) "https://api.coursera.org/api/users/v1/me/enrollments"
 
 data Enrollment = Enrollment {
 --        enrollmentId :: Int

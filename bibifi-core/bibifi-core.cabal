@@ -59,6 +59,8 @@ library
                      , Model
                      , PostDependencyType
                      , Score
+  other-modules:     
+                       Model.Internal
   
   -- Modules included in this library but not exported.
   -- other-modules:       

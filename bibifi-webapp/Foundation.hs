@@ -11,7 +11,8 @@ import Yesod as Y hiding (widgetToPageContent, whamlet)
 import qualified Yesod
 import Yesod.Static
 import Yesod.Auth
-import Yesod.Auth.HashDB (authHashDB, getAuthIdHashDB, validateUser)
+import Yesod.Auth.HashDB (authHashDB, validateUser)
+import qualified Yesod.Auth.Message as Msg
 --import Yesod.Auth.Email
 --import Yesod.Auth.BrowserId
 --import Yesod.Auth.GoogleEmail
@@ -742,6 +743,27 @@ instance YesodAuth App where
                     #{msg}
         |]
         redirect dest
+
+getAuthIdHashDB :: (AuthRoute -> Route App)     -- ^ your site's Auth Route
+                -> (Text -> Maybe (Unique User)) -- ^ gets user ID
+                -> Creds App                    -- ^ the creds argument
+                -> HandlerT App IO (Maybe (AuthId App))
+getAuthIdHashDB authR uniq creds = do
+    muid <- maybeAuthId
+    case muid of
+        -- user already authenticated
+        Just uid -> return $ Just uid
+        Nothing       -> do
+            x <- case uniq (credsIdent creds) of
+                   Nothing -> return Nothing
+                   Just u  -> Yesod.runDB (Database.Persist.getBy u)
+            case x of
+                -- user exists
+                Just (Entity uid _) -> return $ Just uid
+                Nothing       -> do
+                    mr <- getMessageRender
+                    _ <- loginErrorMessage (authR LoginR) (mr Msg.InvalidUsernamePass)
+                    return Nothing
         
 instance YesodAuthPersist App 
 
