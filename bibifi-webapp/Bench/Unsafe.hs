@@ -6,6 +6,7 @@ import Database.Persist (deleteWhere, insertKey)
 import Database.Persist.Sql
 import qualified Data.Text as T
 import qualified Yesod as Y
+import qualified Yesod.Auth as Y
 
 getBenchInsertR :: Int -> Handler Html
 getBenchInsertR c = do
@@ -27,6 +28,9 @@ getBenchInsertR c = do
 
 getBenchUnsafeR :: Handler Html
 getBenchUnsafeR = do
+    (Entity uId user) <- Y.requireAuth
+    when (not $ userAdmin user) $ permissionDenied ""
+
     res <- Y.runDB $ select $ from $ \u -> do
         return (u ^. UserIdent, u ^. UserEmail)
     rs <- mapM displayUser res
