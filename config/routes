@@ -4,6 +4,10 @@
 /favicon.ico FaviconR GET
 /robots.txt RobotsR GET
 
+/bench/users/insert/#Int BenchInsertR GET
+/bench/users/unsafe BenchUnsafeR GET
+/bench/users/safe BenchSafeR GET
+
 / SplashR GET
 /announcements AnnouncementsR GET
 /contest/#Text/announcements SpecificAnnouncementsR GET

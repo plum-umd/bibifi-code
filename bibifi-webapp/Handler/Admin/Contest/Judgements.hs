@@ -200,6 +200,7 @@ getUnassignedBreaks = [lsql|
         where BreakJudgement.id is null
     |]
 
+-- getUnassignedFixes :: 
 getUnassignedFixes = [lsql|
         select FixSubmission.id from FixSubmission
         left outer join FixJudgement on FixSubmission.id == FixJudgement.submission

@@ -1,7 +1,7 @@
 Default: &defaults
   user: mc2contest
-  password: PASSWORD
-  host: HOST.COM
+  password: mc2contest
+  host: localhost
   port: 5432
   database: mc2contest
   poolsize: 10
@@ -19,9 +19,6 @@ Staging:
   <<: *defaults
 
 Production: &production
-  user: bibifi
-  password: PASSWORD
-  database: bibifi
   poolsize: 100
   <<: *defaults
 

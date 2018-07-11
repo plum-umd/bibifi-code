@@ -57,7 +57,7 @@ inviteTeam teamId members =
             inviteTeam teamId t
 
 -- (Label l, m ~ HandlerT site IO) => ReaderT (YesodPersistBackend site) (LMonadT l m) a
-getTeamContest :: (MonadIO m) => UserId -> ContestId -> ReaderT SqlBackend m [Key TeamContest]
+getTeamContest :: (LMonad m, MonadIO m) => UserId -> ContestId -> ReaderT SqlBackend (LMonadT (DCLabel Principal) m) [Key TeamContest]
 getTeamContest uId cId =
     --do {res_0 <- E.select (E.from (\(E.LeftOuterJoin (E.InnerJoin _team _teamcontest) _teammember) -> do {E.on (E.just (_team E.^. TeamId) E.==. _teammember E.?. TeamMemberTeam);
     --        E.on (_team E.^. TeamId E.==. _teamcontest E.^. TeamContestTeam);

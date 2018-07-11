@@ -30,6 +30,9 @@ import Yesod.Core.Types (loggerSet, Logger (Logger))
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
+import Bench.Safe
+import Bench.Unsafe
+
 import Handler.Admin
 import Handler.Admin.Contests
 import Handler.Admin.Contest

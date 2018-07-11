@@ -4,7 +4,7 @@ import Database.LPersist as LP
 import Database.Persist.Sql (SqlBackend)
 import Data.Text (Text)
 import qualified Database.Persist
-import LMonad
+import LMonad hiding (runLMonad)
 import LMonad.Label.DisjunctionCategory
 import LMonad.Yesod
 import Model
@@ -77,7 +77,7 @@ instance YesodLPersist App where
     runDB = lDefaultRunDB persistConfig connPool
 
 runLHandler :: LHandler a -> Handler a
-runLHandler = runLMonad
+runLHandler = runLMonadWith dcPublic dcPublic
 
 -- How to run database actions.
 instance Yesod.YesodPersist App where

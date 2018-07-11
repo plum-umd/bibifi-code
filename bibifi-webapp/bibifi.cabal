@@ -45,6 +45,8 @@ library
                      User
                      Widgets
                      Winners
+                     Bench.Safe
+                     Bench.Unsafe
                      Handler.Admin
                      Handler.Admin.Announcements
                      Handler.Admin.AddAnnouncement

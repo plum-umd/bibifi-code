@@ -14,7 +14,7 @@ getProfileTeamsR :: Handler Html
 getProfileTeamsR = runLHandler $ Profile.layout Profile.Teams $ \uId -> do
     handlerToWidget $ raiseGroupLabel
     -- select * from team left outer join team_member on team.id = team_member.team where team.leader = uId OR team_member.user = uId;
-    teams <- handlerToWidget $ runDB [lsql| select Team.* from Team left outer join TeamMember on Team.id == TeamMember.Team where Team.leader == #{uId} or TeamMember.user == #{Just uId} |]
+    teams <- handlerToWidget $ runDB [lsql| select Team.* from Team left outer join TeamMember on Team.id == TeamMember.team where Team.leader == #{uId} or TeamMember.user == #{Just uId} |]
     -- $ E.selectDistinct $ E.from $ \(t `E.LeftOuterJoin` tm) -> do
     --     E.on (t E.^. TeamId E.==. tm E.^. TeamMemberTeam)
     --     E.where_ ( t E.^. TeamLeader E.==. E.val uId E.||. tm E.^. TeamMemberUser E.==. E.val uId)

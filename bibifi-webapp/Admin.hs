@@ -40,7 +40,6 @@ layout page content =
           Announcements -> "Announcements"
     in do
     raiseUserLabel
-    taintLabel $ dcSingleton PrincipalAdmin
     defaultLayout $ do
         content' <- extractWidget content
         [whamlet|
