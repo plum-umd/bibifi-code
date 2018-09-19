@@ -15,5 +15,6 @@ Staging:
   <<: *defaults
 
 Production:
-  approot: "https://builditbreakit.org"
+  port: 4000
+  approot: "http://127.0.0.1:4000"
   <<: *defaults
