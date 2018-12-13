@@ -1,7 +1,7 @@
 Overview
 ========
 
-This is the codebase for Build-it Break-it Fix-it (BIBIFI). 
+This is the codebase for [Build-it Break-it Fix-it (BIBIFI)](http://builditbreakit.org/). 
 We have run the contest on RHEL and Ubuntu systems. 
 VMs can be provisioned via Docker Swarm or AWS EC2. 
 
