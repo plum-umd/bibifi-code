@@ -167,7 +167,7 @@ class TeamData:
     if self.canTestRepo():
       b = "%s/%s" % (ARCHIVE_BASE, self.teamName)
       try:
-        os.mkdir(b)
+        os.makedirs(b)
       except:
         pass
       p = "%s/%s.tar.gz" % (b, s)
@@ -184,7 +184,7 @@ class TeamData:
     if self.canTestRepo():
       b = "%s/%s" % (ARCHIVE_BASE, self.teamName)
       try:
-        os.mkdir(b)
+        os.makedirs(b)
       except:
         pass
       p = "%s/%s.tar.gz" % (b, s)
@@ -380,7 +380,7 @@ def test_team_break(teamdata,testedset):
           # Zip up test.
           zipdir = "%s%s" % (BREAKS_BASE, teamdata.teamName)
           try:
-            os.mkdir( zipdir)
+            os.makedirs( zipdir)
           except:
             pass
           zippath = "%s/%s" % (zipdir, testname)
@@ -473,12 +473,12 @@ def test_team_fix(teamdata, testedset):
         commithash,breakids = n
         #do an archive at the point of the fix
         if not os.path.isdir(ARCHIVE_BASE+"/"+teamdata.teamName):
-          os.mkdir(ARCHIVE_BASE+"/"+teamdata.teamName)
+          os.makedirs(ARCHIVE_BASE+"/"+teamdata.teamName)
         pth = "%s/%s/%s.tar.gz" % (ARCHIVE_BASE,teamdata.teamName,commithash)
         f = file(pth, 'w')
         try:
           teamdata.repo.archive(f, treeish=commithash)
-        except git.GitCommandError:
+        except (git.GitCommandError, TypeError):
           print "someone gave us a nonexistant treeish"
           return False
         f.close()

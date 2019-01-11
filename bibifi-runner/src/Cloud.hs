@@ -33,7 +33,7 @@ productionCloudYML = "/fs/mc2-application/config/cloud.yml"
 
 loadCloudConfiguration :: String -> IO CloudConfiguration
 loadCloudConfiguration configFile = do
-    -- Read 'config/aws.yml'
+    -- Read 'config/cloud.yml'
     yamlE <- decodeFileEither configFile
     case yamlE of
         Left err -> 

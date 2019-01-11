@@ -10,4 +10,4 @@ A team can only run one test at a time.
 `runner` will also run the scorer when necessary. 
 The contest url is the unique url identifier for the contest. 
 Database settings are loaded from `/fs/mc2-application/config/postgresql.yml`. 
-AWS settings are laoded from `/fs/mc2-application/config/aws.yml`.
+Cloud settings are loaded from `/fs/mc2-application/config/cloud.yml`.
