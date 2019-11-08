@@ -116,6 +116,7 @@ import Handler.Admin.Contests
 import Handler.Admin.Contest
 import Handler.Admin.Contest.MakeDefault
 import Handler.Todo
+import Handler.Webhook.Gitlab.Push
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the

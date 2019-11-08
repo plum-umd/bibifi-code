@@ -122,6 +122,7 @@ library
                      Handler.Support
                      Handler.Feedback
                      Handler.Todo
+                     Handler.Webhook.Gitlab.Push
                      Network.Wai.Middleware.ForceDomain
                      Test
                      Forms.Survey
@@ -221,6 +222,7 @@ library
                  , bibifi-core
 
                  , http-types
+                 , aeson
 
 executable         bibifi
     if flag(library-only)

@@ -130,3 +130,5 @@
 /judges/#Text/buildit/#BuildJudgementId JudgesBuildItR GET POST
 /judges/#Text/breakit/#BreakJudgementId JudgesBreakItR GET POST
 /judges/#Text/fixit/#FixJudgementId JudgesFixItR GET POST
+
+/webhook/gitlab/push WebhookGitlabPushR POST
