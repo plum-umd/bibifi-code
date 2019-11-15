@@ -24,6 +24,7 @@ form team =
         <*> areq gitField gitSettings (Just url) -- TODO: change type to some sort of git url parsing?? urlField??
         <*> areq programmingLanguageField languageSettings (Just language) -- TODO: change to special language field?
         <*> pure professional
+        <*> pure (teamContestGithookNonce team)
 
     where
         gitField = check (\t -> 

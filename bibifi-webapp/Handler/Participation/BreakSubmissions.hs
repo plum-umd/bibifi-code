@@ -151,7 +151,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                                         #{justification}
                     |]
                 Nothing -> 
-                    if not development && (not victim || now < contestFixStart contest || now > contestFixEnd contest) then
+                    if not development && (not victim || now > contestBreakEnd contest) then
                       return mempty
                     else
                       -- Check if team leader.
@@ -377,7 +377,7 @@ postParticipationBreakSubmissionDisputeR tcId bsId = runLHandler $ do
                             [(E.Value leader, (Entity _ contest))] | leader == userId -> do
                                 -- Check that it's fix round.
                                 now <- getCurrentTime
-                                if not development && ( now < contestFixStart contest || now > contestFixEnd contest) then
+                                if not development && now > contestBreakEnd contest then
                                     failureHandler
                                 else
                                     -- Check the break is accepted.

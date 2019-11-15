@@ -9,18 +9,14 @@ import Import as I
 import Data.Maybe (fromMaybe)
 import Data.Aeson as J
 
-postWebhookGitlabPushR :: Handler ()
+postWebhookGitlabPushR :: TeamContestId -> Text -> Handler ()
 -- Handles Gitlab's call when there is a push.
 -- Right now, there's no way to authenticate that the call is from Gitlab.
 -- We only treat the call as a ping, and check back with Gitlab to retrieve information
 -- regarding the commit hash the call claims about.
-postWebhookGitlabPushR = runLHandler $ do
-    PushMsg _ _ tName cmts <- requireJsonBody :: LHandler PushMsg
-    Entity cId c  <- withErr "No default contest" defaultContest
-    Entity tcId _ <- runDB $ do
-        let no tag = "No " ++ tag ++ " for "  ++ show tName
-        Entity tId _ <- withErr (no "team") $ getBy (UniqueTeam tName)
-        withErr (no "team contest") $ getBy (UniqueTeamContest tId cId)
+postWebhookGitlabPushR tcId _ = runLHandler $ do
+    PushMsg _ _ _ cmts <- requireJsonBody :: LHandler PushMsg
+    Entity _ c  <- withErr "No default contest" defaultContest
     mapM_ (insertSubmission c tcId) cmts
   where
     withErr msg = (return . fromMaybe (error msg) =<<)
@@ -30,20 +26,19 @@ insertSubmission :: Contest -> TeamContestId -> Commit -> LHandler ()
 insertSubmission c tcId cmt = do
     t <- getCommitTimestamp
     case c of
-        Contest _ _ bld0 bld1 brk0 brk1 fix0 fix1
+        Contest _ _ bld0 bld1 brk0 brk1
             | t `between` (bld0, bld1) -> insertBuild t
-            | t `between` (brk0, brk1) -> insertBreak t
-            | t `between` (fix0, fix1) -> insertFix   t
+            | t `between` (brk0, brk1) -> undefined
             | otherwise                -> reject
   where
     h = commitHash cmt
     insertBuild t = submit $
         BuildSubmission tcId t h BuildPending Nothing Nothing
-    insertBreak t = do
-        tcId' <- getTargetTeam cmt
-        submit $ BreakSubmission tcId tcId' t h BreakPending Nothing False Nothing "" Nothing Nothing Nothing Nothing Nothing
-    insertFix t = submit $
-        FixSubmission tcId t h 0 FixPending Nothing "" Nothing Nothing Nothing
+--    insertBreak t = do
+--        tcId' <- getTargetTeam cmt
+--        submit $ BreakSubmission tcId tcId' t h BreakPending Nothing False Nothing "" Nothing Nothing Nothing Nothing Nothing
+--    insertFix t = submit $
+--        FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
     submit = void . runDB . insert
     reject = undefined
     -- FIXME: timestamp is tricky:

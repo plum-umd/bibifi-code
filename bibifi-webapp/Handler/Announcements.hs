@@ -51,8 +51,6 @@ showAnnouncements c =
     buildEnd <- lLift $ lift $ displayTime $ contestBuildEnd contest
     breakStart <- lLift $ lift $ displayTime $ contestBreakStart contest
     breakEnd <- lLift $ lift $ displayTime $ contestBreakEnd contest
-    fixStart <- lLift $ lift $ displayTime $ contestFixStart contest
-    fixEnd <- lLift $ lift $ displayTime $ contestFixEnd contest
     -- Check if contest has already started.
     now <- getCurrentTime
     button <- do
@@ -108,11 +106,6 @@ showAnnouncements c =
                             <p class="text-muted">
                                 <small>
                                     #{breakStart} - #{breakEnd}
-                            <strong>
-                                Fix It Round
-                            <p class="text-muted last">
-                                <small>
-                                    #{fixStart} - #{fixEnd}
                 ^{button}
     |]
 

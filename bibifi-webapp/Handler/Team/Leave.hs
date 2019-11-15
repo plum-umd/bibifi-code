@@ -73,7 +73,7 @@ postTeamLeaveR tId = runLHandler $ Team.layout Team.Leave tId $ \uId team -> do
             now <- getCurrentTime
             cs <- handlerToWidget $ runDB [lsql| select Contest.* from TeamContest inner join Contest on TeamContest.contest == Contest.id where TeamContest.team == #{tId}|]
             mapM_ (\(Entity _ contest) ->
-                when (now >= contestBuildStart contest && now <= contestFixEnd contest) $ do
+                when (now >= contestBuildStart contest && now <= contestBreakEnd contest) $ do
                     setMessage [shamlet|
                         <div class="container">
                             <div class="alert alert-danger">

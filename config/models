@@ -253,7 +253,7 @@ BreakSubmission json
 
 -- Invariant: Intervals should not overlap.
 BreakTimeline json
-    break BreakId
+    break BreakSubmissionId
     brokenFix FixSubmissionId Maybe -- If Nothing, break targets latest build submission.
     fixedFix FixSubmissionId Maybe  -- If Nothing, break has not been fixed yet. 
 

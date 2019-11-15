@@ -11,10 +11,10 @@ getParticipationFixSubmissionsR :: TeamContestId -> Handler Html
 getParticipationFixSubmissionsR tcId = runLHandler $ 
     Participation.layout Participation.FixSubmissions tcId $ \_ _ contest _ -> do
         now <- getCurrentTime
-        if not development && now < (contestFixStart contest) then
+        if not development && now < (contestBreakStart contest) then
             [whamlet|
                 <p>
-                    The fix-it round has not started yet.
+                    The break-it round has not started yet.
             |]
         else do
             submissions <- handlerToWidget $ runDB $ selectList [FixSubmissionTeam ==. tcId] [Desc FixSubmissionId]
@@ -97,8 +97,8 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                 |]
         deleteW <- do
             now <- getCurrentTime
-            -- Check that it's during the fix it round.
-            if not development && (now < contestFixStart contest || now > contestFixEnd contest) then
+            -- Check that it's during the "fix it" round.
+            if not development && (now < contestBreakStart contest || now > contestBreakEnd contest) then
                 return mempty
             else
                 -- Check if team leader.
@@ -269,9 +269,9 @@ postParticipationFixSubmissionDeleteR tcId fsId = runLHandler $ Participation.la
                     if ( fixSubmissionTeam fs) /= tcId then
                         failureHandler
                     else do
-                        -- Check that it's during the fix it round.
+                        -- Check that it's during the "fix it" round.
                         now <- getCurrentTime
-                        if not development && (now < contestFixStart contest || now > contestFixEnd contest) then
+                        if not development && (now < contestBreakStart contest || now > contestBreakEnd contest) then
                             failureHandler
                         else
                             -- Check if team leader.
@@ -316,7 +316,7 @@ canRerunFixSubmission fs contest = do
             return True
         else do
             now <- getCurrentTime
-            return $ now <= contestFixEnd contest
+            return $ now <= contestBreakEnd contest
 
 data RerunFormData = RerunFormData ()
 

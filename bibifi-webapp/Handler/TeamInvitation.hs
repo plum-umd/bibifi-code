@@ -96,7 +96,7 @@ postTeamInvitationR invitation = runLHandler $ do
                             else do
                                 -- Check if user can join team by checking user and team against all contests that have not finished yet.
                                 now <- getCurrentTime
-                                contests <- runDB $ selectList [ContestFixEnd >=. now] []
+                                contests <- runDB $ selectList [ContestBreakEnd >=. now] []
                                 join <- foldM (\acc contest@(Entity contestId _) -> case acc of
                                     Left _ ->
                                         return acc

@@ -64,7 +64,6 @@ getJudgesR contestUrl = runLHandler $ Judges.layout contestUrl $ \uId (Entity cI
             -- Set due dates 3 days after round ends.
             buildDueDate <- lLift $ lift $ displayTime $ Clock.addUTCTime (2*24*60*60) (contestBuildEnd c)
             breakDueDate <- lLift $ lift $ displayTime $ Clock.addUTCTime (2*24*60*60) (contestBreakEnd c)
-            fixDueDate <- lLift $ lift $ displayTime $ Clock.addUTCTime (2*24*60*60) (contestFixEnd c)
             let buildRows = mconcat $ map (\(Entity jId j) -> 
                     [whamlet'|
                         <tr class="clickable" href="@{JudgesBuildItR contestUrl jId}">
@@ -91,23 +90,9 @@ getJudgesR contestUrl = runLHandler $ Judges.layout contestUrl $ \uId (Entity cI
                                 #{prettyPrintStatus (breakJudgementRuling j)}
                     |]
                   ) breakJudgements
-            let fixRows = mconcat $ map (\(Entity jId j) ->
-                    [whamlet'|
-                        <tr class="clickable" href="@{JudgesFixItR contestUrl jId}">
-                            <td>
-                                fix-#{keyToInt jId}
-                            <td>
-                                Fix-it
-                            <td>
-                                #{fixDueDate}
-                            <td>
-                                #{prettyPrintStatus (fixJudgementRuling j)}
-                    |]
-                  ) fixJudgements
             return $ [whamlet'|
                 ^{buildRows}
                 ^{breakRows}
-                ^{fixRows}
             |]
     [whamlet|
         ^{completedButton}

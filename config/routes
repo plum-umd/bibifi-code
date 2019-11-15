@@ -131,4 +131,4 @@
 /judges/#Text/breakit/#BreakJudgementId JudgesBreakItR GET POST
 /judges/#Text/fixit/#FixJudgementId JudgesFixItR GET POST
 
-/webhook/gitlab/push WebhookGitlabPushR POST
+/webhook/gitlab/push/#TeamContestId/#Text WebhookGitlabPushR POST

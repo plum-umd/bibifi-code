@@ -10,7 +10,7 @@ render c =
     let url = contestUrl contest in
     lLift $ do
         start <- lift $ displayTime $ contestBuildStart contest
-        end <- lift $ displayTime $ contestFixEnd contest
+        end <- lift $ displayTime $ contestBreakEnd contest
         return $ [hamlet|$newline never
             <div>
                 <div>
