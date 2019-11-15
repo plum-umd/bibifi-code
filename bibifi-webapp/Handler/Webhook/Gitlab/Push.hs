@@ -1,8 +1,7 @@
 module Handler.Webhook.Gitlab.Push (postWebhookGitlabPushR) where
 
 import PostDependencyType
-    ( ContestRound(..)
-    , BuildSubmissionStatus(..)
+    ( BuildSubmissionStatus(..)
     , BreakSubmissionStatus(..)
     , FixSubmissionStatus(..)
     )
@@ -17,7 +16,6 @@ postWebhookGitlabPushR :: Handler ()
 -- regarding the commit hash the call claims about.
 postWebhookGitlabPushR = runLHandler $ do
     PushMsg _ _ tName cmts <- requireJsonBody :: LHandler PushMsg
-    liftIO $ print $ "Repo name is " ++ show tName
     Entity cId c  <- withErr "No default contest" defaultContest
     Entity tcId _ <- runDB $ do
         let no tag = "No " ++ tag ++ " for "  ++ show tName
@@ -31,12 +29,12 @@ insertSubmission :: Contest -> TeamContestId -> Commit -> LHandler ()
 -- Insert a submission of the right round in the database for given team and commit-hash
 insertSubmission c tcId cmt = do
     t <- getCommitTimestamp
-    case roundForTime t c of
-        Just r -> (case r of
-                       ContestRoundBuild -> insertBuild
-                       ContestRoundBreak -> insertBreak
-                       ContestRoundFix   -> insertFix) t
-        Nothing -> reject
+    case c of
+        Contest _ _ bld0 bld1 brk0 brk1 fix0 fix1
+            | t `between` (bld0, bld1) -> insertBuild t
+            | t `between` (brk0, brk1) -> insertBreak t
+            | t `between` (fix0, fix1) -> insertFix   t
+            | otherwise                -> reject
   where
     h = commitHash cmt
     insertBuild t = submit $
@@ -54,11 +52,7 @@ insertSubmission c tcId cmt = do
     --   Maybe we'll have some tolerance when computing the rounds.
     getCommitTimestamp = getCurrentTime
     getTargetTeam _ = undefined
-    roundForTime t (Contest _ _ bld0 bld1 brk0 brk1 fix0 fix1)
-        | bld0 <= t && t <= bld1 = Just ContestRoundBuild
-        | brk0 <= t && t <= brk1 = Just ContestRoundBreak
-        | fix0 <= t && t <= fix1 = Just ContestRoundFix
-        | otherwise              = Nothing
+    between x (lo,hi) = lo <= x && x <= hi -- TODO: some tolerance?
 
 -- Extracted information from the JSON message
 data PushMsg = PushMsg
