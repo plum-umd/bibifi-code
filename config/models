@@ -144,6 +144,7 @@ TeamContest json
     -- languages Text default='' <Const Admin || Id, Id, _>
     UniqueTeamContest team contest
     professional Bool default=false
+    githookNonce Text
  --     permutationMap PermutationMapId
  --  -- submission BuildCommitId
  --     UniquePermutationMap permutationMap
