@@ -69,8 +69,6 @@ Contest json
     buildEnd UTCTime
     breakStart UTCTime
     breakEnd UTCTime
-    fixStart UTCTime
-    fixEnd UTCTime
     UniqueContest url
 
 CourseraContest json        -- Absence of this row means a contest isn't a coursera one.
@@ -146,6 +144,7 @@ TeamContest json
     -- languages Text default='' <Const Admin || Id, Id, _>
     UniqueTeamContest team contest
     professional Bool default=false
+    githookNonce Text
  --     permutationMap PermutationMapId
  --  -- submission BuildCommitId
  --     UniquePermutationMap permutationMap
@@ -252,11 +251,16 @@ BreakSubmission json
     stdout Textarea Maybe default=null
     stderr Textarea Maybe default=null
 
+-- Invariant: Intervals should not overlap.
+BreakTimeline json
+    break BreakId
+    brokenFix FixSubmissionId Maybe -- If Nothing, break targets latest build submission.
+    fixedFix FixSubmissionId Maybe  -- If Nothing, break has not been fixed yet. 
+
 FixSubmission json
     team TeamContestId
     timestamp UTCTime
     commitHash Text
-    diffSize Int
     status FixSubmissionStatus
     result FixSubmissionResult Maybe
     name Text default=''

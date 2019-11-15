@@ -2,6 +2,11 @@
 
 for D in ./*/
 do
+   (cd "$D" && if [[ `git status --porcelain` ]]; then DIRTY=true; echo "There are uncommited changes in $D. Exiting..."; exit 1; fi) || exit $?
+done;
+
+for D in ./*/
+do
    (cd "$D" && git filter-branch --force --env-filter '
    CORRECT_NAME=`echo $GIT_COMMITTER_NAME | sha256sum`
    CORRECT_EMAIL=`echo $GIT_COMMITTER_EMAIL | sha256sum`
