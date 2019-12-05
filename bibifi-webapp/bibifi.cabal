@@ -176,7 +176,7 @@ library
                  , text                          
                  , transformers
                  , enclosed-exceptions
-                 , hamlet                        
+--                  , hamlet                        
                  , hashable                      
                  , hashmap                       
                  , http-client
