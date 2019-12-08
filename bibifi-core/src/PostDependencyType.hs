@@ -50,11 +50,13 @@ data BreakSubmissionStatus = BreakPullFail | BreakPending | BreakTesting | Break
 derivePersistField "BreakSubmissionStatus"
 Aeson.deriveJSON Aeson.defaultOptions ''BreakSubmissionStatus
 
--- TODO: Collapse to a boolean. 
 data BreakSubmissionResult = 
-      BreakCorrect -- Valid bug
-    | BreakIncorrect -- Invalid, correct behavior
-    | BreakExploit -- Valid exploit
+      BreakSucceeded
+    | BreakFailed
+-- 
+--       BreakCorrect -- Valid bug
+--     | BreakIncorrect -- Invalid, correct behavior
+--     | BreakExploit -- Valid exploit
         deriving (Show, Read, Eq)
 derivePersistField "BreakSubmissionResult"
 Aeson.deriveJSON Aeson.defaultOptions ''BreakSubmissionResult
@@ -70,12 +72,13 @@ derivePersistField "BreakType"
 Aeson.deriveJSON Aeson.defaultOptions ''BreakType
 
 data FixSubmissionStatus = FixPending | FixBuilding | FixBuilt | FixJudging | FixJudged | FixTimeout | FixRejected
-    | FixBuildFail | FixPullFail | FixInvalidBugId -- Deprecated.
+    -- | FixBuildFail | FixPullFail | FixInvalidBugId -- Deprecated.
     deriving (Show, Read, Eq)
 derivePersistField "FixSubmissionStatus"
 Aeson.deriveJSON Aeson.defaultOptions ''FixSubmissionStatus
 
-data FixSubmissionResult = FixFixed | FixNotFixed | FixDisqualified
+data FixSubmissionResult = FixFixed | FixNotFixed 
+    -- | FixDisqualified -- TODO: Set the message as disqualified instead.
     deriving (Show, Read, Eq)
 derivePersistField "FixSubmissionResult"
 Aeson.deriveJSON Aeson.defaultOptions ''FixSubmissionResult
@@ -310,11 +313,11 @@ prettyFixResult r = case r of
             <span class="text-danger">
                 Not fixed
         |]
-    Just FixDisqualified ->
-        [shamlet|
-            <span class="text-danger">
-                Disqualified
-        |]
+--     Just FixDisqualified ->
+--         [shamlet|
+--             <span class="text-danger">
+--                 Disqualified
+--         |]
 
 prettyBreakType :: BreakType -> Html
 prettyBreakType BreakCorrectness = [shamlet|

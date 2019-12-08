@@ -240,22 +240,28 @@ BreakSubmission json
     targetTeam TeamContestId
     timestamp UTCTime
     commitHash Text
-    status BreakSubmissionStatus
-    result BreakSubmissionResult Maybe
-    fixed Bool default=FALSE
-    bayesianScore Double Maybe default=null
     name Text default=''
     breakType BreakType Maybe
     message String Maybe
     json Text Maybe default=null
+    valid Bool Maybe -- If this break submission is valid/accepted. It should be marked as valid as long as the first run demonstrates a successful break. 
+--     fixed Bool default=FALSE
+--     bayesianScore Double Maybe default=null
+
+BreakFixSubmission json
+    break BreakSubmissionId
+    fix FixSubmissionId Maybe -- If this is Nothing, this run is against the latest build submission.
     stdout Textarea Maybe default=null
     stderr Textarea Maybe default=null
+    status BreakSubmissionStatus
+    result BreakSubmissionResult Maybe
 
+-- JP: Maybe this shouldn't be stored in the database, but computed on the fly.
 -- Invariant: Intervals should not overlap.
-BreakTimeline json
-    break BreakSubmissionId
-    brokenFix FixSubmissionId Maybe -- If Nothing, break targets latest build submission.
-    fixedFix FixSubmissionId Maybe  -- If Nothing, break has not been fixed yet. 
+-- BreakTimeline json
+--     break BreakSubmissionId
+--     brokenFix FixSubmissionId Maybe -- If Nothing, break targets latest build submission.
+--     fixedFix FixSubmissionId Maybe  -- If Nothing, break has not been fixed yet. 
 
 FixSubmission json
     team TeamContestId
@@ -269,9 +275,9 @@ FixSubmission json
     stderr Textarea Maybe default=null
     UniqueFixSubmissionName team name
 
-FixSubmissionBugs json
-    fix FixSubmissionId
-    bugId BreakSubmissionId
+-- FixSubmissionBugs json
+--     fix FixSubmissionId
+--     bugId BreakSubmissionId
 
 BuildCoreResult json
     submission BuildSubmissionId
@@ -295,6 +301,30 @@ BuildOptionalResult json
     pass Bool
     message Text Maybe
     UniqueBuildOptionalSubmission submission test
+    deriving Show Eq
+
+FixCoreResult json
+    submission FixSubmissionId
+    test ContestCoreTestId
+    pass Bool
+    message Text Maybe
+    UniqueFixCoreSubmission submission test
+    deriving Show Eq
+
+FixPerformanceResult json
+    submission FixSubmissionId
+    test ContestPerformanceTestId
+    time Double Maybe -- pass is implicitly false when Nothing
+    message Text Maybe
+    UniqueFixPerformanceSubmission submission test
+    deriving Show Eq
+
+FixOptionalResult json
+    submission FixSubmissionId
+    test ContestOptionalTestId
+    pass Bool
+    message Text Maybe
+    UniqueFixOptionalSubmission submission test
     deriving Show Eq
 
     
