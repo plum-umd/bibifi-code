@@ -35,7 +35,8 @@ generateView :: Text -> FixJudgementId -> FixSubmissionId -> FixSubmission -> Wi
 generateView url jId fId fix formW enctype msg = 
     let msgH = mconcat $ map displayError msg in
     do
-    breaks <- do
+    return undefined -- FIXME FixSubmissionBugs table gone
+    {-breaks <- do
         bs <- handlerToWidget $ runDB [lsql| select TeamContest.id, BreakSubmission.name from BreakSubmission inner join FixSubmissionBugs on FixSubmissionBugs.bugId == BreakSubmission.id inner join TeamContest on TeamContest.id == BreakSubmission.team where FixSubmissionBugs.fix == #{fId} |]
         
         
@@ -94,7 +95,7 @@ generateView url jId fId fix formW enctype msg =
                     #{fixSubmissionCommitHash fix}
             ^{breaks}
             ^{formW}
-    |]
+    |]-}
 
 getJudgesFixItR :: Text -> FixJudgementId -> Handler Html
 getJudgesFixItR url jId = runLHandler $ 

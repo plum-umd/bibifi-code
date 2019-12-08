@@ -71,9 +71,9 @@ buildersCode contestId direction tcId =
                         --         Just (Entity _ breakScore) ->
                         --             (mDouble (teamBreakScoreBreakScore breakScore)) + (mDouble (teamBreakScoreFixScore breakScore))
                         -- Get number of bugs found in their code.
-                        bugCount <- count [ BreakSubmissionTargetTeam ==. teamId, BreakSubmissionStatus ==. BreakTested, BreakSubmissionResult ==. Just BreakCorrect]
+                        bugCount <- count [ BreakSubmissionTargetTeam ==. teamId {-FIXME-}]
                         -- Get number of vulnerabilities found in their code.
-                        vulnerabilityCount <- count [ BreakSubmissionTargetTeam ==. teamId, BreakSubmissionStatus ==. BreakTested, BreakSubmissionResult ==. Just BreakExploit]
+                        vulnerabilityCount <- count [ BreakSubmissionTargetTeam ==. teamId {-FIXME-}]
 
                         -- Get team name and languages.
                         (name, languages) <- do

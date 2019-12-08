@@ -52,7 +52,8 @@ getParticipationBreakSubmissionsR tcId = runLHandler $
         againstW
 
 getParticipationBreakSubmissionR :: TeamContestId -> BreakSubmissionId -> Handler Html
-getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
+getParticipationBreakSubmissionR tcId bsId = undefined --FIXME
+{- runLHandler $ do
     bs <- checkBreakSubmissionTeam tcId bsId
     let victim = (breakSubmissionTargetTeam bs) == tcId
     Participation.layout Participation.BreakSubmissions tcId $ \userId teamcontest contest team -> do
@@ -60,12 +61,12 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                 prettyBreakStatusVictim
               else
                 prettyBreakStatus
-              ) $ breakSubmissionStatus bs
+              ) $ undefined {-FIXME-} --breakSubmissionStatus bs
         let result = (if victim then
                 prettyBreakResultVictim
               else
                 prettyBreakResult 
-              ) $ breakSubmissionResult bs
+              ) $ undefined {-FIXME-} --breakSubmissionResult bs
         let message = case breakSubmissionMessage bs of
               Nothing -> dash
               Just msg -> [shamlet|
@@ -164,8 +165,8 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                           |]
                       else
                           -- Check that the break result is accepted.
-                          let res = breakSubmissionResult bs in
-                          if res /= Just BreakCorrect && res /= Just BreakExploit then
+                          let res = Nothing {-FIXME breakSubmissionResult bs -} in
+                          if res /= Just undefined {-FIXME-} && res /= Just undefined {-FIXME-} then
                               return [whamlet'|
                                   <h3>
                                       Dispute
@@ -334,6 +335,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                     <button type="submit" class="btn btn-warning">
                         Rerun
             |]
+-}
 
 data DisputeBreakForm = DisputeBreakForm Textarea
 
@@ -347,7 +349,8 @@ disputeBreakSubmissionForm = identifyForm "dispute-break-submission" $ renderBoo
         -- disp = BootstrapHorizontalForm (ColMd 0) (ColMd 6) (ColMd 0) (ColMd 4)
 
 postParticipationBreakSubmissionDisputeR :: TeamContestId -> BreakSubmissionId -> Handler ()
-postParticipationBreakSubmissionDisputeR tcId bsId = runLHandler $ do
+postParticipationBreakSubmissionDisputeR tcId bsId = undefined -- FIXME
+{- runLHandler $ do
     userId <- requireAuthId
     ((res, widget), enctype) <- runFormPost disputeBreakSubmissionForm
     case res of 
@@ -406,7 +409,7 @@ postParticipationBreakSubmissionDisputeR tcId bsId = runLHandler $ do
                         Could not dispute break submission.
             |]
             redirect $ ParticipationBreakSubmissionR tcId bsId
-
+-}
 
 data DeleteForm = DeleteForm ()
 
@@ -416,7 +419,8 @@ deleteBreakSubmissionForm = identifyForm "delete-break-submission" $ renderBoots
     <*  bootstrapSubmit (BootstrapSubmit ("Delete"::Text) "btn btn-danger" [])
 
 postParticipationBreakSubmissionDeleteR :: TeamContestId -> BreakSubmissionId -> Handler ()
-postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
+postParticipationBreakSubmissionDeleteR tcId bsId = undefined -- FIXME
+{- runLHandler $ do
     raiseUserLabel
     ((res, widget), enctype) <- runFormPost deleteBreakSubmissionForm
     case res of
@@ -477,6 +481,7 @@ postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
                         Could not delete break submission.
             |]
             redirect $ ParticipationBreakSubmissionR tcId bsId
+-}
 
 data RerunFormData = RerunFormData ()
 
@@ -484,7 +489,8 @@ rerunForm = identifyForm "rerun-break-submission" $ renderBootstrap3 BootstrapBa
     <$> pure ()
 
 -- Determines if we can rerun submission.
-canRerunBreakSubmission bs contest = do
+canRerunBreakSubmission bs contest = undefined --FIXME
+{- do
     (Entity _ user) <- handlerToWidget requireAuth
     if not (userAdmin user) then
         return False
@@ -497,6 +503,7 @@ canRerunBreakSubmission bs contest = do
         else do
             now <- getCurrentTime
             return $ now <= contestBreakEnd contest
+-}
 
 checkBreakSubmissionTeam tcId bsId = do
     bs <- runDB $ get404 bsId
@@ -506,7 +513,8 @@ checkBreakSubmissionTeam tcId bsId = do
     return bs
 
 postParticipationBreakSubmissionRerunR :: TeamContestId -> BreakSubmissionId -> Handler Html
-postParticipationBreakSubmissionRerunR tcId bsId = runLHandler $ do
+postParticipationBreakSubmissionRerunR tcId bsId = undefined -- FIXME
+{-runLHandler $ do
     bs <- checkBreakSubmissionTeam tcId bsId
     Participation.layout Participation.BreakSubmissions tcId $ \userId teamcontest contest team -> do
         ((res, widget), enctype) <- handlerToWidget $ runFormPost rerunForm
@@ -538,3 +546,4 @@ postParticipationBreakSubmissionRerunR tcId bsId = runLHandler $ do
                         Could not rerun submission.
             |]
             redirect $ ParticipationBreakSubmissionR tcId bsId
+-}

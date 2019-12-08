@@ -16,13 +16,7 @@ data FormData = FormData BreakJudgementRuling (Maybe Textarea)
 form :: BreakJudgement -> BreakSubmission -> Form FormData
 form j bs = 
     let defJudgement = case breakJudgementRuling j of
-          Just True -> Just $ case breakSubmissionResult bs of
-            Just BreakExploit -> 
-                BreakRulingVulnerability
-            Just BreakCorrect ->
-                BreakRulingBug
-            _ ->
-                BreakRulingReject
+          Just True -> undefined -- FIXME
           Just False ->
             Just BreakRulingReject
           Nothing ->
@@ -46,11 +40,7 @@ form j bs =
 generateView :: Text -> BreakJudgementId -> BreakSubmission -> Maybe BreakDispute -> Widget -> Enctype -> [Text] -> LWidget
 generateView url jId bs bdM formW enctype msg = do
     let msgH = mconcat $ map displayError msg
-    let bayesianScore = case breakSubmissionBayesianScore bs of 
-          Nothing ->
-            dash
-          Just s ->
-            [shamlet|#{s}|]
+    let bayesianScore = undefined :: Double -- FIXME
     let dispute = case bdM of
             Nothing ->
                 dash
@@ -164,11 +154,11 @@ postJudgesBreakItR url jId = runLHandler $ do
                                 let comments = maybe Nothing (Just . unTextarea) commentsM in
                                 let newResult = Just $ case ruling of
                                       BreakRulingReject ->
-                                        BreakIncorrect
+                                        undefined -- FIXME
                                       BreakRulingBug ->
-                                        BreakCorrect
+                                        undefined -- FIXME
                                       BreakRulingVulnerability ->
-                                        BreakExploit
+                                        undefined -- FIXME
                                 in
                                 let newRuling = case ruling of
                                       BreakRulingReject ->
@@ -181,7 +171,7 @@ postJudgesBreakItR url jId = runLHandler $ do
                                 do
                                 handlerToWidget $ do
                                     -- Update to judged, pass or fail
-                                    runDB $ update (breakJudgementSubmission judgement) [BreakSubmissionStatus =. BreakJudged, BreakSubmissionResult =. newResult]
+                                    runDB $ update (breakJudgementSubmission judgement) [{-FIXME-}]
                                     -- Set ruling, update comments.
                                     runDB $ update jId [BreakJudgementRuling =. newRuling, BreakJudgementComments =. comments]
                                     -- Rescore break round.

@@ -53,10 +53,6 @@ Aeson.deriveJSON Aeson.defaultOptions ''BreakSubmissionStatus
 data BreakSubmissionResult = 
       BreakSucceeded
     | BreakFailed
--- 
---       BreakCorrect -- Valid bug
---     | BreakIncorrect -- Invalid, correct behavior
---     | BreakExploit -- Valid exploit
         deriving (Show, Read, Eq)
 derivePersistField "BreakSubmissionResult"
 Aeson.deriveJSON Aeson.defaultOptions ''BreakSubmissionResult
@@ -204,21 +200,8 @@ prettyBreakResult s = case s of
             <span>
                 &#8212;
         |]
-    Just BreakIncorrect ->
-        [shamlet|
-            <span class="text-danger">
-                Normal behavior
-        |]
-    Just BreakCorrect ->
-        [shamlet|
-            <span class="text-success">
-                Bug
-        |]
-    Just BreakExploit ->
-        [shamlet|
-            <span class="text-success">
-                Exploit
-        |]
+    Just BreakSucceeded -> undefined -- FIXME
+    Just BreakFailed -> undefined -- FIXME
         
 prettyBreakResultVictim :: Maybe BreakSubmissionResult -> Html
 prettyBreakResultVictim s = case s of
@@ -227,34 +210,11 @@ prettyBreakResultVictim s = case s of
             <span>
                 &#8212;
         |]
-    Just BreakIncorrect ->
-        [shamlet|
-            <span class="text-success">
-                Normal behavior
-        |]
-    Just BreakCorrect ->
-        [shamlet|
-            <span class="text-danger">
-                Bug
-        |]
-    Just BreakExploit ->
-        [shamlet|
-            <span class="text-danger">
-                Exploit
-        |]
+    Just BreakSucceeded -> undefined -- FIXME
+    Just BreakFailed -> undefined -- FIXME
         
 prettyFixStatus :: FixSubmissionStatus -> Html
 prettyFixStatus s = case s of 
-    FixPullFail ->
-        [shamlet|
-            <span class="text-danger">
-                Pull failed
-        |]
-    FixInvalidBugId ->
-        [shamlet|
-            <span class="text-danger">
-                Invalid bug fixed
-        |]
     FixPending ->
         [shamlet|
             <span>
@@ -274,11 +234,6 @@ prettyFixStatus s = case s of
         [shamlet|
             <span class="text-danger">
                 Fix rejected
-        |]
-    FixBuildFail ->
-        [shamlet|
-            <span class="text-danger">
-                Build failed
         |]
     FixBuilt ->
         [shamlet|

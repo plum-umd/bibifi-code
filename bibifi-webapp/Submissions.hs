@@ -5,7 +5,8 @@ import qualified Database.Esqueleto as E
 import Import
 import PostDependencyType
 
-displayFixSubmissionsTable details submissions = do
+displayFixSubmissionsTable details submissions = return undefined --FIXME
+{- do
     rows <- mapM row submissions
     [whamlet|
         <table class="table table-hover">
@@ -57,7 +58,8 @@ displayFixSubmissionsTable details submissions = do
                   <td>
                       #{result}
             |]
-
+-}
+              
 displayBuildSubmissionsTable details submissions = do
     let rows = mconcat $ map row submissions
     [whamlet|
@@ -112,7 +114,8 @@ data BreakSubmissionViewer =
     | BreakSubmissionAttacker
     | BreakSubmissionVictim
 
-displayBreakSubmissionsTable contest viewer submissions = do
+displayBreakSubmissionsTable contest viewer submissions = return undefined -- FIXME
+{- do
     rows <- mapM (row viewer) submissions
     [whamlet|
         <table class="table table-hover">
@@ -262,4 +265,4 @@ displayBreakSubmissionsTable contest viewer submissions = do
                             |]
                         _ ->
                             return dash
-
+-}

@@ -253,7 +253,8 @@ deleteFixSubmissionForm = renderBootstrap3 (BootstrapInlineForm) $ DeleteForm
     <* bootstrapSubmit (BootstrapSubmit ("Delete"::Text) "btn btn-danger" [])
 
 postParticipationFixSubmissionDeleteR :: TeamContestId -> FixSubmissionId -> Handler Html
-postParticipationFixSubmissionDeleteR tcId fsId = runLHandler $ Participation.layout Participation.FixSubmissions tcId $ \userId teamContest contest team -> do
+postParticipationFixSubmissionDeleteR tcId fsId = undefined -- FIXME
+{- runLHandler $ Participation.layout Participation.FixSubmissions tcId $ \userId teamContest contest team -> do
     ((res, widget), enctype) <- handlerToWidget $ runFormPost deleteFixSubmissionForm
     case res of
         FormFailure _msg -> 
@@ -302,6 +303,7 @@ postParticipationFixSubmissionDeleteR tcId fsId = runLHandler $ Participation.la
                         Could not delete fix submission.
             |]
             redirect $ ParticipationFixSubmissionR tcId fsId
+-}
 
 -- Determines if we can rerun submission.
 canRerunFixSubmission fs contest = do
