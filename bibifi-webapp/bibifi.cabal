@@ -140,6 +140,7 @@ library
                 NoImplicitPrelude
                 CPP
                 MultiParamTypeClasses
+                TypeApplications
                 TypeFamilies
                 GADTs
                 GeneralizedNewtypeDeriving

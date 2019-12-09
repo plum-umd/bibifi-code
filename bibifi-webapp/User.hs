@@ -12,7 +12,7 @@ import Yesod.Auth.HashDB (setPassword)
 
 sendResetCode :: Text -> Text -> LHandler ()
 sendResetCode email code = do
-    renderer <- getUrlRenderParams
+    renderer <- lLift getUrlRenderParams
     let url = T.pack $ S.renderHtml $ [hamlet|@{PasswordResetR code}|] renderer
     let to = [Address Nothing email]
     let head = [("Subject", "Password reset")]
@@ -24,8 +24,8 @@ sendResetCode email code = do
     let textPart = Part { 
         partType = "text/plain; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = text,
+        partDisposition = DefaultDisposition,
+        partContent = PartContent text,
         partHeaders = []
     }
     let html = U.renderHtml [shamlet|
@@ -38,8 +38,8 @@ sendResetCode email code = do
     let htmlPart = Part { 
         partType = "text/html; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = html,
+        partDisposition = DefaultDisposition,
+        partContent = PartContent html,
         partHeaders = []
     }
     liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")

@@ -10,8 +10,8 @@ import qualified Database.Esqueleto as E
 buildSubmission :: Entity BuildSubmission -> ContestId -> Bool -> LWidget
 buildSubmission (Entity bsId bs) cId public = do
     let status = prettyBuildStatus $ buildSubmissionStatus bs
-    time <- lLift $ lift $ displayTime $ buildSubmissionTimestamp bs
-    toWidget [lucius|
+    time <- lLift $ liftIO $ displayTime $ buildSubmissionTimestamp bs
+    lLift $ toWidget [lucius|
         .message-column {
             border-top-color: transparent !important;
             padding: 0px !important;

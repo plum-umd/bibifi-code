@@ -22,8 +22,8 @@ You have received a team invitation to participate in the Build it Break it Fix 
     let textPart = Part { 
         partType = "text/plain; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = text,
+        partDisposition = DefaultDisposition,
+        partContent = PartContent text,
         partHeaders = []
     }
     let html = renderHtml [shamlet|
@@ -34,8 +34,8 @@ You have received a team invitation to participate in the Build it Break it Fix 
     let htmlPart = Part { 
         partType = "text/html; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = html,
+        partDisposition = DefaultDisposition,
+        partContent = PartContent html,
         partHeaders = []
     }
     liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")

@@ -5,6 +5,8 @@ resolver: lts-14.15
 
 # Local packages, usually specified by relative directory name
 packages:
+- '../../lmonad'
+- '../../lmonad-yesod'
 - '../bibifi-core'
 - '.'
 
@@ -26,10 +28,10 @@ extra-deps:
 # - type-hint-0.1
 # - data-bword-0.1
 # - yesod-form-1.4.10 # ,data-dword-0.3, data-endian-0.1, data-textual-0.3.0.2, text-printer-0.4, type-hint-0.1]#, data-bword-0.1, atext-latin1-0.3]
-- git: https://github.com/jprider63/LMonad.git
-  commit: 9238df9fa56e59d6afc2c6515ea22ed5418f00e3
-- git: https://github.com/jprider63/LMonad-Yesod.git
-  commit: f3469f6175e12ea3b5b08629265986921db90c4e
+# - git: https://github.com/jprider63/LMonad.git
+#   commit: 9238df9fa56e59d6afc2c6515ea22ed5418f00e3
+# - git: https://github.com/jprider63/LMonad-Yesod.git
+#   commit: f3469f6175e12ea3b5b08629265986921db90c4e
 
 
 # Override default flag values for local packages and extra-deps

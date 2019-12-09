@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, InstanceSigs #-}
 module Import
     ( module Import
     , getCurrentTime
@@ -70,3 +70,5 @@ runMultipleFormsPost ((FormAndHandler form handler):t) = do
             runMultipleFormsPost t
         _ ->
             handler res widget enctype
+
+
