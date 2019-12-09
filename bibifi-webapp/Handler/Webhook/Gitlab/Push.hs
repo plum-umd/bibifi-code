@@ -6,68 +6,92 @@ import PostDependencyType
     , FixSubmissionStatus(..)
     )
 import Import as I
-import Data.Maybe (fromMaybe)
 import Data.Aeson as J
+import Data.List (isInfixOf)
+import qualified Data.ByteString.Lazy as BS
+import System.FilePath.Posix as F (splitPath)
+import Data.Text as T (pack)
+--import GitLab as G
+--import GitLab.Types as GT
+--import GitLab.API.Projects as GP
 
 postWebhookGitlabPushR :: TeamContestId -> Text -> Handler ()
--- Handles Gitlab's call when there is a push.
--- Right now, there's no way to authenticate that the call is from Gitlab.
+-- Handles Gitlab push notification.
+-- There's no way to authenticate that the call is from Gitlab at the moment..
 -- We only treat the call as a ping, and check back with Gitlab to retrieve information
--- regarding the commit hash the call claims about.
-postWebhookGitlabPushR tcId _ = runLHandler $ do
-    PushMsg _ _ _ cmts <- requireJsonBody :: LHandler PushMsg
-    Entity _ c  <- withErr "No default contest" defaultContest
-    mapM_ (insertSubmission c tcId) cmts
-  where
-    withErr msg = (return . fromMaybe (error msg) =<<)
+-- regarding the commit hash.
+postWebhookGitlabPushR tcId token = runLHandler $ do
+    -- FIXME: check that token matches, and using constant time comparison
+    pushTime <- getCurrentTime
+    contest <- runDB $ do
+        TeamContest _ cId _ _ _ _ <- get404 tcId
+        get404 cId
+    PushMsg pId cmts <- requireJsonBody
+    mapM_ (handleCommit pushTime pId contest tcId) cmts
 
-insertSubmission :: Contest -> TeamContestId -> Commit -> LHandler ()
+handleCommit :: UTCTime -> Int -> Contest -> TeamContestId -> Commit -> LHandler ()
 -- Insert a submission of the right round in the database for given team and commit-hash
-insertSubmission c tcId cmt = do
-    t <- getCommitTimestamp
-    case c of
-        Contest _ _ bld0 bld1 brk0 brk1
-            | t `between` (bld0, bld1) -> insertBuild t
-            | t `between` (brk0, brk1) -> undefined
-            | otherwise                -> reject
+handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modified)
+    | t ∈ (bld0, bld1) =
+          insertDB_ $ BuildSubmission tcId t h BuildPending Nothing Nothing
+    | t ∈ (brk0, brk1) = do
+          -- Handle each explicitly specified break submission
+          forM_ addedTests $ \(f,name) -> do
+              -- TODO: do we ignore changes in `modified` as in old specs?
+              BreakMsg _ tId <- parseGitLabJSON J.decode pId f
+              insertDB_ $ BreakSubmission tcId tId t h (pack name) Nothing Nothing Nothing Nothing
+          -- Handle each change to `build/` as a fix submission
+          when buildChanged $ -- TODO: so no explicit fix, no name?
+              insertDB_ $ FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
+    | t < bld0 = undefined -- TODO: contest not started
+    | t < brk0 = undefined -- TODO: invalid build
+    | t > brk1 = undefined -- TODO: invalid break/fix
   where
-    h = commitHash cmt
-    insertBuild t = submit $
-        BuildSubmission tcId t h BuildPending Nothing Nothing
---    insertBreak t = do
---        tcId' <- getTargetTeam cmt
---        submit $ BreakSubmission tcId tcId' t h BreakPending Nothing False Nothing "" Nothing Nothing Nothing Nothing Nothing
---    insertFix t = submit $
---        FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
-    submit = void . runDB . insert
-    reject = undefined
-    -- FIXME: timestamp is tricky:
-    -- - Commit timestamps can be faked in git messages
-    -- - Calling "now" on server risks being slightly late and unfairly rejecting a submission.
-    --   Maybe we'll have some tolerance when computing the rounds.
-    getCommitTimestamp = getCurrentTime
-    getTargetTeam _ = undefined
-    between x (lo,hi) = lo <= x && x <= hi -- TODO: some tolerance?
+    (∈) x (lo,hi) = lo <= x && x <= addUTCTime tolerance hi
+      where tolerance = 10 * 60
+    insertDB_ s = runDB (insert s) >> return ()
+    addedTests = [(p, n) | (p, Just n) <- zip added (map testName added)]
+    buildChanged = any ("build/" `isInfixOf`) modified
+    testName p = case reverse (splitPath p) of
+        "test.json":name:"break/":_ -> Just name
+        _                           -> Nothing
+
+parseGitLabJSON :: (BS.ByteString -> Maybe a) -> Int -> String -> LHandler a
+-- Parse JSON file from GitLab repo at given path
+parseGitLabJSON parse pId fn = undefined {- do
+    s <- G.runGitLabConfig config $ do
+        Just f <- GF.repositoryFiles' pId fn "master"
+        GF.repositoryFileBlob pId (GT.blob_id f)
+    let Just msg = parse (BS.fromString s)
+    return msg -}
 
 -- Extracted information from the JSON message
 data PushMsg = PushMsg
     { projectId :: Int
-    , userName :: Text
-    , repoName :: Text -- TODO: repository.name == team name?
     , commits :: [Commit]
     } deriving (Eq,Show)
 data Commit = Commit
     { commitHash :: Text
-    , commitTimestamp :: Text
+    , commitAdded :: [String] -- `String` for working with `FilePath` lib
+    , commitModified :: [String]
     } deriving (Eq,Show)
 
 instance J.FromJSON PushMsg where
     parseJSON = J.withObject "PushEvent" $ \o ->
         PushMsg <$> o .: "project_id"
-                <*> o .: "user_username"
-                <*> ((o .: "repository") >>= (.: "name"))
                 <*> ((o .: "commits") >>= parseJSON)
 instance J.FromJSON Commit where
     parseJSON = J.withObject "Commit" $ \o ->
         Commit <$> o .: "id"
-               <*> o .: "timestamp"
+               <*> o .: "added"
+               <*> o .: "modified"
+
+-- Break submission JSON file
+data BreakMsg = BreakMsg
+    { break_type :: Text
+    , target_team :: TeamContestId
+    } deriving (Eq, Show)
+instance J.FromJSON BreakMsg where
+    parseJSON = J.withObject "Break message" $ \o ->
+        BreakMsg <$> o .: "type"
+                 <*> o .: "target_team"
