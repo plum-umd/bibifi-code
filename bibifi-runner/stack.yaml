@@ -14,7 +14,7 @@ packages:
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
-- aws-sdk-0.12.4
+#- aws-sdk-0.12.4
 - lmonad-0.1.0.0
 - lmonad-yesod-1.0.0.0
 - aws-sdk-text-converter-0.4.1
@@ -30,6 +30,8 @@ extra-deps:
 # - hashmap-1.3.1.1
 # - esqueleto-2.4.3
 # - docker-0.3.0.1
+- process-1.6.7.0
+
 
 # Override default flag values for local packages and extra-deps
 flags: {}
