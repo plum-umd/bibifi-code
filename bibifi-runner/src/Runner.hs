@@ -91,7 +91,7 @@ revertJob (OracleJob (Entity osId _os)) = runDB $
 revertJob (BuildJob (Entity bsId _bs)) = runDB $ 
     update bsId [BuildSubmissionStatus =. BuildPending]
 revertJob (BreakJob (Entity bsId _bs)) = runDB $ 
-    update bsId [BreakSubmissionStatus =. BreakPending]
+    update bsId [] -- FIXME [BreakSubmissionStatus =. BreakPending]
 revertJob (FixJob (Entity fsId _fs)) = runDB $
     update fsId [FixSubmissionStatus =. FixPending]
 
@@ -101,7 +101,7 @@ timeoutJob (OracleJob (Entity osId _os)) = runDB $
 timeoutJob (BuildJob (Entity bsId _bs)) = runDB $ 
     update bsId [BuildSubmissionStatus =. BuildTimeout]
 timeoutJob (BreakJob (Entity bsId _bs)) = runDB $ 
-    update bsId [BreakSubmissionStatus =. BreakTimeout]
+    update bsId [] -- FIXME [BreakSubmissionStatus =. BreakTimeout]
 timeoutJob (FixJob (Entity fsId _fs)) = runDB $ update fsId [FixSubmissionStatus =. FixTimeout]
 
 runJob :: RunnerOptions -> ProblemRunner -> Job -> DatabaseM (Maybe (Bool, Maybe ContestRound))

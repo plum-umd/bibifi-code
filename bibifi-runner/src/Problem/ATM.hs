@@ -224,7 +224,7 @@ instance ProblemRunnerClass ATMSpec where
                 runDB $ update submissionId [BuildSubmissionStatus =. BuildBuilt]
                 return $ Just (True, True)
 
-    runBreakSubmission (ATMSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = do
+    runBreakSubmission (ATMSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = undefined {-FIXME-} {-do
         resultsE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
             
@@ -320,10 +320,10 @@ instance ProblemRunnerClass ATMSpec where
             Left (BreakErrorBuildFail stdout' stderr') -> do
                 let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
                 let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
-                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                runDB $ update submissionId [] --FIXME [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
                 userFail "Build failed"
             Left (BreakErrorRejected msg) -> do
-                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just msg, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                runDB $ update submissionId [] -- FIXME [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just msg, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail msg
             Right (ATMBuildTestOutput False msgM _, _) -> do
                 runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
@@ -373,9 +373,9 @@ instance ProblemRunnerClass ATMSpec where
             submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
             -- destBreakFolder = "/home/breaker/break/" <> breakName
             destBreakFolder = "/home/breaker"
-            breakName = Text.unpack $ breakSubmissionName submission
+            breakName = Text.unpack $ breakSubmissionName submission -}
 
-    runFixSubmission (ATMSpec (Entity contestId _contest)) opts (Entity submissionId submission) = do
+    runFixSubmission (ATMSpec (Entity contestId _contest)) opts (Entity submissionId submission) = undefined {-FIXME-} {-do
         -- Retrieve tests from database.
         coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
         performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId] []
@@ -513,7 +513,7 @@ instance ProblemRunnerClass ATMSpec where
                     ATMBuildTestOutput False _ _ -> do
                         throwError $ FixErrorRejected "Failed core tests"
 
-            verifyAndFilterBreaks acc bsE@(Entity bsId bs) = do
+            verifyAndFilterBreaks acc bsE@(Entity bsId bs) = undefined {-FIXME-} do
                 -- Check that this break is only being fixed once.
                 fixes <- lift $ runDB $ E.select $ E.from $ \(fs `E.InnerJoin` fsb) -> do
                     E.on (fs E.^. FixSubmissionId E.==. fsb E.^. FixSubmissionBugsFix)
@@ -526,7 +526,7 @@ instance ProblemRunnerClass ATMSpec where
                 if breakSubmissionBreakType bs == Just BreakCorrectness then
                     return $ bsE:acc
                 else
-                    return acc
+                    return acc -}
 
                 
 prepareBreakTest :: (MonadIO m) => String -> String -> ATMBreakTest -> m Value

@@ -170,7 +170,7 @@ instance ProblemRunnerClass EHRSpec where
                 return $ Just (True, True)
 
 
-    runBreakSubmission (EHRSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = do
+    runBreakSubmission (EHRSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = undefined {-FIXME-} {-do
         resultE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
 
@@ -260,10 +260,10 @@ instance ProblemRunnerClass EHRSpec where
                 return $ Just (True, False)
             systemFail err = do
                 putLog err
-                return $ Just (False, False)
+                return $ Just (False, False) -}
 
 
-    runFixSubmission (EHRSpec (Entity contestId _contest)) opts (Entity submissionId submission) = do
+    runFixSubmission (EHRSpec (Entity contestId _contest)) opts (Entity submissionId submission) = undefined {-FIXME-} {-do
         -- Retrieve tests from database.
         coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
         performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId, ContestPerformanceTestOptional ==. False] []
@@ -383,7 +383,7 @@ instance ProblemRunnerClass EHRSpec where
                     BreakResult (Just True) _ ->
                         throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
                     BreakResult Nothing _ ->
-                        throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
+                        throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs) -}
         
 getOracleFileName targetId = do
     submissionM <- lift $ lift $ runDB $ selectFirst [BuildSubmissionTeam ==. targetId] [Desc BuildSubmissionTimestamp]

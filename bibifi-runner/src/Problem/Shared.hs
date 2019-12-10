@@ -71,7 +71,7 @@ checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $
             -- return False
 
 breakBaseFilters :: BreakSubmissionId -> Key TeamContest -> Key TeamContest -> [Filter BreakSubmission]
-breakBaseFilters bsId submitteamid targetteamid = [BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionTeam ==. submitteamid, BreakSubmissionTargetTeam ==. targetteamid, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionId !=. bsId, BreakSubmissionResult !=. Just BreakIncorrect]
+breakBaseFilters bsId submitteamid targetteamid = [] -- FIXME [BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionTeam ==. submitteamid, BreakSubmissionTargetTeam ==. targetteamid, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionId !=. bsId, BreakSubmissionResult !=. Just BreakIncorrect]
 
 checkIntegrityLimit :: () => Entity BreakSubmission -> ErrorT BreakError DatabaseM ()
 checkIntegrityLimit (Entity bsId bs) = do
@@ -198,11 +198,11 @@ instance ModularBreakTest JSONBreakTest where
     breakTestToType (JSONBreakSecurityTest _) = BreakSecurity
 
 breakTestTypeToSuccessfulResult :: BreakType -> BreakSubmissionResult
-breakTestTypeToSuccessfulResult BreakCorrectness = BreakCorrect
-breakTestTypeToSuccessfulResult BreakCrash = BreakCorrect
-breakTestTypeToSuccessfulResult BreakIntegrity = BreakExploit
-breakTestTypeToSuccessfulResult BreakConfidentiality = BreakExploit
-breakTestTypeToSuccessfulResult BreakSecurity = BreakExploit
+breakTestTypeToSuccessfulResult BreakCorrectness = undefined --FIXME BreakCorrect
+breakTestTypeToSuccessfulResult BreakCrash = undefined --FIXME BreakCorrect
+breakTestTypeToSuccessfulResult BreakIntegrity = undefined --FIXME BreakExploit
+breakTestTypeToSuccessfulResult BreakConfidentiality = undefined --FIXME BreakExploit
+breakTestTypeToSuccessfulResult BreakSecurity = undefined --FIXME BreakExploit
 
 breakTestToJSONBreakTest :: (Error r, MonadError r m) => Entity BreakSubmission -> m (JSONBreakTest, BreakSubmission)
 breakTestToJSONBreakTest (Entity bsId bs) = do
@@ -437,7 +437,7 @@ runJSONBreakTest session targetDestFile oracleDestFile breakTest = do
             
 verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
     where
-        helper acc bsE@(Entity bsId bs) = do
+        helper acc bsE@(Entity bsId bs) = undefined {-FIXME-} {-do
             fixes <- lift $ runDB $ E.select $ E.from $ \(fs `E.InnerJoin` fsb) -> do
                 E.on (fs E.^. FixSubmissionId E.==. fsb E.^. FixSubmissionBugsFix)
                 E.where_ (fsb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&. (fs E.^. FixSubmissionStatus E.!=. E.val FixRejected E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixBuildFail E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixInvalidBugId))
@@ -449,7 +449,7 @@ verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
             if filterF bs then
                 return $ bsE:acc
             else
-                return acc
+                return acc -}
 
 getArchiveLocation :: (MonadIO m, E.Error e) => String -> String -> RunnerOptions -> ErrorT e m FilePath
 getArchiveLocation team hash opts = ErrorT $ do

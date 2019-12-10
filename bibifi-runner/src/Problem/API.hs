@@ -204,7 +204,7 @@ instance ProblemRunnerClass APIProblem where
                 runDB $ update submissionId [BuildSubmissionStatus =. BuildBuilt]
                 return $ Just (True, True)
 
-    runBreakSubmission (APIProblem (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = do
+    runBreakSubmission (APIProblem (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = undefined {-FIXME-} {-do
         resultE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
 
@@ -299,9 +299,9 @@ instance ProblemRunnerClass APIProblem where
                 return $ Just (True, False)
             systemFail err = do
                 putLog err
-                return $ Just (False, False)
+                return $ Just (False, False) -}
 
-    runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
+    runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = undefined {-FIXME-} {-do
         -- Retrieve tests from database.
         coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
         performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId, ContestPerformanceTestOptional ==. False] []
@@ -443,7 +443,7 @@ instance ProblemRunnerClass APIProblem where
                 return $ Just (True, False)
             systemFail err = do
                 putLog err
-                return $ Just (False, False)
+                return $ Just (False, False) -}
 
 -- Could use a state transformer...
 initialPort :: MonadIO m => m (IO.IORef Int)

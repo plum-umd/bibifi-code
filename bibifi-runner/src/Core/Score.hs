@@ -317,7 +317,7 @@ defaultScoreBreakRound cId =
     let score m (accBuilder,accBreaker) submission = 
           let submitter = breakSubmissionTeam submission in
           let target = breakSubmissionTargetTeam submission in
-          let score = case breakSubmissionResult submission of
+          let score = undefined::Double {-FIXME-} {-case breakSubmissionResult submission of
                 Just BreakCorrect ->
                     if isBreakCrash submission then 
                         m
@@ -328,7 +328,7 @@ defaultScoreBreakRound cId =
                 _ ->
                     -- make this bool?? IO?
                     -- silentFail "this should never happen"
-                    error "this should never happen"
+                    error "this should never happen" -}
           in
           let builderS = addScore accBuilder (target,-score) in
           let breakerS = addScore accBreaker (submitter,score) in
@@ -341,10 +341,10 @@ defaultScoreBreakRound cId =
     -- Select all break submissions from contest where result = bug or exploit
     submissions' <- runDB $ E.select $ E.from $ \(tc `E.InnerJoin` bs) -> do
         E.on ( tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
-        E.where_ (tc E.^. TeamContestContest E.==. E.val cId
+        {-FIXME-}{-E.where_ (tc E.^. TeamContestContest E.==. E.val cId
             E.&&. ((bs E.^. BreakSubmissionStatus E.==. E.val BreakTested) E.||. (bs E.^. BreakSubmissionStatus E.==. E.val BreakJudged))
             E.&&. (bs E.^. BreakSubmissionResult E.==. E.val (Just BreakCorrect) 
-            E.||. bs E.^. BreakSubmissionResult E.==. E.val (Just BreakExploit)))
+            E.||. bs E.^. BreakSubmissionResult E.==. E.val (Just BreakExploit)))-}
         return bs
     let submissions = fmap entityVal submissions'
     initialScores <- getZeroScores
@@ -368,7 +368,8 @@ defaultScoreBreakRound cId =
 defaultScoreFixRound :: ContestId -> DatabaseM ()
 defaultScoreFixRound cId = 
     -- Iterate over a builder team's fix submissions. 
-    let scoreSubmission m disqualified ((accBuilder'',accBreaker''),fixed') s' = do
+    let scoreSubmission m disqualified ((accBuilder'',accBreaker''),fixed') s' = undefined -- FIXME
+        {- do
           let Entity fsId fs = s'
           -- get all bugs (inner joing FixSubmissionBugs and breaksubmission) (where result == bug or exploit)
           bugs <- runDB $ E.select $ E.from $ \(b `E.InnerJoin` bs `E.InnerJoin` tc) -> do
@@ -500,14 +501,14 @@ defaultScoreFixRound cId =
                       acc
                 ) accBreaker' breakCount
 
-          return ((accBuilder,accBreaker), fixed)
+          return ((accBuilder,accBreaker), fixed) -}
     in
     -- Iterate over teams.
-    let score m acc team' = do
+    let score m acc team' = undefined {-FIXME-} {-do
           let (Entity teamId _) = team'
           -- Get all disqualified bug submissions for team
           disqualified' <- runDB $ E.select $ E.from $ \( s `E.InnerJoin` b) -> do
-              E.on ( s E.^. FixSubmissionId E.==. b E.^. FixSubmissionBugsFix)
+               E.on ( s E.^. FixSubmissionId E.==. b E.^. FixSubmissionBugsFix)
               E.where_ ( s E.^. FixSubmissionTeam E.==. E.val teamId E.&&. s E.^. FixSubmissionResult E.==. E.val (Just FixDisqualified))
               return ( b E.^. FixSubmissionBugsBugId)
           let disqualified = foldl (\acc dis' -> 
@@ -525,7 +526,7 @@ defaultScoreFixRound cId =
               return s
 
           (scoreMap, _fixed) <- foldM (scoreSubmission m disqualified) (acc, S.empty) submissions
-          return scoreMap
+          return scoreMap -}
     in
     do
     -- Get number of teams, m

@@ -358,7 +358,7 @@ instance ProblemRunnerClass ArtGallery where
                     Just _ ->
                         return $ Right ()
 
-    runBreakSubmission (ArtGallery (Entity _contestId _contest)) opts (Entity submissionId submission) = do
+    runBreakSubmission (ArtGallery (Entity _contestId _contest)) opts (Entity submissionId submission) = undefined {-FIXME-} {-do
         -- Load input json. 
         breakJSONE <- safeReadFileLazy breakFilePath
         case breakJSONE of
@@ -811,8 +811,9 @@ instance ProblemRunnerClass ArtGallery where
             --             return $ Left $ const err
             --         (Left err, Nothing) -> 
             --             return $ Left $ const err
+-}
 
-    runFixSubmission (ArtGallery (Entity contestId _contest)) opts (Entity fixId fix) = do
+    runFixSubmission (ArtGallery (Entity contestId _contest)) opts (Entity fixId fix) = undefined {-FIXME-} {-do
         -- TODO: Read and parse json.
         --      Handle case for invalid breaks?
 
@@ -1045,7 +1046,7 @@ instance ProblemRunnerClass ArtGallery where
                         return ()
             
             runTest _ _ _ = 
-                throwError $ FixErrorSystem "Invalid fix type."
+                throwError $ FixErrorSystem "Invalid fix type." -}
 
 safeReadFileLazyReject f  = do
     contentsE <- safeReadFileLazy f

@@ -130,6 +130,7 @@ executable runner
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
-  
+
+  -- FIXME: add back -Werror
   ghc-options:
-      -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-name-shadowing -fno-warn-warnings-deprecations -threaded -Werror -fno-warn-missing-signatures
+      -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-name-shadowing -fno-warn-warnings-deprecations -threaded -fno-warn-missing-signatures
