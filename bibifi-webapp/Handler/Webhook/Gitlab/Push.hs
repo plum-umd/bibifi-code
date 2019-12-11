@@ -35,11 +35,15 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
     | t ∈ (bld0, bld1) =
           insertDB_ $ BuildSubmission tcId t h BuildPending Nothing Nothing
     | t ∈ (brk0, brk1) = do
-          -- Handle each explicitly specified break submission
-          forM_ addedTests $ \(f,name) -> do
-              -- TODO: do we ignore changes in `modified` as in old specs?
-              BreakMsg _ tId <- parseGitLabJSON J.decode pId f
-              insertDB_ $ BreakSubmission tcId tId t h (pack name) Nothing Nothing Nothing Nothing
+          -- Insert new break submissions
+          forM_ addedTests insertBreak
+          -- Invalidate outdated break submissions then insert new entries
+          forM_ modifiedTests $ \(f, name) -> do
+              runDB $ do
+                  breaks <- selectList [BreakSubmissionName ==. pack name] []
+                  forM_ breaks $ \(Entity id _) ->
+                      update id [BreakSubmissionValid =. Just False]
+              insertBreak (f, name)
           -- Handle each change to `build/` as a fix submission
           when buildChanged $ -- TODO: so no explicit fix, no name?
               insertDB_ $ FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
@@ -47,11 +51,16 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
     | t < brk0 = undefined -- TODO: invalid build
     | t > brk1 = undefined -- TODO: invalid break/fix
   where
+    insertBreak (f, name) = do
+        BreakMsg _ tId <- parseGitLabJSON J.decode pId f
+        insertDB_ $ BreakSubmission tcId tId t h (pack name) Nothing Nothing Nothing Nothing
     (∈) x (lo,hi) = lo <= x && x <= addUTCTime tolerance hi
       where tolerance = 10 * 60
     insertDB_ s = runDB (insert s) >> return ()
-    addedTests = [(p, n) | (p, Just n) <- zip added (map testName added)]
+    addedTests    = testNames added
+    modifiedTests = testNames modified
     buildChanged = any ("build/" `isInfixOf`) modified
+    testNames ps = [(p,n) | (p,Just n) <- zip ps (map testName ps)]
     testName p = case reverse (splitPath p) of
         "test.json":name:"break/":_ -> Just name
         _                           -> Nothing
