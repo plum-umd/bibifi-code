@@ -19,6 +19,7 @@ import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.FilePath as FilePath
+import qualified System.Posix.Files as Files
 import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
@@ -204,7 +205,9 @@ instance ProblemRunnerClass APIProblem where
                 runDB $ update submissionId [BuildSubmissionStatus =. BuildBuilt]
                 return $ Just (True, True)
 
-    runBreakSubmission (APIProblem (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = undefined {-FIXME-} {-do
+    runBreakSubmission (APIProblem (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = do
+        (targetHash, targetId) <- getLatestBuildOrFix
+        targetSubmissionLocation <- retrieveTeamSubmission targetTeamId targetHash -- FIXME how to use below?
         resultE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
 
@@ -266,31 +269,35 @@ instance ProblemRunnerClass APIProblem where
             Left BreakErrorTimeout ->
                 return Nothing
             Left (BreakErrorBuildFail stdout' stderr') -> do
-                let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
-                let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
-                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                saveUnlessInvalidated (Just "Running make failed") $
+                    let modify = Just . Textarea . Text.decodeUtf8With Text.lenientDecode
+                    in BreakFixSubmission submissionId targetId (modify stdout') (modify stderr') BreakRejected Nothing
                 userFail "Build failed"
             Left (BreakErrorRejected msg) -> do
-                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. Just msg, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                saveUnlessInvalidated (Just msg) $
+                    BreakFixSubmission submissionId targetId Nothing Nothing BreakRejected Nothing
                 userFail msg
             Right (BreakResult (Just False) msgM, _) -> do
-                runDB $ update submissionId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionResult =. Nothing, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                saveUnlessInvalidated (fmap Text.unpack msgM) $
+                    BreakFixSubmission submissionId targetId Nothing Nothing BreakRejected Nothing
                 userFail $ maybe "Test failed" Text.unpack msgM
             Right (BreakResult Nothing _, _) -> do
-                runDB $ update submissionId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing]
+                saveUnlessInvalidated Nothing $
+                    BreakFixSubmission submissionId targetId Nothing Nothing BreakJudging Nothing
                 return $ Just ( True, False)
             Right (BreakResult (Just True) _, breakTest) -> do
-                let result = breakTestTypeToSuccessfulResult $ breakTestToType breakTest
-                runDB $ update submissionId [BreakSubmissionStatus =. BreakTested, BreakSubmissionResult =. Just result, BreakSubmissionMessage =. Nothing]
+                saveUnlessInvalidated Nothing $
+                    let result = breakTestTypeToSuccessfulResult $ breakTestToType breakTest
+                    in BreakFixSubmission submissionId targetId Nothing Nothing BreakTested (Just result)
                 return $ Just ( True, True)
-
 
         where
             basePath = runnerRepositoryPath opts
             breakJSONFile = FilePath.addExtension (FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName, "test"]) "json"
             breakDir = FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName]
             breakMakefile = FilePath.joinPath [breakDir, "Makefile"]
-            targetTeamIdS = show $ keyToInt $ breakSubmissionTargetTeam submission
+            targetTeamId = breakSubmissionTargetTeam submission
+            targetTeamIdS = show $ keyToInt $ targetTeamId
             submitTeamIdS = show $ keyToInt $ breakSubmissionTeam submission
             breakName = Text.unpack $ breakSubmissionName submission
 
@@ -299,7 +306,26 @@ instance ProblemRunnerClass APIProblem where
                 return $ Just (True, False)
             systemFail err = do
                 putLog err
-                return $ Just (False, False) -}
+                return $ Just (False, False)
+
+            getLatestBuildOrFix :: DatabaseM (Text, Maybe FixSubmissionId)
+            getLatestBuildOrFix = runDB $ do
+                latestBuild <- selectFirst [BuildSubmissionTeam ==. targetTeamId]
+                                           [Desc BuildSubmissionTimestamp]
+                latestFix   <- selectFirst [FixSubmissionTeam ==. targetTeamId]
+                                           [Desc FixSubmissionTimestamp]
+                case (latestBuild, latestFix) of
+                    (_, Just (Entity id f)) -> return (fixSubmissionCommitHash f, Just id)
+                    (Just (Entity _ b), _)  -> return (buildSubmissionCommitHash b, Nothing)
+                    _                       -> error $ "Nothing to break for " ++ targetTeamIdS
+
+            saveUnlessInvalidated :: Maybe String -> BreakFixSubmission -> DatabaseM ()
+            saveUnlessInvalidated msg res = runDB $ do
+                Just latestBreakSubmission <- get submissionId
+                unless (breakSubmissionValid latestBreakSubmission == Just False) $ do
+                    _ <- insert res
+                    update submissionId [BreakSubmissionMessage =. msg, BreakSubmissionValid =. Just True]
+
 
     runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = undefined {-FIXME-} {-do
         -- Retrieve tests from database.
@@ -566,3 +592,22 @@ uploadFolder session localDir destDir' = do
         listDirectory path = filter f <$> Directory.getDirectoryContents path
             where f filename = filename /= "." && filename /= ".."
 
+retrieveTeamSubmission :: TeamContestId -> Text -> DatabaseM FilePath.FilePath
+-- Return the path the submission is saved at, possibly downloading it the first time it's requested
+retrieveTeamSubmission tcId hash = do
+    let archiveLoc = FilePath.joinPath [root, show (keyToInt tcId), Text.unpack hash, "tar.gz"]
+    exists <- liftIO $ Files.fileExist archiveLoc
+    unless exists $ do
+        teamName <- runDB $ do
+            Just tc <- get tcId
+            Just (Team name _) <- get (teamContestTeam tc)
+            return name
+        liftIO $ downloadFromGitLab hash (urlFromName teamName) archiveLoc
+    return archiveLoc
+  where -- TODO fill these out
+    root = undefined
+    urlFromName = undefined
+
+downloadFromGitLab :: Text -> Text -> FilePath.FilePath -> IO ()
+-- Download the file at given commit hash and url and save to the specified location
+downloadFromGitLab hash url dst = undefined
