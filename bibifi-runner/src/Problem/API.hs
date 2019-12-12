@@ -269,24 +269,24 @@ instance ProblemRunnerClass APIProblem where
             Left BreakErrorTimeout ->
                 return Nothing
             Left (BreakErrorBuildFail stdout' stderr') -> do
-                saveUnlessInvalidated (Just "Running make failed") $
+                saveIfStillValid (Just "Running make failed") $
                     let modify = Just . Textarea . Text.decodeUtf8With Text.lenientDecode
                     in BreakFixSubmission submissionId targetId (modify stdout') (modify stderr') BreakRejected Nothing
                 userFail "Build failed"
             Left (BreakErrorRejected msg) -> do
-                saveUnlessInvalidated (Just msg) $
+                saveIfStillValid (Just msg) $
                     BreakFixSubmission submissionId targetId Nothing Nothing BreakRejected Nothing
                 userFail msg
             Right (BreakResult (Just False) msgM, _) -> do
-                saveUnlessInvalidated (fmap Text.unpack msgM) $
+                saveIfStillValid (fmap Text.unpack msgM) $
                     BreakFixSubmission submissionId targetId Nothing Nothing BreakRejected Nothing
                 userFail $ maybe "Test failed" Text.unpack msgM
             Right (BreakResult Nothing _, _) -> do
-                saveUnlessInvalidated Nothing $
+                saveIfStillValid Nothing $
                     BreakFixSubmission submissionId targetId Nothing Nothing BreakJudging Nothing
                 return $ Just ( True, False)
             Right (BreakResult (Just True) _, breakTest) -> do
-                saveUnlessInvalidated Nothing $
+                saveIfStillValid Nothing $
                     let result = breakTestTypeToSuccessfulResult $ breakTestToType breakTest
                     in BreakFixSubmission submissionId targetId Nothing Nothing BreakTested (Just result)
                 return $ Just ( True, True)
@@ -319,8 +319,8 @@ instance ProblemRunnerClass APIProblem where
                     (Just (Entity _ b), _)  -> return (buildSubmissionCommitHash b, Nothing)
                     _                       -> error $ "Nothing to break for " ++ targetTeamIdS
 
-            saveUnlessInvalidated :: Maybe String -> BreakFixSubmission -> DatabaseM ()
-            saveUnlessInvalidated msg res = runDB $ do
+            saveIfStillValid :: Maybe String -> BreakFixSubmission -> DatabaseM ()
+            saveIfStillValid msg res = runDB $ do
                 Just latestBreakSubmission <- get submissionId
                 unless (breakSubmissionValid latestBreakSubmission == Just False) $ do
                     _ <- insert res
@@ -434,7 +434,7 @@ instance ProblemRunnerClass APIProblem where
                     when makefileExists $ do
                         putLog "Building break submission."
                         (Result _ _ exit) <- runSSH (FixErrorSystem "Could not build break") $ execCommand session $ "sudo -i -u breaker make -B -C /break"
-                        when (exit /= EpxitSuccess) $
+                        when (exit /= ExitSuccess) $
                             fail "Could not build break"
 
                     -- Run break test.
