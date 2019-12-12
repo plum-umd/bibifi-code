@@ -327,16 +327,23 @@ instance ProblemRunnerClass APIProblem where
                     update submissionId [BreakSubmissionMessage =. msg, BreakSubmissionValid =. Just True]
 
 
-    runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = undefined {-FIXME-} {-do
+    runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
         -- Retrieve tests from database.
         coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
         performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId, ContestPerformanceTestOptional ==. False] []
 
+        -- Get all valid breaks against this team
+        breaks'' <- runDB $ selectList [ BreakSubmissionTargetTeam ==. teamId
+                                       , BreakSubmissionValid !=. Just False ]
+                                       []
+
         -- Retrieve breaks (that were auto-accepted/not judged) from database.
-        breaks'' <- runDB $ E.select $ E.from $ \(fsb `E.InnerJoin` bs) -> do
+        {-breaks'' <- runDB $ E.select $ E.from $ \(fsb `E.InnerJoin` bs) -> do
             E.on (fsb E.^. FixSubmissionBugsBugId E.==. bs E.^. BreakSubmissionId)
             E.where_ (fsb E.^. FixSubmissionBugsFix E.==. E.val submissionId)
-            return bs
+            return bs-}
+
+        submissionLocation <- retrieveTeamSubmission teamId hash -- FIXME how to use this below?
 
         resultsE <- runErrorT $ do
             -- Check for description, other constraints.
@@ -347,7 +354,8 @@ instance ProblemRunnerClass APIProblem where
             performanceTests <- mapM parsePerformanceTest performanceTests'
 
             -- Verify breaks fixed and filter them (only include automatically tested ones).
-            breaks' <- verifyAndFilterBreaksForFix breaks'' $ \bs -> breakSubmissionStatus bs == BreakTested
+            let breaks' = breaks'' -- FIXME
+            --breaks' <- verifyAndFilterBreaksForFix breaks'' $ \bs -> breakSubmissionStatus bs == BreakTested
             
             -- Convert breaks to JSON breaks.
             breaks <- mapM breakTestToJSONBreakTest breaks'
@@ -426,7 +434,7 @@ instance ProblemRunnerClass APIProblem where
                     when makefileExists $ do
                         putLog "Building break submission."
                         (Result _ _ exit) <- runSSH (FixErrorSystem "Could not build break") $ execCommand session $ "sudo -i -u breaker make -B -C /break"
-                        when (exit /= ExitSuccess) $
+                        when (exit /= EpxitSuccess) $
                             fail "Could not build break"
 
                     -- Run break test.
@@ -459,6 +467,8 @@ instance ProblemRunnerClass APIProblem where
                 return $ Just (True, True)
 
         where
+            teamId = fixSubmissionTeam submission
+            hash = fixSubmissionCommitHash submission
             basePath = runnerRepositoryPath opts
 
             updateFix status msg stdout stderr = 
@@ -469,7 +479,7 @@ instance ProblemRunnerClass APIProblem where
                 return $ Just (True, False)
             systemFail err = do
                 putLog err
-                return $ Just (False, False) -}
+                return $ Just (False, False)
 
 -- Could use a state transformer...
 initialPort :: MonadIO m => m (IO.IORef Int)
