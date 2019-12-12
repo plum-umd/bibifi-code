@@ -25,7 +25,7 @@ class ProblemRunnerClass runner where
 
     runBuildSubmission :: runner -> RunnerOptions -> Entity BuildSubmission -> DatabaseM (Maybe (Bool, Bool)) -- Return Nothing means timeout. True means success, rescore.
 
-    runBreakSubmission :: runner -> RunnerOptions -> Entity BreakSubmission -> DatabaseM (Maybe (Bool, Bool)) -- Return Nothing means timeout. True means success, rescore.
+    runBreakSubmission :: runner -> RunnerOptions -> Entity BreakSubmission -> Entity BreakFixSubmission -> DatabaseM (Maybe (Bool, Bool)) -- Return Nothing means timeout. True means success, rescore.
     
     runFixSubmission :: runner -> RunnerOptions -> Entity FixSubmission -> DatabaseM (Maybe (Bool, Bool)) -- Return Nothing means timeout. True means success, rescore.
 

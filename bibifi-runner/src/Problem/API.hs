@@ -205,11 +205,13 @@ instance ProblemRunnerClass APIProblem where
                 runDB $ update submissionId [BuildSubmissionStatus =. BuildBuilt]
                 return $ Just (True, True)
 
-    runBreakSubmission (APIProblem (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = do
-        (targetHash, targetId) <- getLatestBuildOrFix
-        targetSubmissionLocation <- retrieveTeamSubmission targetTeamId targetHash -- FIXME how to use below?
+    runBreakSubmission (APIProblem (Entity contestId _contest)) opts bsE@(Entity submissionId submission) bfsE@(Entity bfsId bfs) = do
+
         resultE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
+
+            targetHash <- lift getLatestBuildOrFixHash
+            let targetArchiveLocation = teamSubmissionLocation opts targetTeamId targetHash
 
             (breakTest :: JSONBreakTest) <- loadBreakSubmissionJSON submissionId breakJSONFile
 
@@ -228,7 +230,8 @@ instance ProblemRunnerClass APIProblem where
                 uploadFolder session (runnerProblemDirectory opts) "/problem"
 
                 -- Upload break folder.
-                uploadFolder session breakDir "/break"
+                putLog "TODO: upload break.zip then extract it"
+
 
                 -- Upload target.
                 putLog "Sending target submission."
@@ -271,24 +274,39 @@ instance ProblemRunnerClass APIProblem where
             Left (BreakErrorBuildFail stdout' stderr') -> do
                 saveIfStillValid (Just "Running make failed") $
                     let modify = Just . Textarea . Text.decodeUtf8With Text.lenientDecode
-                    in BreakFixSubmission submissionId targetId (modify stdout') (modify stderr') BreakRejected Nothing
+                    in [ BreakFixSubmissionStdout =. modify stdout'
+                       , BreakFixSubmissionStderr =. modify stderr'
+                       , BreakFixSubmissionStatus =. BreakRejected
+                       , BreakFixSubmissionResult =. Just BreakFailed]
                 userFail "Build failed"
             Left (BreakErrorRejected msg) -> do
                 saveIfStillValid (Just msg) $
-                    BreakFixSubmission submissionId targetId Nothing Nothing BreakRejected Nothing
+                    [ BreakFixSubmissionStdout =. Nothing
+                    , BreakFixSubmissionStderr =. Nothing
+                    , BreakFixSubmissionStatus =. BreakRejected
+                    , BreakFixSubmissionResult =. Just BreakFailed]
                 userFail msg
             Right (BreakResult (Just False) msgM, _) -> do
                 saveIfStillValid (fmap Text.unpack msgM) $
-                    BreakFixSubmission submissionId targetId Nothing Nothing BreakRejected Nothing
+                    [ BreakFixSubmissionStdout =. Nothing
+                    , BreakFixSubmissionStderr =. Nothing
+                    , BreakFixSubmissionStatus =. BreakRejected
+                    , BreakFixSubmissionResult =. Just BreakFailed]
                 userFail $ maybe "Test failed" Text.unpack msgM
             Right (BreakResult Nothing _, _) -> do
                 saveIfStillValid Nothing $
-                    BreakFixSubmission submissionId targetId Nothing Nothing BreakJudging Nothing
+                    [ BreakFixSubmissionStdout =. Nothing
+                    , BreakFixSubmissionStderr =. Nothing
+                    , BreakFixSubmissionStatus =. BreakJudging
+                    , BreakFixSubmissionResult =. Just BreakFailed]
                 return $ Just ( True, False)
             Right (BreakResult (Just True) _, breakTest) -> do
                 saveIfStillValid Nothing $
                     let result = breakTestTypeToSuccessfulResult $ breakTestToType breakTest
-                    in BreakFixSubmission submissionId targetId Nothing Nothing BreakTested (Just result)
+                    in [ BreakFixSubmissionStdout =. Nothing
+                       , BreakFixSubmissionStderr =. Nothing
+                       , BreakFixSubmissionStatus =. BreakTested
+                       , BreakFixSubmissionResult =. Just result]
                 return $ Just ( True, True)
 
         where
@@ -308,23 +326,22 @@ instance ProblemRunnerClass APIProblem where
                 putLog err
                 return $ Just (False, False)
 
-            getLatestBuildOrFix :: DatabaseM (Text, Maybe FixSubmissionId)
-            getLatestBuildOrFix = runDB $ do
+            targetId = breakFixSubmissionFix bfs
+
+            saveIfStillValid msg changes = runDB $ do
+                Just latestBreakSubmission <- get submissionId
+                unless (breakSubmissionValid latestBreakSubmission == Just False) $ do
+                    update bfsId changes
+                    update submissionId [BreakSubmissionMessage =. msg, BreakSubmissionValid =. Just True]
+            getLatestBuildOrFixHash = runDB $ do
                 latestBuild <- selectFirst [BuildSubmissionTeam ==. targetTeamId]
                                            [Desc BuildSubmissionTimestamp]
                 latestFix   <- selectFirst [FixSubmissionTeam ==. targetTeamId]
                                            [Desc FixSubmissionTimestamp]
                 case (latestBuild, latestFix) of
-                    (_, Just (Entity id f)) -> return (fixSubmissionCommitHash f, Just id)
-                    (Just (Entity _ b), _)  -> return (buildSubmissionCommitHash b, Nothing)
+                    (_, Just (Entity id f)) -> return $ fixSubmissionCommitHash f
+                    (Just (Entity _ b), _)  -> return $ buildSubmissionCommitHash b
                     _                       -> error $ "Nothing to break for " ++ targetTeamIdS
-
-            saveIfStillValid :: Maybe String -> BreakFixSubmission -> DatabaseM ()
-            saveIfStillValid msg res = runDB $ do
-                Just latestBreakSubmission <- get submissionId
-                unless (breakSubmissionValid latestBreakSubmission == Just False) $ do
-                    _ <- insert res
-                    update submissionId [BreakSubmissionMessage =. msg, BreakSubmissionValid =. Just True]
 
 
     runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
@@ -343,7 +360,7 @@ instance ProblemRunnerClass APIProblem where
             E.where_ (fsb E.^. FixSubmissionBugsFix E.==. E.val submissionId)
             return bs-}
 
-        submissionLocation <- retrieveTeamSubmission teamId hash -- FIXME how to use this below?
+        let archiveLocation = teamSubmissionLocation opts teamId hash
 
         resultsE <- runErrorT $ do
             -- Check for description, other constraints.
@@ -359,9 +376,6 @@ instance ProblemRunnerClass APIProblem where
             
             -- Convert breaks to JSON breaks.
             breaks <- mapM breakTestToJSONBreakTest breaks'
-
-            -- Make sure build submission tar and MITMs exist.
-            archiveLocation <- getFixArchiveLocation submission opts 
 
             -- Start instance.
             let conf = runnerCloudConfiguration opts
@@ -602,10 +616,11 @@ uploadFolder session localDir destDir' = do
         listDirectory path = filter f <$> Directory.getDirectoryContents path
             where f filename = filename /= "." && filename /= ".."
 
+{-
 retrieveTeamSubmission :: TeamContestId -> Text -> DatabaseM FilePath.FilePath
 -- Return the path the submission is saved at, possibly downloading it the first time it's requested
 retrieveTeamSubmission tcId hash = do
-    let archiveLoc = FilePath.joinPath [root, show (keyToInt tcId), Text.unpack hash, "tar.gz"]
+    let archiveLoc = 
     exists <- liftIO $ Files.fileExist archiveLoc
     unless exists $ do
         teamName <- runDB $ do
@@ -621,3 +636,4 @@ retrieveTeamSubmission tcId hash = do
 downloadFromGitLab :: Text -> Text -> FilePath.FilePath -> IO ()
 -- Download the file at given commit hash and url and save to the specified location
 downloadFromGitLab hash url dst = undefined
+-}

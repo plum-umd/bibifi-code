@@ -170,7 +170,7 @@ instance ProblemRunnerClass EHRSpec where
                 return $ Just (True, True)
 
 
-    runBreakSubmission (EHRSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = undefined {-FIXME-} {-do
+    runBreakSubmission (EHRSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) _ = undefined {-FIXME-} {-do
         resultE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
 

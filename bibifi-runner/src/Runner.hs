@@ -114,6 +114,7 @@ runJob opts (ProblemRunner r) (OracleJob os) = do
             return $ Just (success, Nothing)
 
 runJob opts (ProblemRunner r) (BuildJob bs) = do
+    -- TODO: download and save?
     resM <- runBuildSubmission r opts bs
     case resM of
         Nothing ->
@@ -123,15 +124,25 @@ runJob opts (ProblemRunner r) (BuildJob bs) = do
             return $ Just (success, rescore)
 
 runJob opts (ProblemRunner r) (BreakJob bs) = do
-            resM <- runBreakSubmission r opts bs
+   -- TODO: download and save?
+            bfs <- getBfs
+            resM <- runBreakSubmission r opts bs bfs
             case resM of 
                 Nothing ->
                     return Nothing
                 Just (success, rescore') ->
                     let rescore = if rescore' then Just ContestRoundBreak else Nothing in
                     return $ Just (success, rescore)
+  where
+    getBfs = runDB $ do
+        res <- selectFirst [BreakFixSubmissionBreak ==. entityKey bs]
+                           [Asc BreakFixSubmissionId]
+        case res of
+            Just it -> return it
+            Nothing -> error $ "getBfs: BreakFixSubmission does not exist" ++ show (entityKey bs)
 
 runJob opts (ProblemRunner r) (FixJob fs) = do
+    -- TODO: download and save?
     resM <- runFixSubmission r opts fs
     case resM of
         Nothing ->
@@ -139,6 +150,7 @@ runJob opts (ProblemRunner r) (FixJob fs) = do
         Just (success, rescore') -> 
             let rescore = if rescore' then Just ContestRoundFix else Nothing in
             return $ Just (success, rescore)
+
 
 -- getBuildTest blockedTeams = 
 --     -- Get next build-it test for non-blocked teams.

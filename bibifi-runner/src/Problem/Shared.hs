@@ -524,3 +524,8 @@ parseTestHelper getInput constr t@(Entity _ test) = ErrorT $
 
 class ModularBreakTest b where
     breakTestToType :: b -> BreakType
+
+teamSubmissionLocation :: RunnerOptions -> TeamContestId -> Text -> FilePath
+teamSubmissionLocation opts tcId hash = FilePath.addExtension (FilePath.joinPath pieces) "zip"
+  where basePath = runnerRepositoryPath opts
+        pieces = [basePath, "commits", show (keyToInt tcId), Text.unpack hash]
