@@ -200,8 +200,16 @@ prettyBreakResult s = case s of
             <span>
                 &#8212;
         |]
-    Just BreakSucceeded -> undefined -- FIXME
-    Just BreakFailed -> undefined -- FIXME
+    Just BreakSucceeded ->
+        [shamlet|
+            <span class="text-success">
+                Break succeeded
+        |]
+    Just BreakFailed ->
+        [shamlet|
+            <span class="text-danger">
+                Break failed
+        |]
         
 prettyBreakResultVictim :: Maybe BreakSubmissionResult -> Html
 prettyBreakResultVictim s = case s of
@@ -210,8 +218,16 @@ prettyBreakResultVictim s = case s of
             <span>
                 &#8212;
         |]
-    Just BreakSucceeded -> undefined -- FIXME
-    Just BreakFailed -> undefined -- FIXME
+    Just BreakSucceeded ->
+        [shamlet|
+            <span class="text-danger">
+                Break succeeded
+        |]
+    Just BreakFailed ->
+        [shamlet|
+            <span class="text-danger">
+                Break failed
+        |]
         
 prettyFixStatus :: FixSubmissionStatus -> Html
 prettyFixStatus s = case s of 
