@@ -47,17 +47,15 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
                       updateWhere [ BreakFixSubmissionBreak ==. id ]
                                   [ BreakFixSubmissionStatus =. BreakRejected
                                   , BreakFixSubmissionResult =. Nothing ]
-              insertBreak (f, name)
+              BreakMsg _ tId <- parseGitLabJSON J.decode pId f
+              insertDB_ $ BreakSubmission tcId tId t h (pack name) Nothing Nothing Nothing Nothing
           -- Handle each change to `build/` as a fix submission
           when buildChanged $ -- TODO: so no explicit fix, no name?
               insertDB_ $ FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
-    | t < bld0 = undefined -- TODO: contest not started
-    | t < brk0 = undefined -- TODO: invalid build
-    | t > brk1 = undefined -- TODO: invalid break/fix
+    | t < bld0 = return () -- TODO: contest not started
+    | t < brk0 = return () -- TODO: invalid build
+    | t > brk1 = return () -- TODO: invalid break/fix
   where
-    insertBreak (f, name) = do
-        BreakMsg _ tId <- parseGitLabJSON J.decode pId f
-        insertDB_ $ BreakSubmission tcId tId t h (pack name) Nothing Nothing Nothing Nothing
     (∈) x (lo,hi) = lo <= x && x <= addUTCTime tolerance hi
       where tolerance = 10 * 60
     insertDB_ s = runDB (insert s) >> return ()
