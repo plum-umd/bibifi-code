@@ -41,9 +41,12 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
           forM_ (addedTests ++ modifiedTests) $ \(f, name) -> do
               runDB $ do
                   breaks <- selectList [BreakSubmissionName ==. pack name] []
-                  forM_ breaks $ \(Entity id _) ->
-                      update id [BreakSubmissionValid =. Just False,
-                                 BreakSubmissionMessage =. Just "Break resubmitted" ]
+                  forM_ breaks $ \(Entity id _) -> do
+                      update id [ BreakSubmissionValid =. Just False
+                                , BreakSubmissionMessage =. Just "Break resubmitted" ]
+                      updateWhere [ BreakFixSubmissionBreak ==. id ]
+                                  [ BreakFixSubmissionStatus =. BreakRejected
+                                  , BreakFixSubmissionResult =. Nothing ]
               insertBreak (f, name)
           -- Handle each change to `build/` as a fix submission
           when buildChanged $ -- TODO: so no explicit fix, no name?
