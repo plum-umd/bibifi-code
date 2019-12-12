@@ -35,14 +35,15 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
     | t ∈ (bld0, bld1) =
           insertDB_ $ BuildSubmission tcId t h BuildPending Nothing Nothing
     | t ∈ (brk0, brk1) = do
-          -- Insert new break submissions
-          forM_ addedTests insertBreak
           -- Invalidate outdated break submissions then insert new entries
-          forM_ modifiedTests $ \(f, name) -> do
+          -- Added tests are treated the same as modified tests to account for
+          -- people deleting then adding them back.
+          forM_ (addedTests ++ modifiedTests) $ \(f, name) -> do
               runDB $ do
                   breaks <- selectList [BreakSubmissionName ==. pack name] []
                   forM_ breaks $ \(Entity id _) ->
-                      update id [BreakSubmissionValid =. Just False]
+                      update id [BreakSubmissionValid =. Just False,
+                                 BreakSubmissionMessage =. Just "Break resubmitted" ]
               insertBreak (f, name)
           -- Handle each change to `build/` as a fix submission
           when buildChanged $ -- TODO: so no explicit fix, no name?
