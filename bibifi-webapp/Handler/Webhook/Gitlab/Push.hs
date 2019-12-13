@@ -24,13 +24,16 @@ postWebhookGitlabPushR :: TeamContestId -> Text -> Handler ()
 -- We only treat the call as a ping, and check back with Gitlab to retrieve information
 -- regarding the commit hash.
 postWebhookGitlabPushR tcId token = runLHandler $ do
+    (cId, nonce) <- runDB $ do
+         TeamContest _ cId _ _ _ nonce <- get404 tcId
+         return (cId, nonce)
+    unless (token === nonce) (permissionDenied "token doesn't match")
     pushTime <- getCurrentTime
-    contest <- runDB $ do
-        TeamContest _ cId _ _ _ nonce <- get404 tcId
-        -- FIXME compare against token
-        get404 cId
+    contest <- runDB $ get404 cId
     PushMsg pId cmts <- requireJsonBody
     mapM_ (handleCommit pushTime pId contest tcId) cmts
+  where
+    (===) s1 s2 = undefined -- TODO: constant time
 
 handleCommit :: UTCTime -> Int -> Contest -> TeamContestId -> Commit -> LHandler ()
 -- Insert a submission of the right round in the database for given team and commit-hash
@@ -66,11 +69,11 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
                       id <- insert $ BreakSubmission tcId (toSqlKey 1) t h name Nothing (Just "invalid JSON in test.json") Nothing (Just False)
                       insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
           -- Handle each change to `build/` as a fix submission
-          when buildChanged $ -- TODO: so no explicit fix, no name?
+          when buildChanged $
               runDB $ insert_ $ FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
-    | t < bld0 = return () -- TODO: contest not started
-    | t < brk0 = return () -- TODO: invalid build
-    | t > brk1 = return () -- TODO: invalid break/fix
+    | t < bld0 = runDB $ insert_ $ BuildSubmission tcId t h BuildBuildFail (Just (Textarea "contest not started")) Nothing
+    | t < brk0 = runDB $ insert_ $ BuildSubmission tcId t h BuildBuildFail (Just (Textarea "build deadline passed")) Nothing
+    | t > brk1 = runDB $ insert_ $ BreakSubmission tcId (toSqlKey 1) t h "late break" Nothing (Just "contest over") Nothing (Just False)
   where
     (∈) x (lo,hi) = lo <= x && x <= addUTCTime tolerance hi
       where tolerance = 10 * 60
