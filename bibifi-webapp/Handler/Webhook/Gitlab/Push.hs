@@ -25,9 +25,10 @@ postWebhookGitlabPushR :: TeamContestId -> Text -> Handler ()
 -- regarding the commit hash.
 postWebhookGitlabPushR tcId token = runLHandler $ do
     (cId, nonce) <- runDB $ do
-         TeamContest _ cId _ _ _ nonce <- get404 tcId
-         return (cId, nonce)
-    unless (token === nonce) (permissionDenied "token doesn't match")
+        TeamContest _ cId _ _ _ nonce <- get404 tcId
+        return (cId, nonce)
+    unless (token === nonce) $
+        permissionDenied "Unmatched token"
     pushTime <- getCurrentTime
     contest <- runDB $ get404 cId
     PushMsg pId cmts <- requireJsonBody
@@ -36,7 +37,7 @@ postWebhookGitlabPushR tcId token = runLHandler $ do
     (===) s1 s2 = undefined -- TODO: constant time
 
 handleCommit :: UTCTime -> Int -> Contest -> TeamContestId -> Commit -> LHandler ()
--- Insert a submission of the right round in the database for given team and commit-hash
+-- Insert submission of the right kind (build/break/fix) into the database based on push time
 handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modified)
     | t ∈ (bld0, bld1) =
           runDB $ insert_ $ BuildSubmission tcId t h BuildPending Nothing Nothing
@@ -44,46 +45,46 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
           -- Invalidate outdated break submissions then insert new entries
           -- Added tests are treated the same as modified tests to account for
           -- people deleting then adding them back.
-          forM_ (addedTests ++ modifiedTests) $ \(f, name) -> do
+          forM_ (testCases added ++ testCases modified) $ \(path, name) -> do
               runDB $ do
-                  breaks <- selectList [BreakSubmissionName ==. name] []
-                  forM_ breaks $ \(Entity id _) -> do
+                  oldBreaks <- selectList [BreakSubmissionName ==. name] []
+                  forM_ oldBreaks $ \(Entity id _) -> do
                       update id [ BreakSubmissionValid =. Just False
                                 , BreakSubmissionMessage =. Just "Break resubmitted" ]
                       updateWhere [ BreakFixSubmissionBreak ==. id ]
                                   [ BreakFixSubmissionStatus =. BreakRejected
                                   , BreakFixSubmissionResult =. Nothing ]
-              parsed <- parseGitLabJSON J.decode pId f
-              case parsed of
-                  Just (BreakMsg _ tId) -> runDB $ do
-                      -- TODO validate targetTeam
-                      target' <- getLatestBuildOrFix tId
-                      case target' of
-                          Just target -> do
-                              id <- insert $ BreakSubmission tcId tId t h name Nothing Nothing Nothing Nothing
-                              insert_ $ BreakFixSubmission id target Nothing Nothing BreakPending Nothing
-                          Nothing -> do
-                              id <- insert $ BreakSubmission tcId tId t h name Nothing (Just "Invalid target team") Nothing (Just False)
-                              insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
-                  Nothing -> runDB $ do
-                      id <- insert $ BreakSubmission tcId (toSqlKey 1) t h name Nothing (Just "invalid JSON in test.json") Nothing (Just False)
-                      insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
+              testCase <- parseBreakMsg pId path
+              runDB $ case testCase of
+                  Just (BreakMsg _ tId) | tId /= tcId -> do
+                      target <- getLatestBuildOrFix tId
+                      case target of
+                          Right t  -> insertPendingBreak tId name t
+                          Left msg -> insertErrorBreak tId name msg
+                  Just _ -> insertErrorBreak tcId name "self targeting"
+                  Nothing -> insertErrorBreak (toSqlKey 1) name "invalid JSON in test.json"
           -- Handle each change to `build/` as a fix submission
           when buildChanged $
               runDB $ insert_ $ FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
-    | t < bld0 = runDB $ insert_ $ BuildSubmission tcId t h BuildBuildFail (Just (Textarea "contest not started")) Nothing
-    | t < brk0 = runDB $ insert_ $ BuildSubmission tcId t h BuildBuildFail (Just (Textarea "build deadline passed")) Nothing
-    | t > brk1 = runDB $ insert_ $ BreakSubmission tcId (toSqlKey 1) t h "late break" Nothing (Just "contest over") Nothing (Just False)
+    | t < bld0 = runDB $ insertErrorBuild "contest not started"
+    | t < brk0 = runDB $ insertErrorBuild "build deadline passed"
+    | t > brk1 = runDB $ insertErrorBreak (toSqlKey 1) "late break" "contest over"
   where
     (∈) x (lo,hi) = lo <= x && x <= addUTCTime tolerance hi
       where tolerance = 10 * 60
-    addedTests    = testNames added
-    modifiedTests = testNames modified
     buildChanged = any ("build/" `isInfixOf`) modified
-    testNames ps = [(p,n) | (p,Just n) <- zip ps (map testName ps)]
+    testCases ps = [(p,n) | (p,Just n) <- zip ps (map testName ps)]
     testName p = case reverse (splitPath p) of
         "test.json":name:"break/":_ -> Just (pack name)
         _                           -> Nothing
+    insertErrorBuild msg = insert_ $
+        BuildSubmission tcId t h BuildBuildFail (Just (Textarea msg)) Nothing
+    insertErrorBreak tId name msg = do
+        id <- insert $ BreakSubmission tcId tId t h name Nothing (Just msg) Nothing (Just False)
+        insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
+    insertPendingBreak tId name target = do
+        id <- insert $ BreakSubmission tcId tId t h name Nothing Nothing Nothing Nothing
+        insert_ $ BreakFixSubmission id target Nothing Nothing BreakPending Nothing
     getLatestBuildOrFix tId = do
         latestBuild <- selectFirst [ BuildSubmissionTeam ==. tId ]
                                    [ Desc BuildSubmissionTimestamp ]
@@ -91,18 +92,18 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
                                    , FixSubmissionResult ==. Just FixFixed]
                                    [ Desc FixSubmissionTimestamp ]
         case (latestBuild, latestFix) of
-            (_, Just (Entity id _))                     -> return $ Just $ Just id
-            (Just (Entity _ b), _)
-                | buildSubmissionStatus b == BuildBuilt -> return $ Just $ Nothing
-            _                                           -> return Nothing
+            (_, Just (Entity id _))                     -> return $ Right $ Just id
+            (Just (Entity _ b), _) -- TODO: should filter be above, or we insist that the latest build be valid?
+                | buildSubmissionStatus b == BuildBuilt -> return $ Right $ Nothing
+            _                                           -> return $ Left "No valid target"
 
-parseGitLabJSON :: (BS.ByteString -> Maybe a) -> Int -> String -> LHandler (Maybe a)
+parseBreakMsg :: Int -> String -> LHandler (Maybe BreakMsg)
 -- Parse JSON file from GitLab repo at given path
-parseGitLabJSON parse pId fn = undefined {- do
+parseBreakMsg pId fn = undefined {- do
     s <- G.runGitLabConfig config $ do
         Just f <- GF.repositoryFiles' pId fn "master"
         GF.repositoryFileBlob pId (GT.blob_id f)
-    let Just msg = parse (BS.fromString s)
+    let Just msg = J.decode (BS.fromString s)
     return msg -}
 
 -- Extracted information from the JSON message
