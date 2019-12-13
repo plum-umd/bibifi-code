@@ -7,6 +7,7 @@ import PostDependencyType
     , BreakSubmissionResult(..)
     , FixSubmissionResult(..)
     )
+import BuildSubmissions (getLatestBuildOrFix)
 import Import as I
 import Data.Aeson as J
 import Data.List (isInfixOf)
@@ -59,8 +60,8 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
                   Just (BreakMsg _ tId) | tId /= tcId -> do
                       target <- getLatestBuildOrFix tId
                       case target of
-                          Right t  -> insertPendingBreak tId name t
-                          Left msg -> insertErrorBreak tId name msg
+                          Right (_,t) -> insertPendingBreak tId name t
+                          Left msg    -> insertErrorBreak tId name msg
                   Just _ -> insertErrorBreak tcId name "self targeting"
                   Nothing -> insertErrorBreak (toSqlKey 1) name "invalid JSON in test.json"
           -- Handle each change to `build/` as a fix submission
@@ -85,17 +86,6 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
     insertPendingBreak tId name target = do
         id <- insert $ BreakSubmission tcId tId t h name Nothing Nothing Nothing Nothing
         insert_ $ BreakFixSubmission id target Nothing Nothing BreakPending Nothing
-    getLatestBuildOrFix tId = do
-        latestBuild <- selectFirst [ BuildSubmissionTeam ==. tId ]
-                                   [ Desc BuildSubmissionTimestamp ]
-        latestFix   <- selectFirst [ FixSubmissionTeam ==. tId
-                                   , FixSubmissionResult ==. Just FixFixed]
-                                   [ Desc FixSubmissionTimestamp ]
-        case (latestBuild, latestFix) of
-            (_, Just (Entity id _))                     -> return $ Right $ Just id
-            (Just (Entity _ b), _) -- TODO: should filter be above, or we insist that the latest build be valid?
-                | buildSubmissionStatus b == BuildBuilt -> return $ Right $ Nothing
-            _                                           -> return $ Left "No valid target"
 
 parseBreakMsg :: Int -> String -> LHandler (Maybe BreakMsg)
 -- Parse JSON file from GitLab repo at given path

@@ -31,6 +31,8 @@ import Problem.Class
 import Problem.Shared hiding (grader, runBuildTest, runTestAt)
 import Scorer.Class
 
+import BuildSubmissions (getLatestBuildOrFix)
+
 newtype APIProblem = APIProblem (Entity Contest)
 
 instance ExtractContest APIProblem where
@@ -181,8 +183,8 @@ instance ProblemRunnerClass APIProblem where
 
         case (resultsE :: Either BuildError ()) of
             Left (BuildFail stdout' stderr') -> do
-                let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
-                let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                let stdout = decodeUtf8 stdout'
+                let stderr = decodeUtf8 stderr'
                 runDB $ update submissionId [BuildSubmissionStatus =. BuildBuildFail, BuildSubmissionStdout =. stdout, BuildSubmissionStderr =. stderr]
                 putLog "Build failed"
                 return $ Just (True, False)
@@ -210,7 +212,7 @@ instance ProblemRunnerClass APIProblem where
         resultE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
 
-            targetHash <- lift getLatestBuildOrFixHash
+            Right (targetHash, _) <- lift (runDB $ getLatestBuildOrFix targetTeamId) -- can't fail due to prior checks
             let targetArchiveLocation = teamSubmissionLocation opts targetTeamId targetHash
 
             (breakTest :: JSONBreakTest) <- loadBreakSubmissionJSON submissionId breakJSONFile
@@ -272,8 +274,7 @@ instance ProblemRunnerClass APIProblem where
             Left BreakErrorTimeout ->
                 return Nothing
             Left (BreakErrorBuildFail stdout' stderr') -> do
-                let modify = Just . Textarea . Text.decodeUtf8With Text.lenientDecode
-                saveIfStillValid (Just "Running make failed") (modify stdout') (modify stderr') BreakRejected (Just BreakFailed)
+                saveIfStillValid (Just "Running make failed") (decodeUtf8 stdout') (decodeUtf8 stderr') BreakRejected (Just BreakFailed)
                 userFail "Build failed"
             Left (BreakErrorRejected msg) -> do
                 saveIfStillValid (Just msg) Nothing Nothing BreakRejected (Just BreakFailed)
@@ -316,15 +317,6 @@ instance ProblemRunnerClass APIProblem where
                                  , BreakFixSubmissionStatus =. stat
                                  , BreakFixSubmissionResult =. res ]
                     update submissionId [BreakSubmissionMessage =. msg, BreakSubmissionValid =. Just True]
-            getLatestBuildOrFixHash = runDB $ do
-                latestBuild <- selectFirst [BuildSubmissionTeam ==. targetTeamId]
-                                           [Desc BuildSubmissionTimestamp]
-                latestFix   <- selectFirst [FixSubmissionTeam ==. targetTeamId]
-                                           [Desc FixSubmissionTimestamp]
-                case (latestBuild, latestFix) of
-                    (_, Just (Entity id f)) -> return $ fixSubmissionCommitHash f
-                    (Just (Entity _ b), _)  -> return $ buildSubmissionCommitHash b
-                    _                       -> error $ "Nothing to break for " ++ targetTeamIdS
 
 
     runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
@@ -446,8 +438,8 @@ instance ProblemRunnerClass APIProblem where
             Left FixErrorTimeout ->
                 return Nothing
             Left (FixErrorBuildFail stdout' stderr') -> do
-                let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
-                let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
+                let stdout = decodeUtf8 stdout'
+                let stderr = decodeUtf8 stderr'
                 updateFix FixRejected (Just "Running make failed") stdout stderr
                 userFail "Build failed"
             Left (FixErrorRejected msg) -> do
@@ -541,7 +533,7 @@ runTestAt session location = do
     -- Parse resOut.
     output <- ErrorT $ case Aeson.decodeStrict' resOut of
         Nothing ->
-            return $ Left $ strMsg $ "Could not decode test output: " <> BS8.unpack resOut
+            return $ Left $ strMsg $ "Could not decodeUtf8 test output: " <> BS8.unpack resOut
         Just r ->
             return $ Right r
 
@@ -592,6 +584,9 @@ uploadFolder session localDir destDir' = do
 
         listDirectory path = filter f <$> Directory.getDirectoryContents path
             where f filename = filename /= "." && filename /= ".."
+
+decodeUtf8 :: BS8.ByteString -> Maybe Textarea
+decodeUtf8 = Just . Textarea . Text.decodeUtf8With Text.lenientDecode
 
 {-
 retrieveTeamSubmission :: TeamContestId -> Text -> DatabaseM FilePath.FilePath
