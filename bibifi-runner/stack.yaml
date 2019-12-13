@@ -53,3 +53,7 @@ extra-package-dbs: []
 # Extra directories used by stack for building
 # extra-include-dirs: [/path/to/dir]
 # extra-lib-dirs: [/path/to/dir]
+
+#extra-deps:
+#- git: https://gitlab.com/philnguyen/gitlab-haskell.git
+#  commit: 11f8da35124fd1757e4a1b8ce6c5a22ff294c4cd
