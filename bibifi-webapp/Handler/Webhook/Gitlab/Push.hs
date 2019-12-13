@@ -43,34 +43,36 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
     | t ∈ (bld0, bld1) =
           runDB $ insert_ $ BuildSubmission tcId t h BuildPending Nothing Nothing
     | t ∈ (brk0, brk1) = do
-          -- Invalidate outdated break submissions then insert new entries
-          -- Added tests are treated the same as modified tests to account for
-          -- people deleting then adding them back.
-          forM_ (testCases added ++ testCases modified) $ \(path, name) -> do
-              runDB $ do
-                  oldBreaks <- selectList [BreakSubmissionName ==. name] []
-                  forM_ oldBreaks $ \(Entity id _) -> do
-                      update id [ BreakSubmissionValid =. Just False
-                                , BreakSubmissionMessage =. Just "Break resubmitted" ]
-                      updateWhere [ BreakFixSubmissionBreak ==. id ]
-                                  [ BreakFixSubmissionStatus =. BreakRejected
-                                  , BreakFixSubmissionResult =. Nothing ]
-              testCase <- parseBreakMsg pId path
-              runDB $ case testCase of
-                  Just (BreakMsg _ tId) | tId /= tcId -> do
-                      target <- getLatestBuildOrFix tId
-                      case target of
-                          Right (_,t) -> insertPendingBreak tId name t
-                          Left msg    -> insertErrorBreak tId name msg
-                  Just _ -> insertErrorBreak tcId name "self targeting"
-                  Nothing -> insertErrorBreak (toSqlKey 1) name "invalid JSON in test.json"
-          -- Handle each change to `build/` as a fix submission
-          when buildChanged $
-              runDB $ insert_ $ FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
+          handleBreaks
+          handleFixes
     | t < bld0 = runDB $ insertErrorBuild "contest not started"
     | t < brk0 = runDB $ insertErrorBuild "build deadline passed"
     | t > brk1 = runDB $ insertErrorBreak (toSqlKey 1) "late break" "contest over"
   where
+    -- Invalidate outdated break submissions then insert new entries
+    -- Added tests are treated the same as modified tests to account for
+    -- people deleting then adding them back.
+    handleBreaks = do
+        forM_ (testCases added ++ testCases modified) $ \(path, name) -> do
+            runDB $ do
+                oldBreaks <- selectList [BreakSubmissionName ==. name] []
+                forM_ oldBreaks $ \(Entity id _) -> do
+                    update id [ BreakSubmissionValid =. Just False
+                              , BreakSubmissionMessage =. Just "Break resubmitted" ]
+                    updateWhere [ BreakFixSubmissionBreak ==. id ]
+                                [ BreakFixSubmissionStatus =. BreakRejected
+                                , BreakFixSubmissionResult =. Nothing ]
+            testCase <- parseBreakMsg pId path
+            runDB $ case testCase of
+                Just (BreakMsg _ tId) -> do
+                    target <- getLatestBuildOrFix tId
+                    case target of
+                        Right (_,t) -> insertPendingBreak tId name t
+                        Left msg    -> insertErrorBreak tId name msg
+                Nothing -> insertErrorBreak (toSqlKey 1) name "invalid JSON in test.json"
+    -- Handle each change to `build/` as a fix submission
+    handleFixes =  when buildChanged $
+        runDB $ insert_ $ FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
     (∈) x (lo,hi) = lo <= x && x <= addUTCTime tolerance hi
       where tolerance = 10 * 60
     buildChanged = any ("build/" `isInfixOf`) modified
