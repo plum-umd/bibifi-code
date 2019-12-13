@@ -272,41 +272,21 @@ instance ProblemRunnerClass APIProblem where
             Left BreakErrorTimeout ->
                 return Nothing
             Left (BreakErrorBuildFail stdout' stderr') -> do
-                saveIfStillValid (Just "Running make failed") $
-                    let modify = Just . Textarea . Text.decodeUtf8With Text.lenientDecode
-                    in [ BreakFixSubmissionStdout =. modify stdout'
-                       , BreakFixSubmissionStderr =. modify stderr'
-                       , BreakFixSubmissionStatus =. BreakRejected
-                       , BreakFixSubmissionResult =. Just BreakFailed]
+                let modify = Just . Textarea . Text.decodeUtf8With Text.lenientDecode
+                saveIfStillValid (Just "Running make failed") (modify stdout') (modify stderr') BreakRejected (Just BreakFailed)
                 userFail "Build failed"
             Left (BreakErrorRejected msg) -> do
-                saveIfStillValid (Just msg) $
-                    [ BreakFixSubmissionStdout =. Nothing
-                    , BreakFixSubmissionStderr =. Nothing
-                    , BreakFixSubmissionStatus =. BreakRejected
-                    , BreakFixSubmissionResult =. Just BreakFailed]
+                saveIfStillValid (Just msg) Nothing Nothing BreakRejected (Just BreakFailed)
                 userFail msg
             Right (BreakResult (Just False) msgM, _) -> do
-                saveIfStillValid (fmap Text.unpack msgM) $
-                    [ BreakFixSubmissionStdout =. Nothing
-                    , BreakFixSubmissionStderr =. Nothing
-                    , BreakFixSubmissionStatus =. BreakRejected
-                    , BreakFixSubmissionResult =. Just BreakFailed]
+                saveIfStillValid (fmap Text.unpack msgM) Nothing Nothing BreakRejected (Just BreakFailed)
                 userFail $ maybe "Test failed" Text.unpack msgM
             Right (BreakResult Nothing _, _) -> do
-                saveIfStillValid Nothing $
-                    [ BreakFixSubmissionStdout =. Nothing
-                    , BreakFixSubmissionStderr =. Nothing
-                    , BreakFixSubmissionStatus =. BreakJudging
-                    , BreakFixSubmissionResult =. Just BreakFailed]
+                saveIfStillValid Nothing Nothing Nothing BreakJudging (Just BreakFailed)
                 return $ Just ( True, False)
             Right (BreakResult (Just True) _, breakTest) -> do
-                saveIfStillValid Nothing $
-                    let result = breakTestTypeToSuccessfulResult $ breakTestToType breakTest
-                    in [ BreakFixSubmissionStdout =. Nothing
-                       , BreakFixSubmissionStderr =. Nothing
-                       , BreakFixSubmissionStatus =. BreakTested
-                       , BreakFixSubmissionResult =. Just result]
+                let result = breakTestTypeToSuccessfulResult $ breakTestToType breakTest
+                saveIfStillValid Nothing Nothing Nothing BreakTested (Just result)
                 return $ Just ( True, True)
 
         where
@@ -328,10 +308,13 @@ instance ProblemRunnerClass APIProblem where
 
             targetId = breakFixSubmissionFix bfs
 
-            saveIfStillValid msg changes = runDB $ do
+            saveIfStillValid msg stdout stderr stat res = runDB $ do
                 Just latestBreakSubmission <- get submissionId
                 unless (breakSubmissionValid latestBreakSubmission == Just False) $ do
-                    update bfsId changes
+                    update bfsId [ BreakFixSubmissionStdout =. stdout
+                                 , BreakFixSubmissionStderr =. stderr
+                                 , BreakFixSubmissionStatus =. stat
+                                 , BreakFixSubmissionResult =. res ]
                     update submissionId [BreakSubmissionMessage =. msg, BreakSubmissionValid =. Just True]
             getLatestBuildOrFixHash = runDB $ do
                 latestBuild <- selectFirst [BuildSubmissionTeam ==. targetTeamId]
@@ -353,12 +336,6 @@ instance ProblemRunnerClass APIProblem where
         breaks'' <- runDB $ selectList [ BreakSubmissionTargetTeam ==. teamId
                                        , BreakSubmissionValid !=. Just False ]
                                        []
-
-        -- Retrieve breaks (that were auto-accepted/not judged) from database.
-        {-breaks'' <- runDB $ E.select $ E.from $ \(fsb `E.InnerJoin` bs) -> do
-            E.on (fsb E.^. FixSubmissionBugsBugId E.==. bs E.^. BreakSubmissionId)
-            E.where_ (fsb E.^. FixSubmissionBugsFix E.==. E.val submissionId)
-            return bs-}
 
         let archiveLocation = teamSubmissionLocation opts teamId hash
 
