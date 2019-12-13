@@ -11,8 +11,7 @@ import Database.Esqueleto.Internal.Sql (SqlSelect)
 
 import Model
 import PostDependencyType
-    ( FixSubmissionResult(..)
-    , BuildSubmissionStatus(..))
+    ( FixSubmissionResult(..))
 import Data.Text (Text)
 
 getLatestBuildSubmissions :: (MonadIO m, SqlSelect a b) => ContestId -> (E.SqlExpr (Entity TeamContest) -> E.SqlExpr (Entity BuildSubmission) -> E.SqlQuery a) -> E.SqlPersistT m [b]
@@ -59,8 +58,7 @@ getLatestBuildOrFix teamId = do
     latestFix   <- selectFirst [ FixSubmissionTeam ==. teamId
                                , FixSubmissionResult ==. Just FixFixed ]
                                [ Desc FixSubmissionTimestamp ]
-    case (latestBuild, latestFix) of
-        (_, Just (Entity id f))                     -> return $ Right (fixSubmissionCommitHash f, Just id)
-        (Just (Entity _ b), _)
-            | buildSubmissionStatus b == BuildBuilt -> return $ Right (buildSubmissionCommitHash b, Nothing)
-        _                                           -> return $ Left "No valid target"
+    return $ case (latestBuild, latestFix) of
+        (_, Just (Entity id f))  -> Right (fixSubmissionCommitHash f, Just id)
+        (Just (Entity _ b), _)   -> Right (buildSubmissionCommitHash b, Nothing)
+        _                        -> Left "No valid target"
