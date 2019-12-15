@@ -62,7 +62,7 @@ layout page tcId content =
     raiseGroupLabel
     ( uId, tc, contest, team) <- checkCreds tcId
     now <- getCurrentTime
-    let builderCodeWidget = if now > contestBreakStart contest then
+    let builderCodeWidget = if now > contestBreakFixStart contest then
             [whamlet'|
                 <li class="#{builderCodeActive}">
                     <a href="@{ParticipationBuildersCodeR tcId}">

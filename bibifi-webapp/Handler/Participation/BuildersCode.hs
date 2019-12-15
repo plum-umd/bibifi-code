@@ -11,9 +11,9 @@ import qualified Participation
 getParticipationBuildersCodeR :: TeamContestId -> Handler Html
 getParticipationBuildersCodeR tcId = runLHandler $ 
     Participation.layout Participation.BuilderCode tcId $ \uId tc contest team -> do
-        -- Check if break-it round has started.
+        -- Check if break/fix-it round has started.
         now <- getCurrentTime
-        if now < contestBreakStart contest then
+        if now < contestBreakFixStart contest then
             notFound
         else
             do

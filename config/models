@@ -67,8 +67,9 @@ Contest json
     title Text
     buildStart UTCTime
     buildEnd UTCTime
-    breakStart UTCTime
+    breakFixStart UTCTime
     breakEnd UTCTime
+    fixEnd UTCTime
     UniqueContest url
 
 CourseraContest json        -- Absence of this row means a contest isn't a coursera one.

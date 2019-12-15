@@ -39,11 +39,15 @@ postWebhookGitlabPushR tcId token = runLHandler $ do
 
 handleCommit :: UTCTime -> Int -> Contest -> TeamContestId -> Commit -> LHandler ()
 -- Insert submission of the right kind (build/break/fix) into the database based on push time
-handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modified)
+handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added modified)
     | t ∈ (bld0, bld1) =
           runDB $ insert_ $ BuildSubmission tcId t h BuildPending Nothing Nothing
     | t ∈ (brk0, brk1) = do
           handleBreaks
+          handleFixes
+    | t ∈ (brk0, fix1) = do
+          unless (null addedTests && null modifiedTests) $ runDB $
+              insertErrorBreak (toSqlKey 1) "late break" "break phase over"
           handleFixes
     | t < bld0 = runDB $ insertErrorBuild "contest not started"
     | t < brk0 = runDB $ insertErrorBuild "build deadline passed"
@@ -53,7 +57,7 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
     -- Added tests are treated the same as modified tests to account for
     -- people deleting then adding them back.
     handleBreaks = do
-        forM_ (testCases added ++ testCases modified) $ \(path, name) -> do
+        forM_ (addedTests ++ modifiedTests) $ \(path, name) -> do
             runDB $ do
                 oldBreaks <- selectList [BreakSubmissionName ==. name] []
                 forM_ oldBreaks $ \(Entity id _) -> do
@@ -76,6 +80,8 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1) tcId (Commit h added modifi
     (∈) x (lo,hi) = lo <= x && x <= addUTCTime tolerance hi
       where tolerance = 10 * 60
     buildChanged = any ("build/" `isInfixOf`) modified
+    addedTests = testCases added
+    modifiedTests = testCases modified
     testCases ps = [(p,n) | (p,Just n) <- zip ps (map testName ps)]
     testName p = case reverse (splitPath p) of
         "test.json":name:"break/":_ -> Just (pack name)

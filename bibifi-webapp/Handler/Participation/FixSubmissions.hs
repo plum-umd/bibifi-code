@@ -11,7 +11,7 @@ getParticipationFixSubmissionsR :: TeamContestId -> Handler Html
 getParticipationFixSubmissionsR tcId = runLHandler $ 
     Participation.layout Participation.FixSubmissions tcId $ \_ _ contest _ -> do
         now <- getCurrentTime
-        if not development && now < (contestBreakStart contest) then
+        if not development && now < (contestBreakFixStart contest) then
             [whamlet|
                 <p>
                     The break-it round has not started yet.
@@ -98,7 +98,7 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
         deleteW <- do
             now <- getCurrentTime
             -- Check that it's during the "fix it" round.
-            if not development && (now < contestBreakStart contest || now > contestBreakEnd contest) then
+            if not development && (now < contestBreakFixStart contest || now > contestFixEnd contest) then
                 return mempty
             else
                 -- Check if team leader.

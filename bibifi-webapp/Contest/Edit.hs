@@ -12,8 +12,9 @@ data FormData = FormData {
   , formContestUrl :: Text
   , formBuildStart :: UTCTime
   , formBuildEnd :: UTCTime
-  , formBreakStart :: UTCTime
+  , formBreakFixStart :: UTCTime
   , formBreakEnd :: UTCTime
+  , formFixEnd :: UTCTime
   -- , formMakeDefault :: Bool
   -- TODO: Coursera corse and session? XXX
 }
@@ -24,8 +25,9 @@ contestForm tz contestM = renderBootstrap3 BootstrapBasicForm $ FormData
     <*> areq urlField urlSettings (fmap contestUrl contestM)
     <*> areq (utcField tz) buildStartSettings (fmap contestBuildStart contestM)
     <*> areq (utcField tz) buildEndSettings (fmap contestBuildEnd contestM)
-    <*> areq (utcField tz) breakStartSettings (fmap contestBreakStart contestM)
+    <*> areq (utcField tz) breakStartSettings (fmap contestBreakFixStart contestM)
     <*> areq (utcField tz) breakEndSettings (fmap contestBreakEnd contestM)
+    <*> areq (utcField tz) fixEndSettings (fmap contestFixEnd contestM)
     -- <* bootstrapSubmit (BootstrapSubmit ("Create Contest"::Text) "btn-primary" [])
 
     where
@@ -50,8 +52,9 @@ convertContest FormData{..} = Contest
     formContestName
     formBuildStart
     formBuildEnd
-    formBreakStart
+    formBreakFixStart
     formBreakEnd
+    formFixEnd
 
 validateContest FormData{..} contestIdM = runExceptT $ do
     -- Check that url is unique. 
@@ -64,13 +67,13 @@ validateContest FormData{..} contestIdM = runExceptT $ do
                 return ()
 
     -- Check that all dates are sequential.
-    when (formBuildStart >= formBuildEnd) $ 
+    when (formBuildStart >= formBuildEnd) $
         throwE "Build-it end date must be after the start date."
 
-    when (formBuildEnd >= formBreakStart) $ 
+    when (formBuildEnd >= formBreakFixStart) $
         throwE "Break-it start date must be after the build-it end date."
 
-    when (formBreakStart >= formBreakEnd) $
+    when (formBreakFixStart >= formBreakEnd) $
         throwE "Break-it end date must be after the start date."
 
     return ()
