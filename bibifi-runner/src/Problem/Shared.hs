@@ -15,7 +15,7 @@ import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.List as List
-import Data.Monoid
+-- import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
@@ -501,7 +501,7 @@ instance FromJSON OracleOutput where
         result <- o .: "result"
         if result then do
             (output' :: Value) <- o .: "output"
-            let prettyConf = Aeson.defConfig {Aeson.confIndent = 2}
+            let prettyConf = Aeson.defConfig {Aeson.confIndent = Aeson.Spaces 2}
             let output = Text.decodeUtf8With Text.lenientDecode $ BSL.toStrict $ Aeson.encodePretty' prettyConf output'
             return $ OracleOutputSuccess output
         else do

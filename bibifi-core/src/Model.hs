@@ -67,12 +67,7 @@ instance ToLabel String (DCLabel Principal) where
 
 instance HashDBUser User where
     userPasswordHash = Just . userPassword
-    userPasswordSalt = Just . userSalt
-    setSaltAndPasswordHash s h p = 
-        p {
-          userSalt = s
-        , userPassword = h
-        }
+    setPasswordHash h u = u {userPassword = h}
 
 instance ToJSON TeamBuildScore where
     toJSON (TeamBuildScore team build break fix timestamp) = object [
