@@ -134,7 +134,7 @@ displayBreakSubmissionsTable contest viewer submissions = return undefined -- FI
             let result = prettyBreakResultVictim $ breakSubmissionResult s
             let bType = maybe dash prettyBreakType $ breakSubmissionBreakType s
             fixStatus <- prettyFixStatus sId
-            time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
+            time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             now <- getCurrentTime
             let name = 
                   if now > contestBreakEnd contest then 
@@ -162,7 +162,7 @@ displayBreakSubmissionsTable contest viewer submissions = return undefined -- FI
         row BreakSubmissionAttacker (Entity sId s, target) = do
             let status = prettyBreakStatus $ breakSubmissionStatus s
             let result = prettyBreakResult $ breakSubmissionResult s
-            time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
+            time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             return [whamlet'|
                 <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTeam s) sId}">
                     <td>
@@ -180,7 +180,7 @@ displayBreakSubmissionsTable contest viewer submissions = return undefined -- FI
         row BreakSubmissionAdmin (Entity sId s, target) = do
             let status = prettyBreakStatus $ breakSubmissionStatus s
             let result = prettyBreakResult $ breakSubmissionResult s
-            time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
+            time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             return [whamlet'|
                 <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTeam s) sId}">
                     <td>

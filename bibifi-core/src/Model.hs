@@ -69,6 +69,14 @@ instance HashDBUser User where
     userPasswordHash = Just . userPassword
     setPasswordHash h u = u {userPassword = h}
 
+    -- userPasswordHash = Just . userPassword
+    -- userPasswordSalt = Just . userSalt
+    -- setSaltAndPasswordHash s h p = 
+    --     p {
+    --       userSalt = s
+    --     , userPassword = h
+    --     }
+
 instance ToJSON TeamBuildScore where
     toJSON (TeamBuildScore team build break fix timestamp) = object [
         "team" .= toJSON team,

@@ -140,6 +140,7 @@ library
                 NoImplicitPrelude
                 CPP
                 MultiParamTypeClasses
+                TypeApplications
                 TypeFamilies
                 GADTs
                 GeneralizedNewtypeDeriving
@@ -176,7 +177,7 @@ library
                  , text                          
                  , transformers
                  , enclosed-exceptions
-                 , hamlet                        
+--                  , hamlet                        
                  , hashable                      
                  , hashmap                       
                  , http-client

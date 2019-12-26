@@ -5,7 +5,7 @@ import Database.LPersist
 import LMonad.Label.DisjunctionCategory
 import LMonad.TCB
 import Prelude
-import Yesod (Entity(..))
+import Yesod (Entity(..), MonadTrans(..))
 import qualified Yesod.Auth as Yesod
 
 import Foundation
@@ -79,3 +79,6 @@ raiseJudgeLabel =
         mapM_ (\(E.Value jId) -> raiseClearanceTCB $ dcSingleton $ PrincipalJudge jId) res
       )
 
+-- instance MonadTrans (LMonadT (DCLabel Principal)) where
+--     -- lift :: forall m a. LMonad m => m a -> LMonadT (DCLabel Principal) m a
+--     lift = LMonadT . lift
