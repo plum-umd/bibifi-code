@@ -72,7 +72,7 @@ getProfileAccountR = runLHandler $
                         mconcat $ map (lblhtml . (\(txt,f) -> (txt,f information))) flds
                       _ ->
                         mempty
-                created <- lLift $ lift $ displayTime $ userCreated user
+                created <- liftIO $ displayTime $ userCreated user
                 let consentField = case userConsentForm user of
                       Nothing -> [whamlet'|
                             Not uploaded (<a href="@{ProfileAccountConsentR}">Upload here</a>)

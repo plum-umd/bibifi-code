@@ -37,8 +37,8 @@ contestTimeZone :: IO TimeZone
 contestTimeZone = getCurrentTimeZone
 
 -- Displays and formats time to a string.
-displayTime :: UTCTime -> IO String
-displayTime t' = do
+displayTime :: MonadIO m => UTCTime -> m String
+displayTime t' = liftIO $ do
     tz <- contestTimeZone
     let t = utcToZonedTime tz t'
     return $ formatTime defaultTimeLocale "%Y.%m.%d %H:%M %Z" t

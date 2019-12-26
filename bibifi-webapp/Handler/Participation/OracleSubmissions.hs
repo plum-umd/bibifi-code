@@ -22,8 +22,8 @@ getParticipationOracleSubmissionsR tcId = runLHandler $
             when ( submissions /= []) $ do
                 let row (Entity sId s) = do
                         let status = prettyOracleStatus $ oracleSubmissionStatus s
-                        time <- lift $ displayTime $ oracleSubmissionTimestamp s
-                        [whamlet'|
+                        time <- displayTime $ oracleSubmissionTimestamp s
+                        return [hamlet|
                             <tr .clickable href="@{ParticipationOracleSubmissionR tcId sId}">
                                 <td>
                                     #{oracleSubmissionName s}
@@ -33,7 +33,7 @@ getParticipationOracleSubmissionsR tcId = runLHandler $
                                     #{status}
                         |]
                         
-                let rows = mconcat $ map row submissions
+                rows <- mconcat <$> mapM row submissions
                 [whamlet|
                     <table class="table table-hover">
                         <thead>

@@ -16,7 +16,7 @@ announcement post = -- TODO
             margin-bottom: 20px;
         }
     |]
-    t <- lift $ displayTime $ postTimestamp p
+    t <- displayTime $ postTimestamp p
     [whamlet'|
 <div class="#{postStyle}">
     <h4>
@@ -47,11 +47,11 @@ showAnnouncements c =
                     <div class="col-md-12">
                         ^{p}
               |]
-    buildStart <- lLift $ lift $ displayTime $ contestBuildStart contest
-    buildEnd <- lLift $ lift $ displayTime $ contestBuildEnd contest
-    breakFixStart <- lLift $ lift $ displayTime $ contestBreakFixStart contest
-    breakEnd <- lLift $ lift $ displayTime $ contestBreakEnd contest
-    fixEnd <- lLift $ lift $ displayTime $ contestFixEnd contest
+    buildStart <- displayTime $ contestBuildStart contest
+    buildEnd <- displayTime $ contestBuildEnd contest
+    breakFixStart <- displayTime $ contestBreakFixStart contest
+    breakEnd <- displayTime $ contestBreakEnd contest
+    fixEnd <- displayTime $ contestFixEnd contest
     -- Check if contest has already started.
     now <- getCurrentTime
     button <- do

@@ -61,12 +61,12 @@ displayFixSubmissionsTable details submissions = return undefined --FIXME
 -}
               
 displayBuildSubmissionsTable details submissions = do
-    let rows = mconcat $ map row submissions
+    rows <- mconcat <$> mapM row submissions
     [whamlet|
         <table class="table table-hover">
             <thead>
                 <tr>
-                    ^{teamHeader}
+                    #{teamHeader}
                     <th>
                         Submission hash
                     <th>
@@ -80,7 +80,7 @@ displayBuildSubmissionsTable details submissions = do
 
     where
         teamHeader = if details then
-                [whamlet'|
+                [shamlet|
                     <th>
                         Team
                 |]
@@ -89,18 +89,18 @@ displayBuildSubmissionsTable details submissions = do
 
         row (Entity sId s) = do
             let status = prettyBuildStatus $ buildSubmissionStatus s
-            time <- lift $ displayTime $ buildSubmissionTimestamp s
+            time <- liftIO $ displayTime $ buildSubmissionTimestamp s
             -- TODO: Show team name? XXX
             let team = if details then
-                    [whamlet'|
+                    [shamlet|
                         <td>
                             #{keyToInt $ buildSubmissionTeam s}
                     |]
                   else
                     mempty
-            [whamlet'|
+            return [hamlet|
                 <tr class="clickable" href="@{ParticipationBuildSubmissionR (buildSubmissionTeam s) sId}">
-                    ^{team}
+                    #{team}
                     <td>
                         #{buildSubmissionCommitHash s}
                     <td>

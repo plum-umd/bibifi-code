@@ -111,8 +111,8 @@ BIBIFI organizers
             let textPart = Part { 
                 partType = "text/plain; charset=utf-8",
                 partEncoding = None,
-                partFilename = Nothing,
-                partContent = text,
+                -- partFilename = Nothing,
+                partContent = PartContent text,
                 partHeaders = []
             }
             let html = renderHtml [shamlet|
@@ -128,8 +128,8 @@ BIBIFI organizers
             let htmlPart = Part { 
                 partType = "text/html; charset=utf-8",
                 partEncoding = None,
-                partFilename = Nothing,
-                partContent = html,
+                -- partFilename = Nothing,
+                partContent = PartContent html,
                 partHeaders = []
             }
             lLift $ liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")

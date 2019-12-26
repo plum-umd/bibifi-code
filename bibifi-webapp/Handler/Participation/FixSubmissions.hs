@@ -45,7 +45,7 @@ getParticipationFixSubmissionR :: TeamContestId -> FixSubmissionId -> Handler Ht
 getParticipationFixSubmissionR tcId fsId = runLHandler $ do
     fs <- checkFixSubmissionTeam tcId fsId
     Participation.layout Participation.FixSubmissions tcId $ \userId _ contest team -> do
-        time <- lLift $ lift $ displayTime $ fixSubmissionTimestamp fs
+        time <- displayTime $ fixSubmissionTimestamp fs
         judgementW <- do
             judgementM <- handlerToWidget $ runDB $ getBy $ UniqueFixJudgement fsId
             return $ case judgementM of 

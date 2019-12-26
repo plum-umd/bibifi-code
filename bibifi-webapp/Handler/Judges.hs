@@ -62,8 +62,8 @@ getJudgesR contestUrl = runLHandler $ Judges.layout contestUrl $ \uId (Entity cI
             |]
         else do
             -- Set due dates 3 days after round ends.
-            buildDueDate <- lLift $ lift $ displayTime $ Clock.addUTCTime (2*24*60*60) (contestBuildEnd c)
-            breakDueDate <- lLift $ lift $ displayTime $ Clock.addUTCTime (2*24*60*60) (contestBreakEnd c)
+            buildDueDate <- displayTime $ Clock.addUTCTime (2*24*60*60) (contestBuildEnd c)
+            breakDueDate <- displayTime $ Clock.addUTCTime (2*24*60*60) (contestBreakEnd c)
             let buildRows = mconcat $ map (\(Entity jId j) -> 
                     [whamlet'|
                         <tr class="clickable" href="@{JudgesBuildItR contestUrl jId}">
