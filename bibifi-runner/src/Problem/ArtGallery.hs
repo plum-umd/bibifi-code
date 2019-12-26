@@ -17,7 +17,7 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Char as Char
 import qualified Data.IORef.Lifted as IO
 import qualified Data.List as List
-import Data.Monoid
+-- import Data.Monoid
 -- import Data.String (IsString)
 import Data.Text (Text)
 import qualified Data.Text as Text

@@ -4,7 +4,6 @@ import Control.Monad.Error
 import Control.Monad.Trans.Control
 import qualified Data.ByteString as BS
 import Data.IP
-import Data.Monoid
 import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath

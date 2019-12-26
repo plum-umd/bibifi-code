@@ -1,21 +1,21 @@
 module Cloud.Docker (launchOneDockerWithTimeout) where
 
-import Control.Monad.Catch (MonadMask(..))
+-- import Control.Monad.Catch (MonadMask(..))
 import Control.Monad.Error
-import Control.Monad.Trans.Resource
+-- import Control.Monad.Trans.Resource
 import qualified Data.Text as Text
 import qualified Docker.Client as Docker
 import Docker.Client.Http (runDockerT)
 -- import qualified Docker.Client.Types as Docker
-import qualified Network.HTTP.Conduit as HTTP
-import Network.SSH.Client.SimpleSSH
+-- import qualified Network.HTTP.Conduit as HTTP
+-- import Network.SSH.Client.SimpleSSH
 import Text.Read (readMaybe)
 
 import Common
 import Cloud.Internal
 import Core.SSH
 
-launchOneDockerWithTimeout :: (MonadMask m, MonadBaseControl IO m, MonadIO m, MonadThrow m, BackendError e) => DockerConfiguration -> HTTP.Manager -> Int -> (CloudInstance -> Session -> ErrorT e (CloudT m) b) -> ErrorT e m b
+-- launchOneDockerWithTimeout :: (MonadMask m, MonadBaseControl IO m, MonadIO m, MonadThrow m, BackendError e) => DockerConfiguration -> HTTP.Manager -> Int -> (CloudInstance -> Session -> ErrorT e (CloudT m) b) -> ErrorT e m b
 launchOneDockerWithTimeout conf manager timer f = ErrorT $ 
     -- Create and start docker.
     runDockerT (clientOpts, handler) $ withCreateContainer $ withStartContainer $ \containerId -> do
@@ -67,7 +67,7 @@ launchOneDockerWithTimeout conf manager timer f = ErrorT $
                   } 
                   -- TODO: Expose ports? XXX
             in
-            Docker.CreateOpts cont host
+            Docker.CreateOpts cont host $ Docker.NetworkingConfig mempty
             
         leaveRunning = dockerLeaveRunning conf
 
@@ -82,7 +82,7 @@ launchOneDockerWithTimeout conf manager timer f = ErrorT $
 
                     -- Delete container.
                     unless leaveRunning $ do
-                        let deleteOpts = Docker.DeleteOpts True True
+                        let deleteOpts = Docker.ContainerDeleteOpts True True
                         stat <- Docker.deleteContainer deleteOpts containerId
                         case stat of
                             Left err -> 

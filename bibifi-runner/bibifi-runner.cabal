@@ -54,7 +54,7 @@ executable runner
   other-modules:       
                        Cloud
                        Cloud.Docker
-                       Cloud.EC2
+                       -- Cloud.EC2
                        Cloud.Internal
                        Common
                        Core.SSH
@@ -78,8 +78,8 @@ executable runner
   
   -- Other library packages from which modules are imported.
   build-depends:       
-                       aws-sdk
-                     , aeson
+--                        aws-sdk
+                       aeson
                      , aeson-pretty
                      , base >=4.6 
                      , base64-bytestring
@@ -127,6 +127,7 @@ executable runner
                        ScopedTypeVariables
                        OverloadedStrings
                        ExistentialQuantification
+                       TypeFamilies
   
   -- Base language which the package is written in.
   default-language:    Haskell2010

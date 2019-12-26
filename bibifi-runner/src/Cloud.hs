@@ -7,25 +7,25 @@ module Cloud (
     , module Export
     ) where
 
-import Cloud.EC2
+-- import Cloud.EC2
 import Cloud.Docker
 import Cloud.Internal as Export
-import Control.Monad.Catch (MonadMask(..))
-import Control.Monad.Error
-import Control.Monad.Trans.Resource
+-- import Control.Monad.Catch (MonadMask(..))
+-- import Control.Monad.Error
+-- import Control.Monad.Trans.Resource
 import Data.Yaml
 import Docker.Client
 import qualified Network.HTTP.Conduit as HTTP
 import Network.Connection (TLSSettings(..))
-import Network.SSH.Client.SimpleSSH
+-- import Network.SSH.Client.SimpleSSH
 -- import Network.URI (parseURI, URI(..), URIAuth(..))
 -- import Text.Read (readMaybe)
 
 import Common
 
-launchOneInstanceWithTimeout :: (MonadMask m, MonadBaseControl IO m, MonadIO m, MonadThrow m, BackendError e) =>
-    CloudConfiguration -> HTTP.Manager -> Int -> (CloudInstance -> Session -> ErrorT e (CloudT m) b) -> ErrorT e m b
-launchOneInstanceWithTimeout (CloudEC2Configuration ec2) manager timer f = launchOneEC2WithTimeout'' ec2 manager timer f
+-- launchOneInstanceWithTimeout :: (MonadMask m, MonadBaseControl IO m, MonadIO m, MonadThrow m, BackendError e) =>
+--     CloudConfiguration -> HTTP.Manager -> Int -> (CloudInstance -> Session -> ErrorT e (CloudT m) b) -> ErrorT e m b
+-- launchOneInstanceWithTimeout (CloudEC2Configuration ec2) manager timer f = launchOneEC2WithTimeout'' ec2 manager timer f
 launchOneInstanceWithTimeout (CloudDockerConfiguration conf) manager timer f = launchOneDockerWithTimeout conf manager timer f
 
 productionCloudYML :: String
@@ -42,7 +42,7 @@ loadCloudConfiguration configFile = do
             return yaml
 
 cloudManagerSettings :: CloudConfiguration -> IO HTTP.ManagerSettings
-cloudManagerSettings (CloudEC2Configuration _) = return HTTP.conduitManagerSettings
+-- cloudManagerSettings (CloudEC2Configuration _) = return HTTP.conduitManagerSettings
 cloudManagerSettings (CloudDockerConfiguration cfg) = do
     let host = dockerAddress cfg
     let port = fromInteger $ dockerPort cfg
