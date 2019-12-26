@@ -21,12 +21,14 @@ data Options = Options {
       , optionsDirectory :: FilePath -- Repo directory
       , optionsProblemDirectory :: FilePath -- Problem materials directory.
       , contest :: Entity Contest -- Unique contest url identifier
+      , databaseConfig :: DatabaseConf
     }
 
 data InternalOptions = InternalOptions {
         _iCount :: Maybe Int
       , _iContestUrl :: Maybe String
       , _iProblemDirectory :: Maybe String
+      , _iDatabaseConfig :: Maybe String
     }
 
 $(makeLenses ''InternalOptions)
@@ -36,6 +38,7 @@ emptyOptions = InternalOptions {
         _iCount = Nothing
       , _iContestUrl = Nothing
       , _iProblemDirectory = Nothing
+      , _iDatabaseConfig = Nothing
     }
 
 options :: [OptDescr (InternalOptions -> IO InternalOptions)]
@@ -43,7 +46,8 @@ options =
     let countOption = Option "t" ["thread-count"] (ReqArg (setOnceParse parseInt iCount) "COUNT") "Number of threads to run. Default is 1" in
     let urlOption = Option "c" ["contest-url"] (ReqArg (setOnce iContestUrl) "CONTEST-URL") "Contest's unique url identifier. Defaults to the default contest" in
     let problemDirOption = Option "p" ["problem-directory"] (ReqArg (setOnce iProblemDirectory) "PROBLEM-DIRECTORY") "Directory where the problem materials are located" in
-    [countOption, problemDirOption, urlOption]
+    let databaseConfigOption = Option "d" ["database-config"] (ReqArg (setOnce iDatabaseConfig) "DATABASE-CONFIG") "Name of database configuration to load. Defaults to `Development`" in
+    [countOption, problemDirOption, urlOption, databaseConfigOption]
     where
         setOnce :: Lens' InternalOptions (Maybe a) -> a -> InternalOptions -> IO InternalOptions
         setOnce lens arg opts = case view lens opts of
@@ -67,18 +71,18 @@ options =
 exitWithUsage :: MonadIO m => String -> m a
 exitWithUsage err = exitWithError $ err ++ "\n" ++ usageInfo "Usage: runner OPTIONS [repo-directory]" options
 
-parseOptions :: DatabaseM Options
+parseOptions :: IO Options
 parseOptions = do
-    args' <- liftIO getArgs
+    args' <- getArgs
     case getOpt Permute options args' of
         (opts,args,[]) -> do
-            internalOpts <- liftIO $ foldl' (>>=) (return emptyOptions) opts
+            internalOpts <- foldl' (>>=) (return emptyOptions) opts
             toOptions internalOpts args
         (_, _, es) ->
             exitWithUsage $ concat es
 
-toOptions :: InternalOptions -> [String] -> DatabaseM Options
-toOptions (InternalOptions countM urlM oracleDirM) args = do
+toOptions :: InternalOptions -> [String] -> IO Options
+toOptions (InternalOptions countM urlM oracleDirM dbNameM) args = do
     let count = maybe 1 id countM
     when (count < 1) $
         exitWithError "COUNT must be greater than 0"
@@ -95,11 +99,21 @@ toOptions (InternalOptions countM urlM oracleDirM) args = do
             exitWithError "No oracle directory specified."
         Just oracleDir ->
             return oracleDir
-    url <- case urlM of 
+    dbName <- case dbNameM of
         Nothing -> do
-            putLog "Warning: No contest specified. Assuming default contest."
-            retrieveActiveContestUrl
-        Just url ->
-            return $ Text.pack url
-    contest <- retrieveContest url
-    return $ Options count repoDir oracleDir contest
+            putLog "Warning: No database configuration name provided. Defaulting to `Development`."
+            return "Development"
+        Just dbName ->
+            return $ Text.pack dbName
+
+    -- Load database configuration.
+    db <- makeDatabaseConf productionDatabaseYML dbName
+    runDatabaseM db $ do
+        url <- case urlM of 
+            Nothing -> do
+                putLog "Warning: No contest specified. Assuming default contest."
+                retrieveActiveContestUrl
+            Just url ->
+                return $ Text.pack url
+        contest <- retrieveContest url
+        return $ Options count repoDir oracleDir contest db

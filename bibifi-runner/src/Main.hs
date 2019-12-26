@@ -23,11 +23,8 @@ main = do
     -- Read EC2 configuration file. 
     ec2 <- loadCloudConfiguration "../config/cloud.yml" -- productionCloudYML
 
-    -- Create database pool and config.
-    db <- makeDatabaseConf productionDatabaseYML "Production" -- "config/postgresql.yml"
-
     -- Read command line arguments. 
-    (Options count fsDir problemDir contest) <- runDatabaseM db parseOptions
+    (Options count fsDir problemDir contest db) <- parseOptions
     
     -- Create exiting mvar. 
     exiting <- newEmptyMVar
