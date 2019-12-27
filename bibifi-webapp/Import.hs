@@ -1,4 +1,8 @@
 {-# LANGUAGE FlexibleInstances, InstanceSigs #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+
 module Import
     ( module Import
     , getCurrentTime

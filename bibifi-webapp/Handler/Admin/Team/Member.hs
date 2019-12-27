@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Handler.Admin.Team.Member where
 
 import qualified Admin

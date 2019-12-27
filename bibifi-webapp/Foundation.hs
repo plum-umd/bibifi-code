@@ -1,4 +1,4 @@
-{-# LANGUAGE ViewPatterns, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE ViewPatterns, TypeSynonymInstances, FlexibleInstances, FlexibleContexts, NoMonomorphismRestriction #-}
 module Foundation where
 
 import Prelude

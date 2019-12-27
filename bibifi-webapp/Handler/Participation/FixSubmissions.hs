@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Handler.Participation.FixSubmissions where
 
 import Score

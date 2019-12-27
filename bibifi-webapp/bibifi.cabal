@@ -144,16 +144,16 @@ library
                 TypeFamilies
                 GADTs
                 GeneralizedNewtypeDeriving
-                FlexibleContexts
+--                 FlexibleContexts
                 EmptyDataDecls
-                NoMonomorphismRestriction
+--                 NoMonomorphismRestriction
                 DeriveDataTypeable
                 DoAndIfThenElse
                 RecordWildCards
                 ScopedTypeVariables
                 ViewPatterns
-                TypeSynonymInstances
-                FlexibleInstances
+--                 TypeSynonymInstances
+--                 FlexibleInstances
 
     build-depends: base                          >= 4          && < 5
 --                 , yesod-platform              

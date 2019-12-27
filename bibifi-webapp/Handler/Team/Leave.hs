@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Handler.Team.Leave where
 
 import Control.Monad

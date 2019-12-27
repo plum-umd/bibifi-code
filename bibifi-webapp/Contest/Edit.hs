@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Contest.Edit where
 
 import Control.Monad.Trans.Except (throwE, runExceptT)

@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Handler.Admin.Contest.FixSubmissions where
 
 import qualified Admin

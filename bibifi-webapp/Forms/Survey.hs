@@ -110,43 +110,42 @@ surveyFormToUserInformation uId dat = UserInformation
     Nothing -- (formTimezone dat)
 
 surveyForm :: (Route App -> [(Text,Text)] -> Text) -> Maybe SurveyFormData -> AForm Handler SurveyFormData -- FormRender m SurveyFormData
-surveyForm render formM = error "TODO: This causes ghc to diverge"
--- surveyForm render formM = SurveyFormData
---     -- <*> areq languageField (withPlaceholder "In decreasing order of proficiency" (bfs' "Languages spoken")) (f formLanguage)
---     -- <*> areq timezoneField (bfs' "Timezone") (f formTimezone)
---     <$> aopt universityField (bfs' "University") (f formSchool) -- (Just "University of Maryland, College Park")
---     <*> areq (selectFieldList degrees) (bfs' "Degree") (Just $ maybe "Undergraduate" formDegree formM)
---     <*> aopt (boundedIntField 1900 2100) (bfs' "Graduation year") (f formGraduationYear)
---     -- <*> areq intField (bfs' "Years in program (ex: Freshman is 1)") Nothing
---     <*> aopt majorField (bfs' "Major") (f formMajor)
---     <*> aopt majorField (bfs' "Minor") (f formMinor) -- (if any)
---     <*> aopt degreesField (bfs' "Other degrees") (f formDegreesHeld)
---     <*> aopt (boundedIntField 0 150) (bfs' "Years of programming experiences") (f formYearsOfExperience)
---     <*> aopt programmingLanguageField (bfs' "What programming languages do you know?") (f formLanguages)
---     <*> aopt programmingLanguageField (bfs' "What is your favorite programming language?") (f formFavoriteLanguages)
---     <*> aopt boolField' "Have you taken any programming classes?" (f formExperienceClass)
---     <*> aopt boolField' "Do you program for any personal projects?" (f formExperiencePersonal)
---     <*> aopt boolField' "Have you programmed during an internship?" (f formExperienceInternship)
--- --    <*> areq boolField' "Have you programmed during a full-time job?" Nothing
---     <*> aopt (boundedIntField 0 100) (bfs' "How many years of work experience do you have coding?") (f formYearsOfWork)
---     <*> aopt boolField' "Have you taken a software engineering class?" (f formSoftwareEngineering)
---     <*> aopt boolField' "Have you taken a computer security class?" (f formSecurityClass)
---     <*> aopt boolField' "Have you had any formal training in computer security (aside from this coursera sequence)?" (f formSecurityTraining)
---     <*> aopt boolField' "Do you have prior experience in computer security?" (f formSecurityExperience)
---     <*> aopt boolField' "Have you participated in other security contests?" (f formPreviousContest)
---     <*> aopt rateField (bfs' "How do you rate your abilities as a programmer on a scale from 1 (low) to 10 (high)?") (f formProgrammerRating)
---     <*> aopt rateField (bfs' "How do you rate your abilities as an attacker on a scale from 1 (low) to 10 (high)?") (f formAttackerRating)
---     <*> aopt (boundedIntField 18 150) (bfs' "Age") (f formAge)
---     <*> aopt genderField (bfs' "Gender") (f formGender)
---     <*> aopt countryField (bfs' "Nationality") (f formNationality)
---     <*> areq boolField' "Would you like us to make your CV available to companies who have sponsored our research, so they can contact you about future employment and internship opportunities?" (formResumePermission <$> formM)
---     <*> areq (checkBoxField' $ [hamlet|I agree to participate in the research study and the terms in this <a href="@{StaticR doc_consent_form_pdf}" target="_blank">consent form</a>|] render) "We ask that you allow us to use data gathered from your performance in this contest as part of a research study that aims to better understand how to build secure systems. Your identity will be held in strict confidence (unless you opt to share your information)." (Just $ maybe True formResumePermission formM)
---     -- TODO
---     -- <*> areq (checkBoxField' ( "I agree to participate in the research study" :: Text)) "We ask that you allow us to use data gathered from your performance in this contest as part of a research study that aims to better understand how to build secure systems. Your identity will be held in strict confidence (unless you opt to share your information)." (Just $ maybe True formResumePermission formM)
---     where
---         degrees = [("Undergraduate"::Text, "Undergraduate"), ("Masters","Masters"),("Doctorate","Doctorate"), ("High school","High school"),("None","None")]
--- 
---         f :: (SurveyFormData -> Maybe a) -> Maybe (Maybe a)
---         f g = fmap (g) formM
+surveyForm render formM = SurveyFormData
+    -- <*> areq languageField (withPlaceholder "In decreasing order of proficiency" (bfs' "Languages spoken")) (f formLanguage)
+    -- <*> areq timezoneField (bfs' "Timezone") (f formTimezone)
+    <$> aopt universityField (bfs' "University") (f formSchool) -- (Just "University of Maryland, College Park")
+    <*> areq (selectFieldList degrees) (bfs' "Degree") (Just $ maybe "Undergraduate" formDegree formM)
+    <*> aopt (boundedIntField 1900 2100) (bfs' "Graduation year") (f formGraduationYear)
+    -- <*> areq intField (bfs' "Years in program (ex: Freshman is 1)") Nothing
+    <*> aopt majorField (bfs' "Major") (f formMajor)
+    <*> aopt majorField (bfs' "Minor") (f formMinor) -- (if any)
+    <*> aopt degreesField (bfs' "Other degrees") (f formDegreesHeld)
+    <*> aopt (boundedIntField 0 150) (bfs' "Years of programming experiences") (f formYearsOfExperience)
+    <*> aopt programmingLanguageField (bfs' "What programming languages do you know?") (f formLanguages)
+    <*> aopt programmingLanguageField (bfs' "What is your favorite programming language?") (f formFavoriteLanguages)
+    <*> aopt boolField' "Have you taken any programming classes?" (f formExperienceClass)
+    <*> aopt boolField' "Do you program for any personal projects?" (f formExperiencePersonal)
+    <*> aopt boolField' "Have you programmed during an internship?" (f formExperienceInternship)
+--    <*> areq boolField' "Have you programmed during a full-time job?" Nothing
+    <*> aopt (boundedIntField 0 100) (bfs' "How many years of work experience do you have coding?") (f formYearsOfWork)
+    <*> aopt boolField' "Have you taken a software engineering class?" (f formSoftwareEngineering)
+    <*> aopt boolField' "Have you taken a computer security class?" (f formSecurityClass)
+    <*> aopt boolField' "Have you had any formal training in computer security (aside from this coursera sequence)?" (f formSecurityTraining)
+    <*> aopt boolField' "Do you have prior experience in computer security?" (f formSecurityExperience)
+    <*> aopt boolField' "Have you participated in other security contests?" (f formPreviousContest)
+    <*> aopt rateField (bfs' "How do you rate your abilities as a programmer on a scale from 1 (low) to 10 (high)?") (f formProgrammerRating)
+    <*> aopt rateField (bfs' "How do you rate your abilities as an attacker on a scale from 1 (low) to 10 (high)?") (f formAttackerRating)
+    <*> aopt (boundedIntField 18 150) (bfs' "Age") (f formAge)
+    <*> aopt genderField (bfs' "Gender") (f formGender)
+    <*> aopt countryField (bfs' "Nationality") (f formNationality)
+    <*> areq boolField' "Would you like us to make your CV available to companies who have sponsored our research, so they can contact you about future employment and internship opportunities?" (formResumePermission <$> formM)
+    <*> areq (checkBoxField' $ [hamlet|I agree to participate in the research study and the terms in this <a href="@{StaticR doc_consent_form_pdf}" target="_blank">consent form</a>|] render) "We ask that you allow us to use data gathered from your performance in this contest as part of a research study that aims to better understand how to build secure systems. Your identity will be held in strict confidence (unless you opt to share your information)." (Just $ maybe True formResumePermission formM)
+    -- TODO
+    -- <*> areq (checkBoxField' ( "I agree to participate in the research study" :: Text)) "We ask that you allow us to use data gathered from your performance in this contest as part of a research study that aims to better understand how to build secure systems. Your identity will be held in strict confidence (unless you opt to share your information)." (Just $ maybe True formResumePermission formM)
+    where
+        degrees = [("Undergraduate"::Text, "Undergraduate"), ("Masters","Masters"),("Doctorate","Doctorate"), ("High school","High school"),("None","None")]
+
+        f :: (SurveyFormData -> Maybe a) -> Maybe (Maybe a)
+        f g = fmap (g) formM
 
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 -- Module that contains some shared forms for creating/editing tests.
 
 module Test where

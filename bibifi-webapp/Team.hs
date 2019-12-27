@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Team (inviteTeam, Page(..), layout, getTeam, getTeamContest, getTeamMembers) where
 
 import Import as I

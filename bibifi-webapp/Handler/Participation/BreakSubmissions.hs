@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Handler.Participation.BreakSubmissions where
 
 import qualified Database.Esqueleto as E

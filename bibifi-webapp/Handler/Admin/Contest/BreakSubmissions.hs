@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Handler.Admin.Contest.BreakSubmissions where
 
 import qualified Admin

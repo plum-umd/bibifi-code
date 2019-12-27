@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Handler.Participation.Information (getParticipationInformationR, postParticipationInformationR, postParticipationInformationUnregisterR) where
 
 import qualified Data.Text as Text

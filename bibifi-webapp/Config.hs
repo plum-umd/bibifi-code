@@ -1,3 +1,8 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+
 module Config (ConfigKey(..), getConfig, setConfig) where
 
 import Prelude
