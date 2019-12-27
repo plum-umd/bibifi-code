@@ -112,6 +112,7 @@ BIBIFI organizers
                 partType = "text/plain; charset=utf-8",
                 partEncoding = None,
                 -- partFilename = Nothing,
+                partDisposition = DefaultDisposition,
                 partContent = PartContent text,
                 partHeaders = []
             }
@@ -129,6 +130,7 @@ BIBIFI organizers
                 partType = "text/html; charset=utf-8",
                 partEncoding = None,
                 -- partFilename = Nothing,
+                partDisposition = DefaultDisposition,
                 partContent = PartContent html,
                 partHeaders = []
             }

@@ -172,6 +172,7 @@ Thanks!
     textPart <- return $ Part { 
         partType = "text/plain; charset=utf-8",
         partEncoding = None,
+        partDisposition = DefaultDisposition,
         partContent = PartContent text,
         partHeaders = []
     }
@@ -184,6 +185,7 @@ Thanks!
     htmlPart <- return $ Part { 
         partType = "text/html; charset=utf-8",
         partEncoding = None,
+        partDisposition = DefaultDisposition,
         partContent = PartContent html,
         partHeaders = []
     }
