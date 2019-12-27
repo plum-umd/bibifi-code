@@ -37,23 +37,23 @@ getAdminContestOracleBreaksR url = runLHandler $ do
                                 There are no oracle breaks.
                         |]
                     _ -> do
-                        let rows = mconcat $ map (\(E.Value team, Entity bosId bos) -> do
-                                time <- lift $ displayTime $ breakOracleSubmissionTimestamp bos
-                                let valid = if breakOracleSubmissionValid bos then
-                                        "Yes" :: Text
-                                      else
-                                        "No"
-                                [whamlet'|
-                                    <tr class="clickable" href="@{AdminContestOracleBreaksEditR bosId}">
-                                        <td>
-                                            #{team} (#{keyToInt (breakOracleSubmissionTeam bos)})
-                                        <td>
-                                            #{time}
-                                        <td>
-                                            #{valid}
-                                        <td>
-                                            #{breakOracleSubmissionDescription bos}
-                                |]
+                        rows <- mconcat <$> mapM (\(E.Value team, Entity bosId bos) -> do
+                                  time <- displayTime $ breakOracleSubmissionTimestamp bos
+                                  let valid = if breakOracleSubmissionValid bos then
+                                          "Yes" :: Text
+                                        else
+                                          "No"
+                                  return [hamlet|
+                                      <tr class="clickable" href="@{AdminContestOracleBreaksEditR bosId}">
+                                          <td>
+                                              #{team} (#{keyToInt (breakOracleSubmissionTeam bos)})
+                                          <td>
+                                              #{time}
+                                          <td>
+                                              #{valid}
+                                          <td>
+                                              #{breakOracleSubmissionDescription bos}
+                                  |]
                               ) breaks
                         [whamlet|
                             <table class="table table-hover">

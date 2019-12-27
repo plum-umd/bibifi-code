@@ -172,8 +172,7 @@ Thanks!
     textPart <- return $ Part { 
         partType = "text/plain; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = text,
+        partContent = PartContent text,
         partHeaders = []
     }
     html <- return $ renderHtml [shamlet|
@@ -185,8 +184,7 @@ Thanks!
     htmlPart <- return $ Part { 
         partType = "text/html; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = html,
+        partContent = PartContent html,
         partHeaders = []
     }
     liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")
