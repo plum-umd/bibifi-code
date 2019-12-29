@@ -192,7 +192,7 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                 ^{judgementW}
             ^{buildOutputW}
             ^{deleteW}
-        |]
+        |] :: LWidget
         
         -- Check if can rerun submission.
         canRerun <- canRerunFixSubmission fs contest

@@ -5,7 +5,7 @@ module LYesod (
       , maybeAuth'
       , maybeAuthId'
       , widgetToPageContent'
-      , whamlet'
+--       , whamlet'
 --       , tempRunDB
 --      , setMessage
 --      , redirectUltDest
@@ -42,6 +42,7 @@ import           Yesod                as Export hiding (
                                           , count
                                           , handlerToWidget
                                           , widgetToPageContent
+                                          , hamlet
                                           , whamlet
                                           , Value(..)
                                           -- Optional (for convenience):
@@ -66,7 +67,6 @@ requireAuthId' = Yesod.requireAuthId
 maybeAuth' = Yesod.maybeAuth
 maybeAuthId' = Yesod.maybeAuthId
 widgetToPageContent' = Yesod.widgetToPageContent
-whamlet' = Yesod.whamlet
 
 -- Some convenience functions to make conversion easier.
 

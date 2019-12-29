@@ -60,8 +60,9 @@ displayFixSubmissionsTable details submissions = return undefined --FIXME
             |]
 -}
               
+-- displayBuildSubmissionsTable :: a -> b -> LMonadT l (WidgetT site IO) ()
 displayBuildSubmissionsTable details submissions = do
-    rows <- mconcat <$> mapM row submissions
+    let rows = mconcat $ map row submissions
     [whamlet|
         <table class="table table-hover">
             <thead>
@@ -75,7 +76,7 @@ displayBuildSubmissionsTable details submissions = do
                         Status
             <tbody>
                 ^{rows}
-    |]
+    |] :: LWidget
     clickableDiv
 
     where
@@ -89,7 +90,7 @@ displayBuildSubmissionsTable details submissions = do
 
         row (Entity sId s) = do
             let status = prettyBuildStatus $ buildSubmissionStatus s
-            time <- liftIO $ displayTime $ buildSubmissionTimestamp s
+            time <- displayTime $ buildSubmissionTimestamp s
             -- TODO: Show team name? XXX
             let team = if details then
                     [shamlet|
@@ -98,7 +99,7 @@ displayBuildSubmissionsTable details submissions = do
                     |]
                   else
                     mempty
-            return [hamlet|
+            [whamlet|
                 <tr class="clickable" href="@{ParticipationBuildSubmissionR (buildSubmissionTeam s) sId}">
                     #{team}
                     <td>
@@ -107,7 +108,7 @@ displayBuildSubmissionsTable details submissions = do
                         #{time}
                     <td>
                         #{status}
-            |]
+            |] :: LWidget
 
 data BreakSubmissionViewer = 
       BreakSubmissionAdmin

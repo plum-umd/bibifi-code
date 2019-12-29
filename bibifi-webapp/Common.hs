@@ -45,8 +45,8 @@ displayTime t' = liftIO $ do
     --return $ formatTime defaultTimeLocale "%Y.%m.%d %H:%M %Z" t'
 
 -- Formats form error messages.
-displayError :: Text -> HtmlUrl url
-displayError s = [hamlet|$newline never
+displayError :: Text -> Html
+displayError s = [shamlet|$newline never
     <div class="text-danger">
         #{s}
 |]

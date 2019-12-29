@@ -106,7 +106,7 @@ getParticipationBuildersCodeR tcId = runLHandler $
                         ^{rows}
                 <p .text-muted>
                     Note: This table updates periodically.
-            |]
+            |] :: LWidget
             -- Styling
             toWidget [lucius|
                 .clickable:hover {

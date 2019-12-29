@@ -2,6 +2,9 @@
 module Import
     ( module Import
     , getCurrentTime
+    , whamlet
+    , whamlet'
+    , hamlet
     ) where
 
 import           Prelude              as Import hiding (head, init, last,
@@ -13,6 +16,8 @@ import           Control.Monad        as Import
 import           Data.Either          as Import (isLeft)
 import           Data.Text            as Import (Text)
 import           Data.Time            as Import (UTCTime, addUTCTime, NominalDiffTime)
+import           Language.Haskell.TH
+import           Language.Haskell.TH.Quote
 
 import           Foundation           as Import
 import           Foundation.App       as Import
@@ -27,7 +32,8 @@ import           Common               as Import
 
 import           LMonad               as Import
 import           LMonad.Label.DisjunctionCategory as Import
-import           LMonad.Yesod         as Import
+import           LMonad.Yesod         as Import hiding (whamlet, hamlet)
+import qualified LMonad.Yesod
 import           TCB                  as Import
 
 import           Database.LPersist    as Import
@@ -35,7 +41,8 @@ import           Database.LEsqueleto  as Import
 
 import     Database.Persist.RateLimit as Import
 
-import          Yesod.Form.Bootstrap3 as Import
+import qualified Yesod as Yesod
+import           Yesod.Form.Bootstrap3 as Import
 
 import          RateLimit             as Import
 
@@ -71,4 +78,9 @@ runMultipleFormsPost ((FormAndHandler form handler):t) = do
         _ ->
             handler res widget enctype
 
+instance ToLWidget (DCLabel Principal) App (HtmlUrl (Route App)) where
+    toLWidget = lLift . toWidget
 
+whamlet' = QuasiQuoter { quoteExp = \s -> quoteExp Yesod.whamlet s >>= return . (`SigE` (ConT ''Widget)) }
+whamlet = QuasiQuoter { quoteExp = \s -> quoteExp LMonad.Yesod.whamlet s >>= return . (`SigE` (ConT ''LWidget)) }
+hamlet = QuasiQuoter { quoteExp = \s -> quoteExp Yesod.hamlet s >>= return . (`SigE` (AppT (ConT ''HtmlUrl) (AppT (ConT ''Route) (ConT ''App)))) }

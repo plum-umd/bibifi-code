@@ -23,9 +23,9 @@ buildSubmission (Entity bsId bs) cId public = do
             margin-left: 6px;
          }
     |]
-    judgementW <- do
+    let judgementW :: LWidget = do
         judgementM <- handlerToWidget $ runDB $ getBy $ UniqueBuildJudgement bsId
-        extractWidget $ case judgementM of
+        case judgementM of
             Nothing ->
                 mempty
             Just (Entity jId j) -> 
@@ -90,7 +90,7 @@ buildSubmission (Entity bsId bs) cId public = do
                 <div class="col-xs-9">
                     <p class="form-control-static">
                         #{status}
-            ^{judgementW}
+            ^{(judgementW)}
     |]
     when (not public) $ do
         case (buildSubmissionStdout bs, buildSubmissionStderr bs) of
@@ -240,9 +240,9 @@ buildSubmission (Entity bsId bs) cId public = do
                     No tests found.
             |]
         else
-            let cores = mconcat $ map renderCores coreResults in
-            let perfs = mconcat $ map renderPerfs performanceResults in
-            let opts = mconcat $ map renderOpts optionalResults in
+            let cores = mconcat $ map renderCores coreResults :: Widget in
+            let perfs = mconcat $ map renderPerfs performanceResults :: Widget in
+            let opts = mconcat $ map renderOpts optionalResults :: Widget in
             [whamlet|
                 <table class="table">
                     <thead>

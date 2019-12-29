@@ -61,13 +61,13 @@ getProfileAccountR = runLHandler $
                                    ,("Nationality", na . userInformationNationality)
                                    ]
                         in
-                        let lblhtml (fldtxt,anstext) = [whamlet'|
+                        let lblhtml (fldtxt,anstext) = [whamlet|
                                 <label class="col-md-4 control-label">
                                    #{fldtxt}
                                 <div class="col-md-8">
                                    <p class="form-control-static">
                                      #{anstext}
-                            |]
+                            |] :: LWidget
                         in
                         mconcat $ map (lblhtml . (\(txt,f) -> (txt,f information))) flds
                       _ ->
@@ -145,7 +145,7 @@ getProfileAccountR = runLHandler $
 
                             ^{flds'}
                     ^{pendingInvites}
-                |]
+                |] :: LWidget
             _ -> do
                 -- TODO: log this
                 setMessage [shamlet|

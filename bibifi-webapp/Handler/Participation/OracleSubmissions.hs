@@ -112,4 +112,4 @@ getParticipationOracleSubmissionR tcId osId = runLHandler $ do
                                         #{oracleSubmissionInput os}
                             ^{output}
                         ^{refresh}
-                    |]
+                    |] :: LWidget

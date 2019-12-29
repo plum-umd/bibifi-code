@@ -11,6 +11,7 @@ import Data.Set as S
 import qualified Data.Text as Text
 import Data.Time (formatTime, defaultTimeLocale, utcToZonedTime, parseTimeM, zonedTimeToUTC, ZonedTime(..), TimeZone)
 import System.FilePath.Posix
+import qualified Yesod
 import qualified Yesod.Form.Bootstrap3 as BS
 
 import Import
@@ -27,7 +28,7 @@ bfs' = BS.bfs
 boolField' :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Bool
 boolField' = Field
       { fieldParse = \e _ -> return $ boolParser e
-      , fieldView = \theId name attrs val isReq -> [whamlet'|$newline never
+      , fieldView = \theId name attrs val isReq -> [Yesod.whamlet|$newline never
             
             <label *{attrs} class="radio-inline" for=#{theId}-yes>
                 <input id=#{theId}-yes type=radio name=#{name} value=yes :showVal id val:checked>
@@ -82,7 +83,7 @@ utcField tz =
 boolField'' :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Bool
 boolField'' = Field
       { fieldParse = \e _ -> return $ boolParser e
-      , fieldView = \theId name attrs val isReq -> [whamlet'|$newline never
+      , fieldView = \theId name attrs val isReq -> [Yesod.whamlet|$newline never
             <br />
             $if not isReq
                 <label *{attrs} class="radio-inline" for=#{theId}-none>
@@ -140,7 +141,7 @@ uploadField filetypes = fileField { fieldParse = parser}
 checkBoxField' :: (ToMarkup a, Monad m) => a -> Field m Bool
 checkBoxField' msg = Field
     { fieldParse = \e _ -> return $ checkBoxParser e
-    , fieldView  = \theId name attrs val _ -> [whamlet'|$newline never
+    , fieldView  = \theId name attrs val _ -> [Yesod.whamlet|$newline never
             <div class="checkbox">
                 <label for=#{theId}>
                     <input id=#{theId} *{attrs} type=checkbox name=#{name} value=yes :showVal id val:checked>
@@ -186,7 +187,7 @@ passwordConfirmField =
             [] -> Right Nothing
             _ -> Left "You must enter two values"
     in
-    let view idAttr nameAttr otherAttrs _ _ = [whamlet'|
+    let view idAttr nameAttr otherAttrs _ _ = [Yesod.whamlet|
         <input id=#{idAttr} name=#{nameAttr} *{otherAttrs} required type=password>
         <div class="controls input">
             <br>
@@ -237,7 +238,7 @@ listEmailField =
                   $('##{rawJS addId}').on('click', addInput);
               })
             |]
-            [whamlet'|
+            [Yesod.whamlet|
               <button type="button" class="btn btn-success" id="#{addId}">Add</button>
               <div id=#{listId}>
             |]

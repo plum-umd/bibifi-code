@@ -147,21 +147,20 @@ layout page tId content =
                 <li class="#{addMembersActive}">
                     <a href="@{TeamAddMembersR tId}">
                         Add Members
-            |]
+            |] :: LWidget
         else
             mempty
     let leave = if uId /= teamLeader team then
-            [whamlet'|
+            [whamlet|
                 <li class="#{leaveActive}">
                     <a href="@{TeamLeaveR tId}">
                         Leave Team
-            |]
+            |] :: LWidget
           else
             mempty
     defaultLayout $ do
         setTitle [shamlet|#{subtitle} - Team|]
-        content' <- extractWidget $ content uId team
-        addMembers' <- extractWidget addMembers
+        let content' = content uId team
         [whamlet|
             <div class="row">
                 <div class="col-md-12">
@@ -179,7 +178,7 @@ layout page tId content =
                         <li class="#{contestActive}">
                             <a href="@{TeamParticipationR tId}">
                                 Contest Participation
-                        ^{addMembers'}
+                        ^{addMembers}
                         ^{leave}
                 <div class="col-md-9">
                     ^{content'}

@@ -286,6 +286,7 @@ customLayout d widget = do
 
         -- pc <- widgetToPageContent widget
             -- widget -- $(widgetFile "default-layout") -- $(hamletFile "templates/default-layout-wrapper.hamlet")
+        renderer <- lLift getUrlRenderParams
         layout <- widgetToPageContent $ do
             lLift $ do
     --            addStylesheet $ StaticR css_bootstrap_min_css
@@ -319,7 +320,6 @@ customLayout d widget = do
                         ga('create', 'UA-52699115-1', 'auto');
                         ga('send', 'pageview');
                     |]
-            widget' <- extractWidget widget
             [whamlet|
                 <div class="wrapper">
                     <noscript>
@@ -327,10 +327,10 @@ customLayout d widget = do
                             <div class="alert alert-warning">
                                 <strong>Warning!</strong> This web site requires javascript.
                     #{msg}
-                    ^{nav}
+                    ^{nav renderer}
                     <div id="main" role="main">
                         <div class="container">
-                            ^{widget'}
+                            ^{widget}
                     <div class="push container">
                 <footer>
                     <div class="container">

@@ -80,7 +80,7 @@ layout page tcId content =
             mempty
     defaultLayout $ do
         setTitle [shamlet|#{subtitle} - Team Participation|]
-        content' <- extractWidget $ content uId tc contest team
+        let content' = content uId tc contest team
         [whamlet|
             <div class="row">
                 <div class="col-md-12">

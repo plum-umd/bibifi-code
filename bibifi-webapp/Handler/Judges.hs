@@ -55,7 +55,7 @@ getJudgesR contestUrl = runLHandler $ Judges.layout contestUrl $ \uId (Entity cI
     tableBody <- 
         -- Check if no judgements are in the queue.
         if (List.length buildJudgements) + (List.length breakJudgements) + (List.length fixJudgements) == 0 then
-            return $ [whamlet'|
+            return $ [hamlet|
                 <tr>
                     <td colspan="4">
                         No jobs found. 
@@ -65,7 +65,7 @@ getJudgesR contestUrl = runLHandler $ Judges.layout contestUrl $ \uId (Entity cI
             buildDueDate <- displayTime $ Clock.addUTCTime (2*24*60*60) (contestBuildEnd c)
             breakDueDate <- displayTime $ Clock.addUTCTime (2*24*60*60) (contestBreakEnd c)
             let buildRows = mconcat $ map (\(Entity jId j) -> 
-                    [whamlet'|
+                    [hamlet|
                         <tr class="clickable" href="@{JudgesBuildItR contestUrl jId}">
                             <td>
                                 build-#{keyToInt jId}
@@ -78,7 +78,7 @@ getJudgesR contestUrl = runLHandler $ Judges.layout contestUrl $ \uId (Entity cI
                     |]
                   ) buildJudgements
             let breakRows = mconcat $ map (\(Entity jId j) -> 
-                    [whamlet'|
+                    [hamlet|
                         <tr class="clickable" href="@{JudgesBreakItR contestUrl jId}">
                             <td>
                                 break-#{keyToInt jId}
@@ -90,10 +90,7 @@ getJudgesR contestUrl = runLHandler $ Judges.layout contestUrl $ \uId (Entity cI
                                 #{prettyPrintStatus (breakJudgementRuling j)}
                     |]
                   ) breakJudgements
-            return $ [whamlet'|
-                ^{buildRows}
-                ^{breakRows}
-            |]
+            return $ buildRows <> breakRows
     [whamlet|
         ^{completedButton}
         <table class="table table-hover">

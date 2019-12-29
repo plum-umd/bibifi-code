@@ -17,9 +17,9 @@ extra-deps:
 # - network-ip-0.2.1.1
 # - persistent-ratelimit-0.3.0.0
 - git: https://github.com/jprider63/LMonad.git
-  commit: 9238df9fa56e59d6afc2c6515ea22ed5418f00e3
+  commit: e6eda2256f26aaff592106d33e9a4cb4905c014d
 - git: https://github.com/jprider63/LMonad-Yesod.git
-  commit: 34dc9693f38b138aff9b708709eda5bb627b771d
+  commit: bb502ecc1192b2ca6a7668e3ae636670bd0588e9
 - git: https://github.com/jprider63/persistent-ratelimit.git
   commit: 4f3f9afc748453fb2beda00d339fc3a30ad6e7a3
 # - yesod-auth-oauth2-0.1.6
