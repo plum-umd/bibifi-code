@@ -76,6 +76,7 @@ generateHtml contest team tcId tc uId widget enctype widgetU enctypeU msg = do
                 <div class="col-sm-10">
                     <p class="form-control-static">
                         #{teamName team}
+            ^{githookWidget}
             ^{widget}
             <div class="form-group">
                 <div class="col-sm-offset-2 col-sm-10">
@@ -83,6 +84,19 @@ generateHtml contest team tcId tc uId widget enctype widgetU enctypeU msg = do
                         Submit
         ^{unregisterW}
     |]
+
+  where
+    githookWidget = do
+        user <- handlerToWidget requireAuth
+        when (userAdmin $ entityVal user) 
+            [whamlet|
+                <div class="form-group">
+                    <label class="col-sm-2 control-label">
+                        Webhook
+                    <div class="col-sm-10">
+                        <p class="form-control-static">
+                            @{WebhookGitlabPushR tcId (teamContestGithookNonce tc)}
+            |]
 
 getParticipationInformationR :: TeamContestId -> Handler Html
 getParticipationInformationR tcId = runLHandler $ 
