@@ -28,8 +28,8 @@ postWebhookGitlabPushR tcId token = runLHandler $ do
     (cId, nonce) <- runDB $ do
         TeamContest _ cId _ _ _ nonce <- get404 tcId
         return (cId, nonce)
-    unless (token === nonce) $
-        permissionDenied "Unmatched token"
+    unless (token `constantCompareText` nonce) $
+        permissionDenied ""
     pushTime <- getCurrentTime
     contest <- runDB $ get404 cId
     PushMsg pId cmts <- requireJsonBody

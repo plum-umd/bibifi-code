@@ -1,6 +1,7 @@
 module Common (
       randomString
     , contestTimeZone
+    , constantCompareText
     , displayTime
     , displayError
     , listGroupStyle
@@ -18,7 +19,9 @@ import Core
 import Control.Monad.Random
 import Css
 import Prelude as P
+import Data.Bits
 import Data.Char
+import Data.Function (on)
 import Data.Text as T
 import Data.Time
 import Database.Persist.Types
@@ -32,6 +35,12 @@ randomString :: Int -> IO Text
 randomString l = do
     values <- evalRandIO (sequence (P.replicate l (getRandomR (65,90))))
     return $ T.pack $ P.map chr values
+
+-- https://security.stackexchange.com/a/83671
+constantCompareText :: Text -> Text -> Bool
+constantCompareText a b = ((==) `on` T.length) a b && 0 == (P.foldl1 (.|.) joined)
+  where
+    joined = P.map (uncurry (xor `on` ord)) $ T.zip a b
 
 contestTimeZone :: IO TimeZone
 contestTimeZone = getCurrentTimeZone
