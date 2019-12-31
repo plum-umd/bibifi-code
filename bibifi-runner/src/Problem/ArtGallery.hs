@@ -36,7 +36,7 @@ import Yesod.Form.Fields (Textarea(..))
 import Cloud
 import Common
 import Core.Score
-import Problem.Class
+import Problem.Class hiding (BuildTest)
 import Problem.Shared (getBuildArchiveLocation, getFixArchiveLocation, OracleErr(..), BuildError(..), BreakError(..), FixError(..))
 import Scorer.Class
 

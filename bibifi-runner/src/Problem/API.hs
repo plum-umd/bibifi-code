@@ -113,18 +113,11 @@ instance ProblemRunnerClass APIProblem where
                 return $ Aeson.decodeStrict' resOut
 
     runBuildSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
-        -- Retrieve tests from database.
-        coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
-        performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId] []
-        optionalTests' <- runDB $ selectList [ContestOptionalTestContest ==. contestId] [Asc ContestOptionalTestName]
+        -- Extract tests.
+        let BuildTests coreTests performanceTests optionalTests = runnerBuildTests opts
 
         coreDoneRef <- IO.newIORef False
         resultsE <- runErrorT $ do
-            -- Parse tests.
-            coreTests <- mapM parseCoreTest coreTests'
-            performanceTests <- mapM parsePerformanceTest performanceTests'
-            optionalTests <- mapM parseOptionalTest optionalTests'
-
             -- Make sure build submission tar and MITMs exist.
             archiveLocation <- getBuildArchiveLocation submission opts 
 
@@ -320,9 +313,8 @@ instance ProblemRunnerClass APIProblem where
 
 
     runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
-        -- Retrieve tests from database.
-        coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
-        performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId, ContestPerformanceTestOptional ==. False] []
+        -- Extract tests.
+        let BuildTests coreTests performanceTests optionalTests = runnerBuildTests opts
 
         -- Get all valid breaks against this team
         breaks'' <- runDB $ selectList [ BreakSubmissionTargetTeam ==. teamId
@@ -334,10 +326,6 @@ instance ProblemRunnerClass APIProblem where
         resultsE <- runErrorT $ do
             -- Check for description, other constraints.
             checkForFixDescription submission opts
-
-            -- Parse tests.
-            coreTests <- mapM parseCoreTest coreTests'
-            performanceTests <- mapM parsePerformanceTest performanceTests'
 
             -- Verify breaks fixed and filter them (only include automatically tested ones).
             let breaks' = breaks'' -- FIXME

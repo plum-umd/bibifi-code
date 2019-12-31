@@ -5,6 +5,7 @@ module Main where
 import Cloud
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.Error
 -- import Core.Modular
 import qualified Data.Set as Set
 import qualified Network.HTTP.Conduit as HTTP
@@ -15,6 +16,7 @@ import Options
 import qualified Queue
 import Runner
 import Problem
+import Problem.Shared
 import Scorer
 import Scheduler
 
@@ -38,9 +40,12 @@ main = do
     -- Handle interupts and kills. 
     _ <- installHandler sigINT (sigHandler exiting count) Nothing
 
+    -- Load build-it tests.
+    buildTests <- runDatabaseM db $ loadBuildTests $ entityKey contest
+
     -- Set runner options.
     http <- liftIO $ cloudManagerSettings ec2 >>= HTTP.newManager
-    let runnerOptions = RunnerOptions fsDir ec2 http problemDir
+    let runnerOptions = RunnerOptions fsDir ec2 http problemDir buildTests
     let problemRunner = contestToProblemRunner contest
     let contestScorer = contestToScorer contest
 
@@ -60,6 +65,26 @@ main = do
     putLog "runner: Exiting..."
 
     where
+        -- Loads and parses all build tests into memory once. Performance tests are ordered by their primary keys.
+        loadBuildTests contestId = do
+            -- Retrieve tests from database.
+            coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
+            performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId] []
+            optionalTests' <- runDB $ selectList [ContestOptionalTestContest ==. contestId] [Asc ContestOptionalTestId]
+
+            testsE <- runErrorT $ do
+                coreTests <- mapM parseCoreTest coreTests'
+                performanceTests <- mapM parsePerformanceTest performanceTests'
+                optionalTests <- mapM parseOptionalTest optionalTests'
+
+                return $ BuildTests coreTests performanceTests optionalTests
+
+            case testsE of
+                Left e ->
+                    exitWithError $ "Invalid build test: " <> e
+                Right tests ->
+                    return tests
+
         sigHandler exiting count = Catch $ do
             -- Change the handlers since we are now exiting. 
             _ <- installHandler sigINT sigHandlerExiting Nothing

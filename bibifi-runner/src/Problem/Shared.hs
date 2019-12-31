@@ -173,11 +173,6 @@ instance Error OracleErr where
 instance BackendError OracleErr where
     backendTimeout = OracleErrTimeout
 
-data BuildTest = 
-    BuildTestCore (Entity ContestCoreTest)
-  | BuildTestPerformance (Entity ContestPerformanceTest)
-  | BuildTestOptional (Entity ContestOptionalTest)
-
 buildTestName :: BuildTest -> Text
 buildTestName (BuildTestCore (Entity _ (ContestCoreTest{..}))) = contestCoreTestName
 buildTestName (BuildTestPerformance (Entity _ ContestPerformanceTest{..})) = contestPerformanceTestName
