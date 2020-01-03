@@ -189,7 +189,8 @@ Thanks!
         partContent = PartContent html,
         partHeaders = []
     }
-    liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")
+    mail <- initEmptyMail
+    liftIO $ renderSendMail mail
         { mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]] }
 
 generateConfirmation :: UserId -> LHandler Text
