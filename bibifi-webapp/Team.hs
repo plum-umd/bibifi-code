@@ -39,7 +39,7 @@ You have received a team invitation to participate in the Build it Break it Fix 
         partHeaders = []
     }
     mail <- initEmptyMail
-    liftIO $ renderSendMail mail
+    sendMail mail
                 { mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]] }
 
 inviteTeam :: TeamId -> [Text] -> LHandler ()

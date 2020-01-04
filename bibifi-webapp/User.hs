@@ -43,7 +43,7 @@ sendResetCode email code = do
         partHeaders = []
     }
     mail <- initEmptyMail
-    liftIO $ renderSendMail mail
+    sendMail mail
         { mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]] }
 
 invitePasswordReset :: Entity User -> LHandler ()

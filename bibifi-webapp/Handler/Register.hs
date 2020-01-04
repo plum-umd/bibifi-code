@@ -190,7 +190,7 @@ Thanks!
         partHeaders = []
     }
     mail <- initEmptyMail
-    liftIO $ renderSendMail mail
+    sendMail mail
         { mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]] }
 
 generateConfirmation :: UserId -> LHandler Text
