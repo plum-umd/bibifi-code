@@ -18,6 +18,8 @@ import           Data.Text            as Import (Text)
 import           Data.Time            as Import (UTCTime, addUTCTime, NominalDiffTime)
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Quote
+import qualified Network.Mail.Mime    as Mail 
+import qualified Network.Mail.SMTP    as SMTP
 
 import           Foundation           as Import
 import           Foundation.App       as Import
@@ -77,6 +79,17 @@ runMultipleFormsPost ((FormAndHandler form handler):t) = do
             runMultipleFormsPost t
         _ ->
             handler res widget enctype
+
+sendMail m = liftIO $ 
+  if development then
+    print m
+  else do
+    SMTP.sendMail "localhost" m
+    -- renderSendMail
+
+initEmptyMail = do
+    domainName <- appDomainName <$> getYesod
+    return $ Mail.emptyMail $ Mail.Address (Just "Build it Break it Fix it") $ "noreply@" <> domainName
 
 instance ToLWidget (DCLabel Principal) App (HtmlUrl (Route App)) where
     toLWidget = lLift . toWidget

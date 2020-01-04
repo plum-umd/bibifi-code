@@ -134,7 +134,8 @@ BIBIFI organizers
                 partContent = PartContent html,
                 partHeaders = []
             }
-            lLift $ liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")
+            mail <- initEmptyMail
+            sendMail mail
                 {mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]]}
 
 

@@ -211,6 +211,7 @@ library
                  , blaze-markup
                  , blaze-html
                  , mime-mail
+                 , smtp-mail
                  , containers
                  , hoauth2 > 0.4.3
                  , yesod-auth-oauth2

@@ -31,6 +31,7 @@ data App = App
     , httpManager :: Manager
     , persistConfig :: Settings.PersistConf
     , appLogger :: Logger
+    , appDomainName :: Text -- Domain name (or IP)
     }
 
 -- Set up i18n messages. See the message folder.
