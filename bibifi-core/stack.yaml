@@ -13,6 +13,7 @@ extra-deps:
   commit: 3949c62aa82c5b8184b3c03cdcb105f86d0eb844
 - git: https://github.com/jprider63/LMonad-Yesod.git
   commit: f3469f6175e12ea3b5b08629265986921db90c4e
+- gitlab-haskell-0.1.5
 
 # Override default flag values for local packages and extra-deps
 flags: {}

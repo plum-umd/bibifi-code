@@ -4,6 +4,7 @@ module Model where
 
 import Prelude
 import Yesod
+import Core.Git
 import Control.Monad.Trans.Reader
 import qualified Data.Aeson as Aeson
 import Data.ByteString (ByteString)
