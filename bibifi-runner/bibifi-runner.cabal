@@ -59,6 +59,7 @@ executable runner
                        Common
                        Core.SSH
                        Core.Score
+                       Git
                        Options
                        Problem
                        Problem.ATM

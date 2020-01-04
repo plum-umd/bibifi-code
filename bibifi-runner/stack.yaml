@@ -41,6 +41,7 @@ extra-deps:
 # - aws-sdk-text-converter-0.4.1
 # - aws-sdk-xml-unordered-0.3.1
 - docker-0.6.0.2
+- gitlab-haskell-0.1.5
 # - ec2-signature-3.1
 # - lmonad-0.1.0.0
 # - lmonad-yesod-1.0.0.0

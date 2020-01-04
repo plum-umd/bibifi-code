@@ -1,9 +1,11 @@
 module Problem.Class where
 
 import Cloud
+import Common
 import Core.DatabaseM
 import qualified Data.Aeson as Aeson
 import Database.Persist
+import Git
 import Model
 import qualified Network.HTTP.Conduit as HTTP
 
@@ -13,6 +15,8 @@ data RunnerOptions = RunnerOptions {
       , runnerHttpManager :: HTTP.Manager
       , runnerProblemDirectory :: FilePath
       , runnerBuildTests :: BuildTests
+      , runnerGitConfiguration :: GitConfiguration
+      , runnerFileLockSet :: LockSet FilePath
     }
 
 data BuildTests = BuildTests {

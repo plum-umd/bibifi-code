@@ -7,11 +7,13 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Error
 -- import Core.Modular
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Network.HTTP.Conduit as HTTP
 import System.Posix.Signals
 
 import Common
+import Git
 import Options
 import qualified Queue
 import Runner
@@ -25,8 +27,11 @@ main = do
     -- Read EC2 configuration file. 
     ec2 <- loadCloudConfiguration "../config/cloud.yml" -- productionCloudYML
 
+    -- Read git configuration file.
+    git <- loadGitConfiguration "../config/git.yml"
+
     -- Read command line arguments. 
-    (Options count fsDir problemDir contest db) <- parseOptions
+    (Options count fsDir problemDir contest db) <- parseOptions productionDatabaseYML
     
     -- Create exiting mvar. 
     exiting <- newEmptyMVar
@@ -37,6 +42,9 @@ main = do
     -- Create blocked teams set.
     blockedTeams <- newMVar $ Set.empty
 
+    -- Create file lock set.
+    fileLockSet <- LockSet <$> newMVar Map.empty
+
     -- Handle interupts and kills. 
     _ <- installHandler sigINT (sigHandler exiting count) Nothing
 
@@ -45,7 +53,7 @@ main = do
 
     -- Set runner options.
     http <- liftIO $ cloudManagerSettings ec2 >>= HTTP.newManager
-    let runnerOptions = RunnerOptions fsDir ec2 http problemDir buildTests
+    let runnerOptions = RunnerOptions fsDir ec2 http problemDir buildTests git fileLockSet 
     let problemRunner = contestToProblemRunner contest
     let contestScorer = contestToScorer contest
 

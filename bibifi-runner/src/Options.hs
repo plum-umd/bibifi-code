@@ -71,18 +71,18 @@ options =
 exitWithUsage :: MonadIO m => String -> m a
 exitWithUsage err = exitWithError $ err ++ "\n" ++ usageInfo "Usage: runner OPTIONS [repo-directory]" options
 
-parseOptions :: IO Options
-parseOptions = do
+parseOptions :: FilePath -> IO Options
+parseOptions databaseConfigFile = do
     args' <- getArgs
     case getOpt Permute options args' of
         (opts,args,[]) -> do
             internalOpts <- foldl' (>>=) (return emptyOptions) opts
-            toOptions internalOpts args
+            toOptions internalOpts args databaseConfigFile
         (_, _, es) ->
             exitWithUsage $ concat es
 
-toOptions :: InternalOptions -> [String] -> IO Options
-toOptions (InternalOptions countM urlM oracleDirM dbNameM) args = do
+toOptions :: InternalOptions -> [String] -> FilePath -> IO Options
+toOptions (InternalOptions countM urlM oracleDirM dbNameM) args databaseConfig = do
     let count = maybe 1 id countM
     when (count < 1) $
         exitWithError "COUNT must be greater than 0"
@@ -107,7 +107,7 @@ toOptions (InternalOptions countM urlM oracleDirM dbNameM) args = do
             return $ Text.pack dbName
 
     -- Load database configuration.
-    db <- makeDatabaseConf productionDatabaseYML dbName
+    db <- makeDatabaseConf databaseConfig dbName
     runDatabaseM db $ do
         url <- case urlM of 
             Nothing -> do

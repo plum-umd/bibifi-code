@@ -446,12 +446,20 @@ verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
             else
                 return acc -}
 
-getArchiveLocation :: (MonadIO m, E.Error e) => String -> String -> RunnerOptions -> ErrorT e m FilePath
+archiveLocation :: TeamContestId -> Text -> RunnerOptions -> FilePath
+archiveLocation team' hash' opts = 
+    let repoDir = runnerRepositoryPath opts in
+    let loc'' = FilePath.joinPath [repoDir, "archives", team, hash] in
+    let loc' = FilePath.addExtension loc'' "tar" in
+    FilePath.addExtension loc' "gz"
+
+    where
+        hash = Text.unpack hash'
+        team = show $ keyToInt team'
+
+getArchiveLocation :: (MonadIO m, E.Error e) => TeamContestId -> Text -> RunnerOptions -> ErrorT e m FilePath
 getArchiveLocation team hash opts = ErrorT $ do
-    let repoDir = runnerRepositoryPath opts
-    let loc'' = FilePath.joinPath [repoDir, "archives", team, hash]
-    let loc' = FilePath.addExtension loc'' "tar"
-    let loc =  FilePath.addExtension loc' "gz"
+    let loc = archiveLocation team hash opts
     exists <- liftIO $ Directory.doesFileExist loc
     if exists then
         return $ Right loc
@@ -460,8 +468,8 @@ getArchiveLocation team hash opts = ErrorT $ do
 
 getBuildArchiveLocation :: (MonadIO m, E.Error e) => BuildSubmission -> RunnerOptions -> ErrorT e m FilePath
 getBuildArchiveLocation submission opts = 
-    let hash = Text.unpack $ buildSubmissionCommitHash submission in
-    let team = show $ keyToInt $ buildSubmissionTeam submission in
+    let hash = buildSubmissionCommitHash submission in
+    let team = buildSubmissionTeam submission in
     getArchiveLocation team hash opts
 
 getBreakArchiveLocation :: (MonadIO m, E.Error e) => BreakSubmission -> RunnerOptions -> ErrorT e m FilePath
@@ -483,8 +491,8 @@ getBreakArchiveLocation submission opts = do
 
 getFixArchiveLocation :: (MonadIO m, E.Error e) => FixSubmission -> RunnerOptions -> ErrorT e m FilePath
 getFixArchiveLocation submission opts = 
-    let hash = Text.unpack $ fixSubmissionCommitHash submission in
-    let team = show $ keyToInt $ fixSubmissionTeam submission in
+    let hash = fixSubmissionCommitHash submission in
+    let team = fixSubmissionTeam submission in
     getArchiveLocation team hash opts
 
 data OracleOutput = 

@@ -5,13 +5,18 @@ import Control.Exception.Enclosed
 -- import Control.Monad
 -- import Control.Monad.Trans.Class
 -- import Control.Monad.Trans.Reader
-import Problem
+import Core (keyToInt)
 import Data.Set (Set)
-import Score
+import Data.Text (Text)
+import qualified System.Directory as Directory
 -- import System.Timeout
 
 import Common
+import qualified Git
+import Problem
+import Problem.Shared
 import Queue
+import Score
 
 getJob :: ProblemRunner -> (ProblemRunner -> Job -> DatabaseM (Maybe (Bool, Maybe ContestRound))) -> MVar (Set TeamContestId) -> MVar (Queue Job) -> MVar Int -> DatabaseM ()
 getJob runner'@(ProblemRunner runner) f blockedTeams queue exiting = do
@@ -114,7 +119,9 @@ runJob opts (ProblemRunner r) (OracleJob os) = do
             return $ Just (success, Nothing)
 
 runJob opts (ProblemRunner r) (BuildJob bs) = do
-    -- TODO: download and save?
+    -- Download commit.
+    downloadCommit opts (buildSubmissionTeam $ entityVal bs) (buildSubmissionCommitHash $ entityVal bs)
+
     resM <- runBuildSubmission r opts bs
     case resM of
         Nothing ->
@@ -150,6 +157,53 @@ runJob opts (ProblemRunner r) (FixJob fs) = do
         Just (success, rescore') -> 
             let rescore = if rescore' then Just ContestRoundFix else Nothing in
             return $ Just (success, rescore)
+
+-- Download commit for team.
+downloadCommit :: RunnerOptions -> TeamContestId -> Text -> DatabaseM Bool
+downloadCommit opts tcId commit = catchAny download $ \e -> do
+    -- Unlock file.
+    releaseFileLock file fileLockSet
+    
+    -- Print error.
+    putLog $ show e
+    return False
+
+    where
+        gitConfig = runnerGitConfiguration opts
+        file = archiveLocation tcId commit opts
+        fileLockSet = runnerFileLockSet opts
+
+        download :: DatabaseM Bool
+        download = do
+            -- Lock file.
+            acquireFileLock file fileLockSet
+
+            -- Check if file exists.
+            exists <- liftIO $ Directory.doesFileExist file
+
+            success <- if exists then
+                return True
+              else do
+                -- Get repository id.
+                repoIdM <- runDB $ get tcId
+
+                case repoIdM >>= teamContestGitRepositoryIdentifier of
+                    Nothing -> do
+                        putLog $ "Could not obtain repo id for team " <> show (keyToInt tcId)
+                        return False
+                    Just repoId -> do
+
+                        -- Download archive from git API.
+                        Git.getFileArchive gitConfig repoId file
+
+                        return True
+                
+            
+            -- Unlock file.
+            releaseFileLock file fileLockSet
+            
+            -- Return whether successful.
+            return success
 
 
 -- getBuildTest blockedTeams = 
