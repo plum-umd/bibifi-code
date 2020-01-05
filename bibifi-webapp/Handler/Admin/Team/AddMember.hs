@@ -14,7 +14,7 @@ makeForm = do
 
     return $ renderBootstrap3 (BootstrapHorizontalForm (ColSm 0) (ColSm 2) (ColSm 0) (ColSm 10)) $ FormData
         <$> areq (listTokenField usernames) (bfs' "Usernames") Nothing
-        <*  bootstrapSubmit (BootstrapSubmit ("Make team leader"::Text) "btn-primary" [])
+        <*  bootstrapSubmit (BootstrapSubmit ("Add to team"::Text) "btn-primary" [])
 
 generateHtml :: TeamId -> Maybe (Widget, Enctype) -> [Text] -> LWidget
 generateHtml teamId formM errs = do
