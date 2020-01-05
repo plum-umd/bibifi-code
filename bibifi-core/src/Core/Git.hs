@@ -20,7 +20,7 @@ loadGitConfiguration configFile = do
         Left err ->
             return $ Left $ "File '" ++ configFile ++ "' is invalid or it doesn't exist: " ++ show err
         Right yaml ->
-            return yaml
+            return $ Right yaml
 
 instance FromJSON GitConfiguration where
     parseJSON (Object y) = do
