@@ -143,7 +143,7 @@ instance ProblemRunnerClass APIProblem where
 
                 -- Extract submission.
                 putLog "Extracting build submission."
-                (Result _ _ exit) <- runSSH (BuildError "Could not extract submission") $ execCommand session ("cd /home/builder/submission; sudo -u builder tar -xf " <> destArchiveLocation)
+                (Result _ _ exit) <- runSSH (BuildError "Could not extract submission") $ execCommand session ("cd /home/builder/submission; sudo -u builder tar -xf " <> destArchiveLocation <> " --strip-components 1")
                 when (exit /= ExitSuccess) $ 
                     fail "Could not extract submission"
 
