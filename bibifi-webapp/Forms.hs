@@ -2,12 +2,11 @@
 
 module Forms where
 
-import Data.Text as T
 import qualified Data.List as List
 import Text.Blaze (ToMarkup)
 import Text.Julius (rawJS)
 import qualified Database.Esqueleto as E
-import Data.Set as S
+import qualified Data.Set as S
 import qualified Data.Text as Text
 import Data.Time (formatTime, defaultTimeLocale, utcToZonedTime, parseTimeM, zonedTimeToUTC, ZonedTime(..), TimeZone)
 import System.FilePath.Posix
@@ -119,7 +118,7 @@ generateTeamList cId = do
         E.on (tc E.^. TeamContestTeam E.==. t E.^. TeamId)
         E.where_ (tc E.^. TeamContestContest E.==. E.val cId)
         return ( t E.^. TeamName, tc E.^. TeamContestId)
-    return $ fmap (\(E.Value name, E.Value tcId) -> (name <> " (" <> T.pack (show (keyToInt tcId)) <> ")", tcId)) teams
+    return $ fmap (\(E.Value name, E.Value tcId) -> (name <> " (" <> Text.pack (show (keyToInt tcId)) <> ")", tcId)) teams
 
 uploadField :: (Monad m, RenderMessage (HandlerSite m) FormMessage) => [String] -> Field m FileInfo
 uploadField filetypes = fileField { fieldParse = parser}
@@ -129,7 +128,7 @@ uploadField filetypes = fileField { fieldParse = parser}
                 Right Nothing
             [file] ->
                 -- Check for an accepted file format. 
-                let extension = takeExtension $ T.unpack $ fileName file in
+                let extension = takeExtension $ Text.unpack $ fileName file in
                 if List.elem extension filetypes then
                     Right $ Just file
                 else
@@ -165,7 +164,7 @@ identityField =
     let f user = 
           let allowed = S.unions [S.fromList ['A'..'Z'], S.fromList ['a'..'z'], S.fromList ['0'..'9'], S.singleton '_'] in
           let f' acc c = acc && (S.member c allowed) in
-          if T.foldl f' True user then
+          if Text.foldl f' True user then
               Right user
           else
               Left ("Can only contain numbers, letters, and underscores"::Text)
@@ -179,7 +178,7 @@ passwordConfirmField =
           case rawVals of
             [a, b]
               | a == b -> 
-                  if (T.length a) <= 6 then 
+                  if (Text.length a) <= 6 then 
                       Left "Password must be at least 7 characters"
                   else
                       Right $ Just a
@@ -208,8 +207,8 @@ listEmailField =
     let parse rawVals _fileVals = return $ Right $ Just rawVals in
     let view idAttr nameAttr otherAttrs _ _ = 
           let attrToText = 
-                let f ( k, v) acc = T.concat [(pack " "), k, (pack "=\""), v, (pack "\""), acc] in
-                Import.foldr f (pack " ")
+                let f ( k, v) acc = Text.concat [(Text.pack " "), k, (Text.pack "=\""), v, (Text.pack "\""), acc] in
+                Import.foldr f (Text.pack " ")
           in
           do
             listId <- newIdent
@@ -263,7 +262,7 @@ boundedIntField minI maxI =
         checker i = if i >= minI && i <= maxI then
                 Right i
             else
-                Left $ "Must be between " <> (T.pack $ show minI) <> " and " <> (T.pack $ show maxI)
+                Left $ "Must be between " <> (Text.pack $ show minI) <> " and " <> (Text.pack $ show maxI)
         intField' :: Field Handler Int
         intField' = intField
 
@@ -283,7 +282,7 @@ autocompleteField tokens' =
         textField' = textField
 
         -- TODO: escape JS (Should be fine since we're just using constants)
-        tokens = T.intercalate "','" tokens'
+        tokens = Text.intercalate "','" tokens'
 
         view theId name attrs res req = do
             toWidget [julius|
@@ -294,6 +293,12 @@ autocompleteField tokens' =
             (fieldView textField') theId name attrs res req -- :: WidgetT (HandlerSite m) IO () -- FieldViewFunc m Text
 
 
+listTokenField :: [Text] -> Field Handler [Text]
+listTokenField tokens = checkMMap (\t -> 
+    let t' = Text.splitOn "," t in
+    return $ (Right $ map Text.strip t' :: Either Text [Text])
+  ) (Text.intercalate ",") $ tokenField tokens
+
 tokenField :: [Text] -> Field Handler Text
 tokenField tokens' = 
     textField' {fieldView = view}
@@ -303,7 +308,7 @@ tokenField tokens' =
         textField' = textField
 
         -- TODO: escape JS (Should be fine since we're just using constants)
-        tokens = T.intercalate "','" tokens'
+        tokens = Text.intercalate "','" tokens'
 
         view theId name attrs res req = do
             toWidget [julius|

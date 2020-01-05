@@ -60,6 +60,7 @@ import Handler.Admin.Contest.Tests.Optional
 import Handler.Admin.Contest.Tests.Performance
 -- import Handler.Admin.Contest.OracleBreaks.Edit
 import Handler.Admin.Team
+import Handler.Admin.Team.AddMember
 import Handler.Admin.Team.Member
 import Handler.Admin.Teams
 import Handler.Admin.Users

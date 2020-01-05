@@ -114,6 +114,7 @@
 
 /admin/team/#TeamId AdminTeamR GET
 /admin/team/#TeamId/member/#UserId AdminTeamMemberR GET POST
+/admin/team/#TeamId/addmember AdminTeamAddMemberR GET POST
 /admin/teams AdminTeamsR GET
 
 /admin/announcements AdminAnnouncementsR GET

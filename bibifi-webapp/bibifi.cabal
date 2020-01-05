@@ -75,6 +75,7 @@ library
                      Handler.Admin.Contest.Tests.Optional
                      Handler.Admin.Contest.Tests.Performance
                      Handler.Admin.Team
+                     Handler.Admin.Team.AddMember
                      Handler.Admin.Team.Member
                      Handler.Admin.Teams
                      Handler.Admin.Users
