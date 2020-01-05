@@ -445,17 +445,23 @@ verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
                 return $ bsE:acc
             else
                 return acc -}
+archiveLocationDirectory :: TeamContestId -> RunnerOptions -> FilePath
+archiveLocationDirectory team' opts =
+    let repoDir = runnerRepositoryPath opts in
+    FilePath.joinPath [repoDir, "archives", team]
+
+    where
+        team = show $ keyToInt team'
 
 archiveLocation :: TeamContestId -> Text -> RunnerOptions -> FilePath
-archiveLocation team' hash' opts = 
-    let repoDir = runnerRepositoryPath opts in
-    let loc'' = FilePath.joinPath [repoDir, "archives", team, hash] in
+archiveLocation team hash' opts = 
+    let dir = archiveLocationDirectory team opts in
+    let loc'' = FilePath.joinPath [dir, hash] in
     let loc' = FilePath.addExtension loc'' "tar" in
     FilePath.addExtension loc' "gz"
 
     where
         hash = Text.unpack hash'
-        team = show $ keyToInt team'
 
 getArchiveLocation :: (MonadIO m, E.Error e) => TeamContestId -> Text -> RunnerOptions -> ErrorT e m FilePath
 getArchiveLocation team hash opts = ErrorT $ do

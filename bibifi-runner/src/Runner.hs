@@ -171,6 +171,7 @@ downloadCommit opts tcId commit = catchAny download $ \e -> do
     where
         gitConfig = runnerGitConfiguration opts
         file = archiveLocation tcId commit opts
+        fileDir = archiveLocationDirectory tcId opts
         fileLockSet = runnerFileLockSet opts
 
         download :: DatabaseM Bool
@@ -192,6 +193,8 @@ downloadCommit opts tcId commit = catchAny download $ \e -> do
                         putLog $ "Could not obtain repo id for team " <> show (keyToInt tcId)
                         return False
                     Just repoId -> do
+                        -- Create directory if it doesn't exist.
+                        liftIO $ Directory.createDirectoryIfMissing True fileDir
 
                         -- Download archive from git API.
                         Git.getFileArchive gitConfig repoId file
