@@ -10,10 +10,11 @@ import PostDependencyType
 import BuildSubmissions (getLatestBuildOrFix)
 import Import as I
 import Data.Aeson as J
-import Data.List (isInfixOf)
 import qualified Data.ByteString.Lazy as BS
-import System.FilePath.Posix as F (splitPath)
-import Data.Text as T (pack)
+import Data.List (isInfixOf)
+import Data.Maybe (isNothing)
+import Data.Text (pack)
+import System.FilePath.Posix (splitPath)
 import Database.Persist.Sql (toSqlKey)
 --import GitLab as G
 --import GitLab.Types as GT
@@ -25,17 +26,20 @@ postWebhookGitlabPushR :: TeamContestId -> Text -> Handler ()
 -- We only treat the call as a ping, and check back with Gitlab to retrieve information
 -- regarding the commit hash.
 postWebhookGitlabPushR tcId token = runLHandler $ do
-    (cId, nonce) <- runDB $ do
-        TeamContest _ cId _ _ _ nonce <- get404 tcId
-        return (cId, nonce)
+    (cId, nonce, repoIdM) <- runDB $ do
+        TeamContest _ cId _ _ _ nonce repoIdM <- get404 tcId
+        return (cId, nonce, repoIdM)
     unless (token `constantCompareText` nonce) $
         permissionDenied ""
     pushTime <- getCurrentTime
     contest <- runDB $ get404 cId
-    PushMsg pId cmts <- requireJsonBody
+    PushMsg pId cmts gitUrl <- requireJsonBody
+
+    -- Set repo id and git url if repoIdM is missing.
+    when (isNothing repoIdM) $ do
+        runDB $ update tcId [TeamContestGitUrl =. gitUrl, TeamContestGitRepositoryIdentifier =. (Just $ GitlabRepositoryIdentifier pId)]
+
     mapM_ (handleCommit pushTime pId contest tcId) cmts
-  where
-    (===) s1 s2 = undefined -- TODO: constant time
 
 handleCommit :: UTCTime -> Int -> Contest -> TeamContestId -> Commit -> LHandler ()
 -- Insert submission of the right kind (build/break/fix) into the database based on push time
@@ -108,22 +112,34 @@ parseBreakMsg pId fn = undefined {- do
 data PushMsg = PushMsg
     { projectId :: Int
     , commits :: [Commit]
+    , gitUrl :: Text
     } deriving (Eq,Show)
 data Commit = Commit
     { commitHash :: Text
     , commitAdded :: [String] -- `String` for working with `FilePath` lib
     , commitModified :: [String]
     } deriving (Eq,Show)
+data Project = Project {
+    projectWebUrl :: Text
+  }
 
 instance J.FromJSON PushMsg where
-    parseJSON = J.withObject "PushEvent" $ \o ->
-        PushMsg <$> o .: "project_id"
-                <*> ((o .: "commits") >>= parseJSON)
+    parseJSON = J.withObject "PushEvent" $ \o -> do
+        projectId <- o .: "project_id"
+        commits <- o .: "commits" -- ) >>= parseJSON
+        project <- o .: "project"
+
+        return $ PushMsg projectId commits $ projectWebUrl project
+
 instance J.FromJSON Commit where
     parseJSON = J.withObject "Commit" $ \o ->
         Commit <$> o .: "id"
                <*> o .: "added"
                <*> o .: "modified"
+
+instance J.FromJSON Project where
+    parseJSON = J.withObject "Project" $ \o ->
+        Project <$> o .: "web_url"
 
 -- Break submission JSON file
 data BreakMsg = BreakMsg

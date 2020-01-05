@@ -146,6 +146,7 @@ TeamContest json
     UniqueTeamContest team contest
     professional Bool default=false
     githookNonce Text
+    gitRepositoryIdentifier RepositoryIdentifier Maybe default=null
  --     permutationMap PermutationMapId
  --  -- submission BuildCommitId
  --     UniquePermutationMap permutationMap

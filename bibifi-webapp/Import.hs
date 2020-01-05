@@ -31,6 +31,7 @@ import           Settings.StaticFiles as Import
 import           Config               as Import
 import           Contest              as Import
 import           Common               as Import
+import           Core.Git             as Import
 
 import           LMonad               as Import
 import           LMonad.Label.DisjunctionCategory as Import

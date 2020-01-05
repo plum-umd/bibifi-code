@@ -157,7 +157,7 @@ postContestSpecificSignupR url = runLHandler $
                                                 showRegistration widget enctype [err] userId contest
                                             Right () -> do
                                                 githookNonce <- liftIO $ randomString 20
-                                                res'' <- handlerToWidget $ runDB $ insertUnique $ TeamContest teamId contestId "" "" False githookNonce
+                                                res'' <- handlerToWidget $ runDB $ insertUnique $ TeamContest teamId contestId "" "" False githookNonce Nothing
                                                 case res'' of
                                                     Nothing ->
                                                         showRegistration widget enctype ["Your team is already signed up for this contest."] userId contest

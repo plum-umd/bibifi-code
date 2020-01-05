@@ -23,6 +23,7 @@ extra-deps:
 - git: https://github.com/jprider63/persistent-ratelimit.git
   commit: 4f3f9afc748453fb2beda00d339fc3a30ad6e7a3
 - smtp-mail-0.2.0.0
+- gitlab-haskell-0.1.5
 # - yesod-auth-oauth2-0.1.6
 # - data-textual-0.3.0.2
 # - text-latin1-0.3

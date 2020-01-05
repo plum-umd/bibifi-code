@@ -16,23 +16,25 @@ form team =
     let url = teamContestGitUrl team in
     let professional = teamContestProfessional team in
     let language = teamContestLanguages team in
-    let gitSettings = bootstrapify $ addAttribute "Git URL" "placeholder" "git@domain.com:user/repo.git" in 
+    -- let gitSettings = bootstrapify $ addAttribute "Git URL" "placeholder" "git@domain.com:user/repo.git" in 
     let languageSettings = bootstrapify $ addAttribute "Languages" "placeholder" "Best guess if currently unsure" in
     renderBootstrap3 layout $ TeamContest
         <$> pure tId
         <*> pure cId
-        <*> areq gitField gitSettings (Just url) -- TODO: change type to some sort of git url parsing?? urlField??
+        <*> pure url
+        -- <*> areq gitField gitSettings (Just url) -- TODO: change type to some sort of git url parsing?? urlField??
         <*> areq programmingLanguageField languageSettings (Just language) -- TODO: change to special language field?
         <*> pure professional
         <*> pure (teamContestGithookNonce team)
+        <*> pure (teamContestGitRepositoryIdentifier team)
 
     where
-        gitField = check (\t -> 
-                if Text.take 15 t == "git@gitlab.com:" || Text.take 18 t == "git@bitbucket.org:" || Text.take 15 t == "git@github.com:" then
-                    Right t
-                else
-                    Left ("Must be a git ssh url from gitlab, bitbucket, or github (ie, git@domain.com:user/repo.git)." :: Text)
-            ) textField
+    --     gitField = check (\t -> 
+    --             if Text.take 15 t == "git@gitlab.com:" || Text.take 18 t == "git@bitbucket.org:" || Text.take 15 t == "git@github.com:" then
+    --                 Right t
+    --             else
+    --                 Left ("Must be a git ssh url from gitlab, bitbucket, or github (ie, git@domain.com:user/repo.git)." :: Text)
+    --         ) textField
 
         layout = BootstrapHorizontalForm (ColXs 0) (ColXs 2) (ColXs 0) (ColXs 10)
 
@@ -76,6 +78,12 @@ generateHtml contest team tcId tc uId widget enctype widgetU enctypeU msg = do
                 <div class="col-sm-10">
                     <p class="form-control-static">
                         #{teamName team}
+            <div class="form-group">
+                <label class="col-sm-2 control-label">
+                    Git URL
+                <div class="col-sm-10">
+                    <p class="form-control-static">
+                        #{teamContestGitUrl tc}
             ^{githookWidget}
             ^{widget}
             <div class="form-group">
