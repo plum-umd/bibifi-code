@@ -53,8 +53,8 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
           unless (null addedTests && null modifiedTests) $ runDB $
               insertErrorBreak (toSqlKey 1) "late break" "break phase over"
           handleFixes
-    | t < bld0 = runDB $ insertErrorBuild "contest not started"
-    | t < brk0 = runDB $ insertErrorBuild "build deadline passed"
+    | t < bld0 = runDB $ insertErrorBuild "The contest has not started."
+    | t < brk0 = runDB $ insertErrorBuild "The build deadline has passed."
     | t > brk1 = runDB $ insertErrorBreak (toSqlKey 1) "late break" "contest over"
   where
     -- Invalidate outdated break submissions then insert new entries

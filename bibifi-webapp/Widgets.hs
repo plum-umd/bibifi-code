@@ -93,13 +93,19 @@ buildSubmission (Entity bsId bs) cId public = do
             ^{(judgementW)}
     |]
     when (not public) $ do
-        case (buildSubmissionStdout bs, buildSubmissionStderr bs) of
-            (Just stdout, Just stderr) -> 
+        case buildSubmissionStdout bs of
+            Just stdout -> 
                 [whamlet|
                     <h4>
                         Build Standard Output
                     <samp>
                         #{stdout}
+                |]
+            _ ->
+                mempty
+        case buildSubmissionStderr bs of
+            Just stderr -> 
+                [whamlet|
                     <h4>
                         Build Standard Error
                     <samp>
