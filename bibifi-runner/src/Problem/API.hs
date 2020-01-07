@@ -61,7 +61,7 @@ instance ProblemRunnerClass APIProblem where
                 let manager = runnerHttpManager opts
                 resultE <- runErrorT $ launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
 
-                    setupFirewall session
+                    -- setupFirewall session
 
                     -- Send oracle.
                     putLog "Sending oracle files."
@@ -134,7 +134,7 @@ instance ProblemRunnerClass APIProblem where
                 let destArchiveLocation = "/home/ubuntu/submission.tar.gz"
                 _ <- runSSH (BuildError "Could not send submission") $ sendFile session 0o666 archiveLocation destArchiveLocation
 
-                setupFirewall session
+                -- setupFirewall session
 
                 -- Setup directory.
                 (Result _ _ exit) <- runSSH (BuildError "Could not make test directory.") $ execCommand session "sudo -i -u builder mkdir /home/builder/submission"
@@ -218,7 +218,7 @@ instance ProblemRunnerClass APIProblem where
             let manager = runnerHttpManager opts
             launchOneInstanceWithTimeout conf manager 30 $ \_inst session -> do
                 -- Setup firewall.
-                setupFirewall session
+                -- setupFirewall session
 
                 -- Upload problem files.
                 putLog "Sending problem files."
@@ -339,7 +339,7 @@ instance ProblemRunnerClass APIProblem where
             let manager = runnerHttpManager opts
             launchOneInstanceWithTimeout conf manager 30 $ \_inst session -> do
                 -- Setup firewall.
-                setupFirewall session
+                -- setupFirewall session
 
                 -- Send build submission.
                 putLog "Sending build submission."
