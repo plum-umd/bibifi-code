@@ -2,7 +2,7 @@ module Scheduler (scheduler) where
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Database.Esqueleto hiding ((=.), (==.))
+import Database.Esqueleto hiding (update, count, (!=.), (=.), (==.))
 import qualified Database.Esqueleto as E
 
 import Common
@@ -127,7 +127,26 @@ getBuildSubmission availableTeams = do
         orderBy [asc $ bs ^. BuildSubmissionTimestamp]
         limit 1
         return bs
-    return $ maybeList submissions
+    case maybeList submissions of
+        Nothing -> 
+            return Nothing
+        submissionM@(Just (Entity bsId bs)) -> do
+            -- Check if the team has a newer pending submission.
+            c <- runDB $ count [
+                  BuildSubmissionTeam ==. buildSubmissionTeam bs
+                , BuildSubmissionId !=. bsId
+                , BuildSubmissionStatus ==. BuildPending
+                ]
+            if c > 0 then do
+                -- Skip test.
+                runDB $ update bsId [
+                    BuildSubmissionStatus =. BuildBuildFail
+                  , BuildSubmissionStdout =. Just "Skipped build submission." -- Should really have a message field..
+                  ]
+
+                return Nothing
+            else
+                return submissionM
 
 getBreakSubmission :: [TeamContestId] -> DatabaseM (Maybe (Entity BreakSubmission))
 getBreakSubmission availableTeams = do
