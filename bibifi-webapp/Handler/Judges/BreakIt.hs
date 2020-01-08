@@ -47,19 +47,21 @@ generateView url jId bs bdM formW enctype msg = do
             Just bd ->
                 [shamlet|#{breakDisputeJustification bd}|]
     targetTeamJId <- do
-        -- Depends on the invariant that each build submission has an assigned judgement.
-        res <- handlerToWidget $ runDB [lsql| select BuildJudgement.id from BuildJudgement inner join BuildSubmission on BuildSubmission.id == BuildJudgement.submission where BuildSubmission.team == #{breakSubmissionTargetTeam bs} order by BuildSubmission.timestamp desc limit 1|]
-        -- E.select $ E.from $ \( E.InnerJoin bus j) -> do
-        --     E.on ( bus E.^. BuildSubmissionId E.==. j E.^. BuildJudgementSubmission)
-        --     E.where_ ( bus E.^. BuildSubmissionTeam E.==. E.val (breakSubmissionTargetTeam bs))
-        --     E.orderBy [E.desc (bus E.^. BuildSubmissionTimestamp)]
-        --     E.limit 1
-        --     return ( j E.^. BuildJudgementId)
-        return $ case res of
-            [bjId] ->
-                keyToInt bjId
-            _ ->
-                -1
+        error "TODO" :: m Text 
+
+        -- -- Depends on the invariant that each build submission has an assigned judgement.
+        -- res <- handlerToWidget $ runDB [lsql| select BuildJudgement.id from BuildJudgement inner join BuildSubmission on BuildSubmission.id == BuildJudgement.submission where BuildSubmission.team == #{breakSubmissionTargetTeam bs} order by BuildSubmission.timestamp desc limit 1|]
+        -- -- E.select $ E.from $ \( E.InnerJoin bus j) -> do
+        -- --     E.on ( bus E.^. BuildSubmissionId E.==. j E.^. BuildJudgementSubmission)
+        -- --     E.where_ ( bus E.^. BuildSubmissionTeam E.==. E.val (breakSubmissionTargetTeam bs))
+        -- --     E.orderBy [E.desc (bus E.^. BuildSubmissionTimestamp)]
+        -- --     E.limit 1
+        -- --     return ( j E.^. BuildJudgementId)
+        -- return $ case res of
+        --     [bjId] ->
+        --         keyToInt bjId
+        --     _ ->
+        --         -1
     let breakType = case breakSubmissionBreakType bs of
             Nothing ->
                 dash

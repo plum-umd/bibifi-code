@@ -14,6 +14,7 @@ import           LYesod               as Import
 import           Control.Applicative  as Import (pure, (<$>), (<*>), (<*))
 import           Control.Monad        as Import
 import           Data.Either          as Import (isLeft)
+import           Data.Maybe           as Import (maybeToList)
 import           Data.Text            as Import (Text)
 import           Data.Time            as Import (UTCTime, addUTCTime, NominalDiffTime)
 import           Language.Haskell.TH

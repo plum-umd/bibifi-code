@@ -30,7 +30,7 @@ getParticipationBreakSubmissionsR tcId = runLHandler $
                 displayBreakSubmissionsTable contest BreakSubmissionAttacker submissions
 
         let againstW = do
-            ss <- handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission inner join TeamContest on BreakSubmission.team == TeamContest.id inner join Team on Team.id == TeamContest.team where BreakSubmission.targetTeam == #{tcId} order by BreakSubmission.id desc |]
+            ss <- handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission inner join TeamContest on BreakSubmission.team == TeamContest.id inner join Team on Team.id == TeamContest.team where BreakSubmission.targetTeam == #{Just tcId} order by BreakSubmission.id desc |]
             -- E.select $ E.from $ \( s `E.InnerJoin` tc `E.InnerJoin` tt) -> do
             --     E.on ( tc E.^. TeamContestTeam E.==. tt E.^. TeamId)
             --     E.on ( s E.^. BreakSubmissionTeam E.==. tc E.^. TeamContestId)
@@ -507,7 +507,7 @@ canRerunBreakSubmission bs contest = undefined --FIXME
 
 checkBreakSubmissionTeam tcId bsId = do
     bs <- runDB $ get404 bsId
-    when (breakSubmissionTeam bs /= tcId && breakSubmissionTargetTeam bs /= tcId) $
+    when (breakSubmissionTeam bs /= tcId && breakSubmissionTargetTeam bs /= Just tcId) $
         notFound
 
     return bs

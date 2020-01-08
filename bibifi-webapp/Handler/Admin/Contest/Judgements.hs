@@ -119,7 +119,7 @@ getAdminContestJudgementsR url = runLHandler $ do
                             return $ [whamlet'|
                                 <tr .clickable href="@{AdminContestJudgementsAssignFixR url fsId}">
                                     <td>
-                                        #{fixSubmissionName fs}
+                                        #{fixSubmissionCommitHash fs}
                                     <td>
                                         #{lang}
                                     <td>

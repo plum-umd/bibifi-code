@@ -37,7 +37,7 @@ getBothTeams :: MonadIO m => BreakSubmissionId -> (Entity Team -> Entity TeamCon
 getBothTeams bsId f = do
     res <- E.select $ E.from $ \( E.InnerJoin t (E.InnerJoin tc (E.InnerJoin bs (E.InnerJoin tct tt)))) -> do
         E.on ( tct E.^. TeamContestTeam E.==. tt E.^. TeamId)
-        E.on ( bs E.^. BreakSubmissionTargetTeam E.==. tct E.^. TeamContestId)
+        E.on ( bs E.^. BreakSubmissionTargetTeam E.==. E.just (tct E.^. TeamContestId))
         E.on ( bs E.^. BreakSubmissionTeam E.==. tc E.^. TeamContestId)
         E.on ( tc E.^. TeamContestTeam E.==. t E.^. TeamId)
         E.where_ ( bs E.^. BreakSubmissionId E.==. E.val bsId)

@@ -51,11 +51,12 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
           handleFixes
     | t ∈ (brk0, fix1) = do
           unless (null addedTests && null modifiedTests) $ runDB $
-              insertErrorBreak (toSqlKey 1) "late break" "break phase over"
+              insertErrorBreak Nothing "late break" "The break-it round is over."
           handleFixes
     | t < bld0 = runDB $ insertErrorBuild "The contest has not started."
     | t < brk0 = runDB $ insertErrorBuild "The build deadline has passed."
-    | t > brk1 = runDB $ insertErrorBreak (toSqlKey 1) "late break" "contest over"
+    -- | t > brk1 = runDB $ insertErrorBreak Nothing "late break" "The contest is over."
+    | t > brk1 = runDB $ insert_ $ FixSubmission tcId t h FixRejected Nothing (Just "The contest has ended.") Nothing Nothing
   where
     -- Invalidate outdated break submissions then insert new entries
     -- Added tests are treated the same as modified tests to account for
@@ -76,11 +77,11 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
                     target <- getLatestBuildOrFix tId
                     case target of
                         Right (_,t) -> insertPendingBreak tId name t
-                        Left msg    -> insertErrorBreak tId name msg
-                Nothing -> insertErrorBreak (toSqlKey 1) name "invalid JSON in test.json"
+                        Left msg    -> insertErrorBreak (Just tId) name msg
+                Nothing -> insertErrorBreak Nothing name "invalid JSON in test.json"
     -- Handle each change to `build/` as a fix submission
     handleFixes =  when buildChanged $
-        runDB $ insert_ $ FixSubmission tcId t h FixPending Nothing "" Nothing Nothing Nothing
+        runDB $ insert_ $ FixSubmission tcId t h FixPending Nothing Nothing Nothing Nothing
     (∈) x (lo,hi) = lo <= x && x <= addUTCTime tolerance hi
       where tolerance = 10 * 60
     buildChanged = any ("build/" `isInfixOf`) modified
@@ -96,7 +97,7 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
         id <- insert $ BreakSubmission tcId tId t h name Nothing (Just msg) Nothing (Just False)
         insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
     insertPendingBreak tId name target = do
-        id <- insert $ BreakSubmission tcId tId t h name Nothing Nothing Nothing Nothing
+        id <- insert $ BreakSubmission tcId (Just tId) t h name Nothing Nothing Nothing Nothing
         insert_ $ BreakFixSubmission id target Nothing Nothing BreakPending Nothing
 
 parseBreakMsg :: Int -> String -> LHandler (Maybe BreakMsg)

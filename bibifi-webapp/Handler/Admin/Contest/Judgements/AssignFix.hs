@@ -35,9 +35,9 @@ generateView (Entity cId c) fsId judgementM formW enctype msg =
             ( ruling, comments, "Reassign")
     in
     do
-    ( team, fixName, hash, language) <- do
+    ( team, hash, language) <- do
         res <- handlerToWidget $ runDB [lsql| 
-                select Team.name, FixSubmission.name, FixSubmission.commitHash, TeamContest.languages from Team
+                select Team.name, FixSubmission.commitHash, TeamContest.languages from Team
                 inner join TeamContest on Team.id == TeamContest.team
                 inner join FixSubmission on FixSubmission.team == TeamContest.id
                 where FixSubmission.id == #{fsId}
@@ -50,11 +50,11 @@ generateView (Entity cId c) fsId judgementM formW enctype msg =
         --     E.limit 1
         --     return ( t E.^. TeamName, fs E.^. FixSubmissionName, fs E.^. FixSubmissionCommitHash, tc E.^. TeamContestLanguages)
         return $ case res of 
-            [(team', fixName', hash', language')] ->
+            [(team', hash', language')] ->
                 let toHamlet t = [shamlet|#{t}|] in
-                ( toHamlet team', toHamlet fixName', toHamlet hash', toHamlet language')
+                ( toHamlet team', toHamlet hash', toHamlet language')
             _ ->
-                ( dash, dash, dash, dash)
+                ( dash, dash, dash)
     [whamlet|
         <a href="@{AdminContestJudgementsR (contestUrl c)}" type="button" class="btn btn-primary">
             Back
@@ -70,12 +70,6 @@ generateView (Entity cId c) fsId judgementM formW enctype msg =
                 <div .col-md-9>
                     <p .form-control-static>
                         #{team}
-            <div .form-group>
-                <label .col-md-3 .control-label>
-                    Fix name
-                <div .col-md-9>
-                    <p .form-control-static>
-                        #{fixName}
             <div .form-group>
                 <label .col-md-3 .control-label>
                     Language

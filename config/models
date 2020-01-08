@@ -239,7 +239,7 @@ BreakOracleSubmission json
 
 BreakSubmission json
     team TeamContestId
-    targetTeam TeamContestId
+    targetTeam TeamContestId Maybe
     timestamp UTCTime
     commitHash Text
     name Text default=''
@@ -271,11 +271,11 @@ FixSubmission json
     commitHash Text
     status FixSubmissionStatus
     result FixSubmissionResult Maybe
-    name Text default=''
+    -- name Text default=''
     message String Maybe
     stdout Textarea Maybe default=null
     stderr Textarea Maybe default=null
-    UniqueFixSubmissionName team name
+    -- UniqueFixSubmissionName team name
 
 -- FixSubmissionBugs json
 --     fix FixSubmissionId

@@ -155,12 +155,6 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
             <form class="form-horizontal">
                 <div class="form-group">
                     <label class="col-xs-3 control-label">
-                        Fix name
-                    <div class="col-xs-9">
-                        <p class="form-control-static">
-                            #{fixSubmissionName fs}
-                <div class="form-group">
-                    <label class="col-xs-3 control-label">
                         Submission hash
                     <div class="col-xs-9">
                         <p class="form-control-static">
@@ -193,6 +187,12 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
             ^{buildOutputW}
             ^{deleteW}
         |] :: LWidget
+                -- <div class="form-group">
+                --     <label class="col-xs-3 control-label">
+                --         Fix name
+                --     <div class="col-xs-9">
+                --         <p class="form-control-static">
+                --             #{fixSubmissionName fs}
         
         -- Check if can rerun submission.
         canRerun <- canRerunFixSubmission fs contest

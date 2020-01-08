@@ -88,7 +88,7 @@ instance ContestSubmission BuildSubmissionId where
 instance ContestSubmission BreakSubmissionId where
     getInvolvedTeams sId = do
         bsM <- E.get $ sId
-        return $ maybe [] (\bs -> [breakSubmissionTeam bs, breakSubmissionTargetTeam bs]) bsM
+        return $ maybe [] (\bs -> (breakSubmissionTeam bs):(maybeToList $ breakSubmissionTargetTeam bs)) bsM
 
 instance ContestSubmission FixSubmissionId where
     getInvolvedTeams sId = do
