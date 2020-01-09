@@ -1,8 +1,10 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 module PostDependencyType where
 
+import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.TH as Aeson
 import Data.Text (Text)
+import qualified Data.Text as Text
 import Database.Persist.TH
 import Prelude
 import Yesod
@@ -62,10 +64,30 @@ data BreakType =
     | BreakCrash
     | BreakConfidentiality
     | BreakIntegrity
+    | BreakAvailability
     | BreakSecurity
         deriving (Show, Read, Eq)
 derivePersistField "BreakType"
-Aeson.deriveJSON Aeson.defaultOptions ''BreakType
+-- Aeson.deriveJSON Aeson.defaultOptions ''BreakType
+
+instance ToJSON BreakType where
+    toJSON BreakCorrectness = "correctness"
+    toJSON BreakCrash = "crash"
+    toJSON BreakConfidentiality = "confidentiality"
+    toJSON BreakIntegrity = "integrity"
+    toJSON BreakAvailability = "availability"
+    toJSON BreakSecurity = "security"
+
+instance FromJSON BreakType where
+    parseJSON (Aeson.String t) = case Text.toLower t of
+        "correctness" -> return BreakCorrectness
+        "crash" -> return BreakCrash
+        "confidentiality" -> return BreakConfidentiality
+        "integrity" -> return BreakIntegrity
+        "availability" -> return BreakAvailability
+        "security" -> return BreakSecurity
+        _ -> fail "Invalid BreakType"
+    parseJSON _ = fail "Invalid BreakType"
 
 data FixSubmissionStatus = FixPending | FixBuilding | FixBuilt | FixJudging | FixJudged | FixTimeout | FixRejected
     -- | FixBuildFail | FixPullFail | FixInvalidBugId -- Deprecated.
@@ -302,6 +324,10 @@ prettyBreakType BreakCrash = [shamlet|
 prettyBreakType BreakIntegrity = [shamlet|
         <span>
             Integrity
+    |]
+prettyBreakType BreakAvailability = [shamlet|
+        <span>
+            Availability
     |]
 prettyBreakType BreakConfidentiality = [shamlet|
         <span>

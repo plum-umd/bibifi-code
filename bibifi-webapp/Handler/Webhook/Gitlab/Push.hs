@@ -50,8 +50,10 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
           handleBreaks
           handleFixes
     | t ∈ (brk0, fix1) = do
-          unless (null addedTests && null modifiedTests) $ runDB $
-              insertErrorBreak Nothing "late break" "The break-it round is over."
+          -- Reject breaks.
+          mapM_ (\(_path, name) -> do
+              runDB $ insertErrorBreak Nothing name "The break-it round is over."
+            ) (addedTests ++ modifiedTests)
           handleFixes
     | t < bld0 = runDB $ insertErrorBuild "The contest has not started."
     | t < brk0 = runDB $ insertErrorBuild "The build deadline has passed."
@@ -64,7 +66,7 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
     handleBreaks = do
         forM_ (addedTests ++ modifiedTests) $ \(path, name) -> do
             runDB $ do
-                oldBreaks <- selectList [BreakSubmissionName ==. name] []
+                oldBreaks <- selectList [BreakSubmissionTeam ==. tcId, BreakSubmissionName ==. name] []
                 forM_ oldBreaks $ \(Entity id _) -> do
                     update id [ BreakSubmissionValid =. Just False
                               , BreakSubmissionMessage =. Just "Break resubmitted" ]
