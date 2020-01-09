@@ -184,8 +184,14 @@ makeFoundation conf = do
             updateLoop
     _ <- forkIO updateLoop
 
+    -- Load git configuration.
+    gitConfig <- loadGitConfiguration "../config/git.yml" >>= \case
+        Left e -> error e
+        Right c -> return c
+
+
     let logger = Yesod.Core.Types.Logger loggerSet' getter
-    let foundation = App conf s p manager dbconf logger domainName
+    let foundation = App conf s p manager dbconf logger domainName gitConfig
 
     -- Perform database migration using our application's logging settings.
     runLoggingT

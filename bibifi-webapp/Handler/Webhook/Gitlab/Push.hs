@@ -8,17 +8,19 @@ import PostDependencyType
     , FixSubmissionResult(..)
     )
 import BuildSubmissions (getLatestBuildOrFix)
-import Import as I
-import Data.Aeson as J
+import Import
+import Control.Monad.Trans.Maybe (MaybeT(..))
+import qualified Data.Aeson as J
+import qualified Data.ByteString.Char8 as BSC
 import qualified Data.ByteString.Lazy as BS
 import Data.List (isInfixOf)
 import Data.Maybe (isNothing)
 import Data.Text (pack)
-import System.FilePath.Posix (splitPath)
-import Database.Persist.Sql (toSqlKey)
---import GitLab as G
+import qualified GitLab as Gitlab
 --import GitLab.Types as GT
---import GitLab.API.Projects as GP
+import qualified GitLab.API.RepositoryFiles as Gitlab
+import PostDependencyType (BreakType)
+import System.FilePath.Posix (splitPath)
 
 postWebhookGitlabPushR :: TeamContestId -> Text -> Handler ()
 -- Handles Gitlab push notification.
@@ -64,6 +66,7 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
     -- Added tests are treated the same as modified tests to account for
     -- people deleting then adding them back.
     handleBreaks = do
+        gitConfig <- appGitConfig <$> getYesod
         forM_ (addedTests ++ modifiedTests) $ \(path, name) -> do
             runDB $ do
                 oldBreaks <- selectList [BreakSubmissionTeam ==. tcId, BreakSubmissionName ==. name] []
@@ -73,14 +76,14 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
                     updateWhere [ BreakFixSubmissionBreak ==. id ]
                                 [ BreakFixSubmissionStatus =. BreakRejected
                                 , BreakFixSubmissionResult =. Nothing ]
-            testCase <- parseBreakMsg pId path
+            testCase <- parseBreakMsg pId path h gitConfig
             runDB $ case testCase of
-                Just (BreakMsg _ tId) -> do
+                Just (BreakMsg breakType tId) -> do
                     target <- getLatestBuildOrFix tId
                     case target of
-                        Right (_,t) -> insertPendingBreak tId name t
+                        Right (_,t) -> insertPendingBreak tId name t breakType
                         Left msg    -> insertErrorBreak (Just tId) name msg
-                Nothing -> insertErrorBreak Nothing name "invalid JSON in test.json"
+                Nothing -> insertErrorBreak Nothing name "Invalid JSON in test.json"
     -- Handle each change to `build/` as a fix submission
     handleFixes =  when buildChanged $
         runDB $ insert_ $ FixSubmission tcId t h FixPending Nothing Nothing Nothing Nothing
@@ -98,18 +101,17 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
     insertErrorBreak tId name msg = do
         id <- insert $ BreakSubmission tcId tId t h name Nothing (Just msg) Nothing (Just False)
         insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
-    insertPendingBreak tId name target = do
-        id <- insert $ BreakSubmission tcId (Just tId) t h name Nothing Nothing Nothing Nothing
+    insertPendingBreak tId name target breakType = do
+        id <- insert $ BreakSubmission tcId (Just tId) t h name (Just breakType) Nothing Nothing Nothing
         insert_ $ BreakFixSubmission id target Nothing Nothing BreakPending Nothing
 
-parseBreakMsg :: Int -> String -> LHandler (Maybe BreakMsg)
+parseBreakMsg :: Int -> String -> Text -> GitConfiguration -> LHandler (Maybe BreakMsg)
 -- Parse JSON file from GitLab repo at given path
-parseBreakMsg pId fn = undefined {- do
-    s <- G.runGitLabConfig config $ do
-        Just f <- GF.repositoryFiles' pId fn "master"
-        GF.repositoryFileBlob pId (GT.blob_id f)
-    let Just msg = J.decode (BS.fromString s)
-    return msg -}
+parseBreakMsg pId fn commitHash (GitlabConfiguration gitConfig) = do
+    s <- Gitlab.runGitLab gitConfig $ runMaybeT $ do -- JP: Do we need to catch this?
+        rf <- MaybeT $ Gitlab.repositoryFiles' pId (pack fn) commitHash
+        lift $ Gitlab.repositoryFileBlob pId (Gitlab.blob_id rf) --JP: Why does this return a String?
+    return $ s >>= J.decodeStrict . BSC.pack
 
 -- Extracted information from the JSON message
 data PushMsg = PushMsg
@@ -146,7 +148,7 @@ instance J.FromJSON Project where
 
 -- Break submission JSON file
 data BreakMsg = BreakMsg
-    { break_type :: Text
+    { break_type :: BreakType
     , target_team :: TeamContestId
     } deriving (Eq, Show)
 instance J.FromJSON BreakMsg where

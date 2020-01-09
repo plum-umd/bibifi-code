@@ -140,6 +140,7 @@ library
                 OverloadedStrings
                 NoImplicitPrelude
                 CPP
+                LambdaCase
                 MultiParamTypeClasses
                 TypeApplications
                 TypeFamilies
@@ -167,6 +168,7 @@ library
                  , vector
                  , bytestring                     
                  , data-textual
+                 , gitlab-haskell
                  , network                       
                  , network-ip
                  , network-uri
