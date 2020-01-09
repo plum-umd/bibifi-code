@@ -9,6 +9,7 @@ import PostDependencyType
     )
 import BuildSubmissions (getLatestBuildOrFix)
 import Import
+import Control.Exception.Enclosed
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import qualified Data.Aeson as J
 import qualified Data.ByteString.Char8 as BSC
@@ -107,11 +108,15 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
 
 parseBreakMsg :: Int -> String -> Text -> GitConfiguration -> LHandler (Maybe BreakMsg)
 -- Parse JSON file from GitLab repo at given path
-parseBreakMsg pId fn commitHash (GitlabConfiguration gitConfig) = do
+parseBreakMsg pId fn commitHash (GitlabConfiguration gitConfig) = liftIO $ catchAny (do
     s <- Gitlab.runGitLab gitConfig $ runMaybeT $ do -- JP: Do we need to catch this?
         rf <- MaybeT $ Gitlab.repositoryFiles' pId (pack fn) commitHash
         lift $ Gitlab.repositoryFileBlob pId (Gitlab.blob_id rf) --JP: Why does this return a String?
     return $ s >>= J.decodeStrict . BSC.pack
+  ) (\e -> do
+    print e
+    return Nothing
+  )
 
 -- Extracted information from the JSON message
 data PushMsg = PushMsg
