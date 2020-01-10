@@ -74,9 +74,10 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
                 forM_ oldBreaks $ \(Entity id _) -> do
                     update id [ BreakSubmissionValid =. Just False
                               , BreakSubmissionMessage =. Just "Break resubmitted" ]
-                    updateWhere [ BreakFixSubmissionBreak ==. id ]
-                                [ BreakFixSubmissionStatus =. BreakRejected
-                                , BreakFixSubmissionResult =. Nothing ]
+                    deleteWhere [ BreakFixSubmissionBreak ==. id ]
+                    -- updateWhere [ BreakFixSubmissionBreak ==. id ]
+                    --             -- [ BreakFixSubmissionStatus =. BreakRejected
+                    --             [ BreakFixSubmissionResult =. Nothing ] -- JP: Set to BreakFailed, or delete them?
             testCase <- parseBreakMsg pId path h gitConfig
             runDB $ case testCase of
                 Just (BreakMsg breakType tId) -> do
@@ -97,14 +98,16 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
     testName p = case reverse (splitPath p) of
         "test.json":name:"break/":_ -> Just (pack name)
         _                           -> Nothing
+
     insertErrorBuild msg = insert_ $
-        BuildSubmission tcId t h BuildBuildFail (Just (Textarea msg)) Nothing
+        BuildSubmission tcId t h BuildPullFail (Just (Textarea msg)) Nothing
+
     insertErrorBreak tId name msg = do
-        id <- insert $ BreakSubmission tcId tId t h name Nothing (Just msg) Nothing (Just False)
-        insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
+        insert_ $ BreakSubmission tcId tId t h name BreakPullFail Nothing (Just msg) Nothing (Just False) Nothing
+        -- insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
+
     insertPendingBreak tId name target breakType = do
-        id <- insert $ BreakSubmission tcId (Just tId) t h name (Just breakType) Nothing Nothing Nothing
-        insert_ $ BreakFixSubmission id target Nothing Nothing BreakPending Nothing
+        insert_ $ BreakSubmission tcId (Just tId) t h name BreakPending (Just breakType) Nothing Nothing Nothing target
 
 parseBreakMsg :: Int -> String -> Text -> GitConfiguration -> LHandler (Maybe BreakMsg)
 -- Parse JSON file from GitLab repo at given path

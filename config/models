@@ -243,10 +243,12 @@ BreakSubmission json
     timestamp UTCTime
     commitHash Text
     name Text default=''
+    status BreakSubmissionStatus
     breakType BreakType Maybe
     message String Maybe
     json Text Maybe default=null
     valid Bool Maybe -- If this break submission is valid/accepted. It should be marked as valid as long as the first run demonstrates a successful break. 
+    targetFix FixSubmissionId Maybe -- If this is Nothing, this run is against the latest build submission.
 --     fixed Bool default=FALSE
 --     bayesianScore Double Maybe default=null
 
@@ -255,8 +257,7 @@ BreakFixSubmission json
     fix FixSubmissionId Maybe -- If this is Nothing, this run is against the latest build submission.
     stdout Textarea Maybe default=null
     stderr Textarea Maybe default=null
-    status BreakSubmissionStatus
-    result BreakSubmissionResult Maybe
+    result BreakSubmissionResult -- Maybe
 
 -- JP: Maybe this shouldn't be stored in the database, but computed on the fly.
 -- Invariant: Intervals should not overlap.
