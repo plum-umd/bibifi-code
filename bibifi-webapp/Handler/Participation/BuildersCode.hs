@@ -75,7 +75,7 @@ getParticipationBuildersCodeR tcId = runLHandler $
                           [whamlet'|
                               <tr>
                                   <td>
-                                    #{name} (<a href="/static/doc/code/#{contestUrl contest}/#{teamId}.zip">code</a>)
+                                    #{name} (<a href="#{teamContestGitUrl tc}">code</a>)
                                   <td>
                                     #{teamId}
                                   <td>
