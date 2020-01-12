@@ -47,9 +47,9 @@ data BuildSubmissionStatus = BuildPullFail | BuildPending | BuildBuilding | Buil
 derivePersistField "BuildSubmissionStatus"
 Aeson.deriveJSON Aeson.defaultOptions ''BuildSubmissionStatus
 
-data BreakSubmissionStatus = BreakPullFail | BreakPending | BreakTesting | 
-    BreakTested | BreakRejected | BreakTimeout
-    -- BreakJudging | BreakJudged
+data BreakSubmissionStatus = BreakPullFail | BreakPending | BreakTesting
+    | BreakTested | BreakRejected | BreakTimeout
+    | BreakJudging | BreakJudged -- JP: These should probably be pulled out into a separate field.
     deriving (Show, Read, Eq)
 derivePersistField "BreakSubmissionStatus"
 Aeson.deriveJSON Aeson.defaultOptions ''BreakSubmissionStatus
@@ -181,16 +181,16 @@ prettyBreakStatus s = case s of
             <span class="text-danger">
                 Rejected
         |]
-    -- BreakJudging ->
-    --     [shamlet|
-    --         <span>
-    --             Judging required
-    --     |]
-    -- BreakJudged ->
-    --     [shamlet|
-    --         <span>
-    --             Judged
-    --     |]
+    BreakJudging ->
+        [shamlet|
+            <span>
+                Judging required
+        |]
+    BreakJudged ->
+        [shamlet|
+            <span>
+                Judged
+        |]
 
 prettyBreakStatusVictim :: BreakSubmissionStatus -> Html
 prettyBreakStatusVictim s = 
@@ -207,10 +207,10 @@ prettyBreakStatusVictim s =
             "Submission timed out"
           BreakRejected ->
             "Rejected"
-          -- BreakJudging ->
-          --   "Judging required"
-          -- BreakJudged ->
-          --   "Judged"
+          BreakJudging ->
+            "Judging required"
+          BreakJudged ->
+            "Judged"
     in
     [shamlet|
         <span>

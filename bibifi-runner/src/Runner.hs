@@ -121,6 +121,7 @@ runJob opts (ProblemRunner r) (OracleJob os) = do
 runJob opts (ProblemRunner r) (BuildJob bs) = do
     -- Download commit.
     downloadCommit opts (buildSubmissionTeam $ entityVal bs) (buildSubmissionCommitHash $ entityVal bs)
+    -- JP: We don't really need to save these to the filesystem anymore since we're loading them in the database...
 
     resM <- runBuildSubmission r opts bs
     case resM of
@@ -131,25 +132,30 @@ runJob opts (ProblemRunner r) (BuildJob bs) = do
             return $ Just (success, rescore)
 
 runJob opts (ProblemRunner r) (BreakJob bs) = do
-   -- TODO: download and save?
-            bfs <- getBfs
-            resM <- runBreakSubmission r opts bs bfs
-            case resM of 
-                Nothing ->
-                    return Nothing
-                Just (success, rescore') ->
-                    let rescore = if rescore' then Just ContestRoundBreak else Nothing in
-                    return $ Just (success, rescore)
-  where
-    getBfs = runDB $ do
-        res <- selectFirst [BreakFixSubmissionBreak ==. entityKey bs]
-                           [Asc BreakFixSubmissionId]
-        case res of
-            Just it -> return it
-            Nothing -> error $ "getBfs: BreakFixSubmission does not exist" ++ show (entityKey bs)
+    -- Download commit.
+    downloadCommit opts (breakSubmissionTeam $ entityVal bs) (breakSubmissionCommitHash $ entityVal bs)
+    -- JP: We don't really need to save these to the filesystem anymore since we're loading them in the database...
+
+    resM <- runBreakSubmission r opts bs
+    case resM of 
+        Nothing ->
+            return Nothing
+        Just (success, rescore') ->
+            let rescore = if rescore' then Just ContestRoundBreak else Nothing in
+            return $ Just (success, rescore)
+  -- where
+  --   getBfs = runDB $ do
+  --       res <- selectFirst [BreakFixSubmissionBreak ==. entityKey bs]
+  --                          [Asc BreakFixSubmissionId]
+  --       case res of
+  --           Just it -> return it
+  --           Nothing -> error $ "getBfs: BreakFixSubmission does not exist" ++ show (entityKey bs)
 
 runJob opts (ProblemRunner r) (FixJob fs) = do
-    -- TODO: download and save?
+    -- Download commit.
+    downloadCommit opts (fixSubmissionTeam $ entityVal fs) (fixSubmissionCommitHash $ entityVal fs)
+    -- JP: We don't really need to save these to the filesystem anymore since we're loading them in the database...
+
     resM <- runFixSubmission r opts fs
     case resM of
         Nothing ->

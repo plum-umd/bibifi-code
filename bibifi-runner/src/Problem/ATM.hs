@@ -224,7 +224,7 @@ instance ProblemRunnerClass ATMSpec where
                 runDB $ update submissionId [BuildSubmissionStatus =. BuildBuilt]
                 return $ Just (True, True)
 
-    runBreakSubmission (ATMSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) _ = undefined {-FIXME-} {-do
+    runBreakSubmission (ATMSpec (Entity contestId _contest)) opts bsE@(Entity submissionId submission) = undefined {-FIXME-} {-do
         resultsE <- runErrorT $ do
             checkSubmissionRound2 contestId bsE
             

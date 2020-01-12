@@ -109,6 +109,7 @@ executable runner
                      , random
                      , resourcet
                      , simplessh
+                     , tar
                      , temporary
                      , text
                      , time
@@ -118,6 +119,7 @@ executable runner
                      , vector
                      , yaml
                      , yesod-form
+                     , zlib
   
   -- Directories containing source files.
   hs-source-dirs:      src

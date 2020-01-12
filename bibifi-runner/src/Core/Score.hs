@@ -313,56 +313,56 @@ isBreakCrash submission =
     breakTypeM == Just BreakCrash
 
 defaultScoreBreakRound :: ContestId -> DatabaseM ()
-defaultScoreBreakRound cId = 
-    let score m (accBuilder,accBreaker) submission = 
-          let submitter = breakSubmissionTeam submission in
-          let target = breakSubmissionTargetTeam submission in
-          let score = undefined::Double {-FIXME-} {-case breakSubmissionResult submission of
-                Just BreakCorrect ->
-                    if isBreakCrash submission then 
-                        m
-                    else
-                        m/2.0
-                Just BreakExploit ->
-                    2*m
-                _ ->
-                    -- make this bool?? IO?
-                    -- silentFail "this should never happen"
-                    error "this should never happen" -}
-          in
-          let builderS = addScore accBuilder (target,-score) in
-          let breakerS = addScore accBreaker (submitter,score) in
-          ( builderS, breakerS)
-    in
-    do
-    -- Get number of teams, m
-    -- m' <- runDB $ count [TeamContestContest ==. cId]
-    let m = 50 -- fromIntegral m' :: Double
-    -- Select all break submissions from contest where result = bug or exploit
-    submissions' <- runDB $ E.select $ E.from $ \(tc `E.InnerJoin` bs) -> do
-        E.on ( tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
-        {-FIXME-}{-E.where_ (tc E.^. TeamContestContest E.==. E.val cId
-            E.&&. ((bs E.^. BreakSubmissionStatus E.==. E.val BreakTested) E.||. (bs E.^. BreakSubmissionStatus E.==. E.val BreakJudged))
-            E.&&. (bs E.^. BreakSubmissionResult E.==. E.val (Just BreakCorrect) 
-            E.||. bs E.^. BreakSubmissionResult E.==. E.val (Just BreakExploit)))-}
-        return bs
-    let submissions = fmap entityVal submissions'
-    initialScores <- getZeroScores
-    let ( builderScores, breakerScores) = foldl (score m) initialScores submissions
-    -- Insert latest scores
-    now <- lift getCurrentTime
-    mapM_ (updateBuildBreakScore now) builderScores
-    mapM_ (updateBreakBreakScore now) breakerScores
+defaultScoreBreakRound cId = error "TODO"
+    -- let score m (accBuilder,accBreaker) submission = 
+    --       let submitter = breakSubmissionTeam submission in
+    --       let target = breakSubmissionTargetTeam submission in
+    --       let score = undefined::Double {-FIXME-} {-case breakSubmissionResult submission of
+    --             Just BreakCorrect ->
+    --                 if isBreakCrash submission then 
+    --                     m
+    --                 else
+    --                     m/2.0
+    --             Just BreakExploit ->
+    --                 2*m
+    --             _ ->
+    --                 -- make this bool?? IO?
+    --                 -- silentFail "this should never happen"
+    --                 error "this should never happen" -}
+    --       in
+    --       let builderS = addScore accBuilder (target,-score) in
+    --       let breakerS = addScore accBreaker (submitter,score) in
+    --       ( builderS, breakerS)
+    -- in
+    -- do
+    -- -- Get number of teams, m
+    -- -- m' <- runDB $ count [TeamContestContest ==. cId]
+    -- let m = 50 -- fromIntegral m' :: Double
+    -- -- Select all break submissions from contest where result = bug or exploit
+    -- submissions' <- runDB $ E.select $ E.from $ \(tc `E.InnerJoin` bs) -> do
+    --     E.on ( tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
+    --     {-FIXME-}{-E.where_ (tc E.^. TeamContestContest E.==. E.val cId
+    --         E.&&. ((bs E.^. BreakSubmissionStatus E.==. E.val BreakTested) E.||. (bs E.^. BreakSubmissionStatus E.==. E.val BreakJudged))
+    --         E.&&. (bs E.^. BreakSubmissionResult E.==. E.val (Just BreakCorrect) 
+    --         E.||. bs E.^. BreakSubmissionResult E.==. E.val (Just BreakExploit)))-}
+    --     return bs
+    -- let submissions = fmap entityVal submissions'
+    -- initialScores <- getZeroScores
+    -- let ( builderScores, breakerScores) = foldl (score m) initialScores submissions
+    -- -- Insert latest scores
+    -- now <- lift getCurrentTime
+    -- mapM_ (updateBuildBreakScore now) builderScores
+    -- mapM_ (updateBreakBreakScore now) breakerScores
 
-    where
-        getZeroScores = do
-            -- Get all teams that have made a break submission for the current contest.
-            teams <- runDB $ E.select $ E.distinct $ E.from $ \(tc `E.InnerJoin` bs) -> do
-                E.on ( tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
-                E.where_ (tc E.^. TeamContestContest E.==. E.val cId)
-                return (tc E.^. TeamContestId)
-            let zeros = map (\(E.Value tcId) -> ( tcId, 0)) teams
-            return ([],zeros)
+    -- where
+    --     getZeroScores = do
+    --         -- Get all teams that have made a break submission for the current contest.
+    --         teams <- runDB $ E.select $ E.distinct $ E.from $ \(tc `E.InnerJoin` bs) -> do
+    --             E.on ( tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
+    --             E.where_ (tc E.^. TeamContestContest E.==. E.val cId)
+    --             return (tc E.^. TeamContestId)
+    --         let zeros = map (\(E.Value tcId) -> ( tcId, 0)) teams
+    --         return ([],zeros)
             
 
 defaultScoreFixRound :: ContestId -> DatabaseM ()

@@ -30,29 +30,32 @@ import Common
 --import Core.Modular.Class
 import Problem.Class
 
-checkSubmissionRound2 :: ContestId -> Entity BreakSubmission -> ErrorT BreakError DatabaseM ()
-checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $ 
-    if submitteamid == targetteamid then
-        reject "Cannot break yourself."
-    else do
-        targetTeamM <- lift $ runDB $ get targetteamid
-        case targetTeamM of 
-            Nothing -> do
-                reject "Invalid target team. Doesn't exist."
-            Just tt | teamContestContest tt /= contestId -> do
-                reject "Invalid target team. Not in this contest."
-            Just _ -> do
-                validBreakTeam <- lift $ runDB $ do
-                    bsId <- selectFirst [BuildSubmissionTeam ==. targetteamid] [Desc BuildSubmissionId]
-                    case bsId of
-                        Just (Entity bsId _) -> do
-                            buildSubmissionPassesRequiredTests contestId bsId
-                        Nothing ->
-                            return False
-                if not validBreakTeam then
-                    reject "Invalid target team."
-                else
-                    return ()
+checkSubmissionRound2 :: ContestId -> Entity BreakSubmission -> ErrorT BreakError DatabaseM TeamContestId
+checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $ case targetteamid of
+    Nothing ->
+        reject "Invalid target team. No target team given."
+    Just targetteamid ->
+        if submitteamid == targetteamid then
+            reject "Cannot break yourself."
+        else do
+            targetTeamM <- lift $ runDB $ get targetteamid
+            case targetTeamM of 
+                Nothing -> do
+                    reject "Invalid target team. Doesn't exist."
+                Just tt | teamContestContest tt /= contestId -> do
+                    reject "Invalid target team. Not in this contest."
+                Just _ -> do
+                    validBreakTeam <- lift $ runDB $ do
+                        bsId <- selectFirst [BuildSubmissionTeam ==. targetteamid] [Desc BuildSubmissionId]
+                        case bsId of
+                            Just (Entity bsId _) -> do
+                                buildSubmissionPassesRequiredTests contestId bsId
+                            Nothing ->
+                                return False
+                    if not validBreakTeam then
+                        reject "Invalid target team."
+                    else
+                        return targetteamid
 
     where
         submitteamid = breakSubmissionTeam bs
@@ -70,8 +73,18 @@ checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $
             -- runDB $ update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just msg]
             -- return False
 
-breakBaseFilters :: BreakSubmissionId -> Key TeamContest -> Key TeamContest -> [Filter BreakSubmission]
-breakBaseFilters bsId submitteamid targetteamid = [] -- FIXME [BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionTeam ==. submitteamid, BreakSubmissionTargetTeam ==. targetteamid, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionId !=. bsId, BreakSubmissionResult !=. Just BreakIncorrect]
+breakBaseFilters :: BreakSubmissionId -> Key TeamContest -> Maybe (Key TeamContest) -> [Filter BreakSubmission]
+breakBaseFilters bsId submitteamid targetteamid = [
+      BreakSubmissionStatus !=. BreakPullFail
+    , BreakSubmissionStatus !=. BreakRejected
+    , BreakSubmissionStatus !=. BreakPending
+    , BreakSubmissionTeam ==. submitteamid
+    , BreakSubmissionTargetTeam ==. targetteamid
+    , BreakSubmissionId !=. bsId
+    -- , BreakSubmissionResult !=. Just BreakIncorrect
+    , BreakSubmissionValid !=. Just False
+    ]
+-- breakBaseFilters bsId submitteamid targetteamid = [] -- FIXME [BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionTeam ==. submitteamid, BreakSubmissionTargetTeam ==. targetteamid, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionId !=. bsId, BreakSubmissionResult !=. Just BreakIncorrect]
 
 checkIntegrityLimit :: () => Entity BreakSubmission -> ErrorT BreakError DatabaseM ()
 checkIntegrityLimit (Entity bsId bs) = do
@@ -105,28 +118,29 @@ loadBreakSubmissionJSON bsId location = do
         storeJSONandUpdateSubmissionType j t = lift $ runDB $ update bsId [BreakSubmissionJson =. Just (Text.decodeUtf8With Text.lenientDecode (BSL.toStrict j)), BreakSubmissionBreakType =. Just (breakTestToType t)]
             
 -- | Check that the break 'description.txt' exists. 
-checkForBreakDescription :: (MonadIO m) => BreakSubmission -> RunnerOptions -> ErrorT BreakError m ()
-checkForBreakDescription submission opts = do
-    let team = show $ keyToInt $ breakSubmissionTeam submission
-    let breakName = Text.unpack $ breakSubmissionName submission
-    let repoDir = runnerRepositoryPath opts
-    let loc' = FilePath.joinPath [repoDir, "repos", team, "break", breakName, "description"]
-    let loc = FilePath.addExtension loc' "txt"
-    exists <- liftIO $ Directory.doesFileExist loc
-    when (not exists) $ 
-        throwError $ BreakErrorRejected "description.txt not found"
+-- TODO: Do this VM-side.
+-- checkForBreakDescription :: (MonadIO m) => BreakSubmission -> RunnerOptions -> ErrorT BreakError m ()
+-- checkForBreakDescription submission opts = do
+--     let team = show $ keyToInt $ breakSubmissionTeam submission
+--     let breakName = Text.unpack $ breakSubmissionName submission
+--     let repoDir = runnerRepositoryPath opts
+--     let loc' = FilePath.joinPath [repoDir, "repos", team, "break", breakName, "description"]
+--     let loc = FilePath.addExtension loc' "txt"
+--     exists <- liftIO $ Directory.doesFileExist loc
+--     when (not exists) $ 
+--         throwError $ BreakErrorRejected "description.txt not found"
 
--- Check that the fix 'description.txt' exists.
-checkForFixDescription :: (MonadIO m) => FixSubmission -> RunnerOptions -> ErrorT FixError m ()
-checkForFixDescription submission opts = do
-    let team = show $ keyToInt $ fixSubmissionTeam submission
-    let fixName = Text.unpack $ fixSubmissionName submission
-    let repoDir = runnerRepositoryPath opts
-    let loc' = FilePath.joinPath [repoDir, "repos", team, "fix", fixName, "description"]
-    let loc = FilePath.addExtension loc' "txt"
-    exists <- liftIO $ Directory.doesFileExist loc
-    when (not exists) $
-        throwError $ FixErrorRejected "description.txt not found"
+-- -- Check that the fix 'description.txt' exists.
+-- checkForFixDescription :: (MonadIO m) => FixSubmission -> RunnerOptions -> ErrorT FixError m ()
+-- checkForFixDescription submission opts = do
+--     let team = show $ keyToInt $ fixSubmissionTeam submission
+--     let fixName = Text.unpack $ fixSubmissionName submission
+--     let repoDir = runnerRepositoryPath opts
+--     let loc' = FilePath.joinPath [repoDir, "repos", team, "fix", fixName, "description"]
+--     let loc = FilePath.addExtension loc' "txt"
+--     exists <- liftIO $ Directory.doesFileExist loc
+--     when (not exists) $
+--         throwError $ FixErrorRejected "description.txt not found"
 
 data BreakError = 
       BreakErrorSystem String
@@ -182,6 +196,7 @@ data JSONBreakTest =
     JSONBreakCorrectnessTest Aeson.Value
   | JSONBreakIntegrityTest Aeson.Value
   | JSONBreakConfidentialityTest Aeson.Value
+  | JSONBreakAvailabilityTest Aeson.Value
   | JSONBreakCrashTest Aeson.Value
   | JSONBreakSecurityTest Aeson.Value
 
@@ -189,6 +204,7 @@ instance ModularBreakTest JSONBreakTest where
     breakTestToType (JSONBreakCorrectnessTest _) = BreakCorrectness
     breakTestToType (JSONBreakIntegrityTest _) = BreakIntegrity
     breakTestToType (JSONBreakConfidentialityTest _) = BreakConfidentiality
+    breakTestToType (JSONBreakAvailabilityTest _) = BreakAvailability
     breakTestToType (JSONBreakCrashTest _) = BreakCrash
     breakTestToType (JSONBreakSecurityTest _) = BreakSecurity
 
@@ -232,6 +248,8 @@ instance FromJSON JSONBreakTest where
                 return $ JSONBreakCrashTest j
             "security" ->
                 return $ JSONBreakSecurityTest j
+            "availability" ->
+                return $ JSONBreakAvailabilityTest j
             _ ->
                 fail "Not a valid test type."
     parseJSON _ = fail "Not a JSON object."
@@ -534,7 +552,7 @@ parseTestHelper getInput constr t@(Entity _ test) = ErrorT $
 class ModularBreakTest b where
     breakTestToType :: b -> BreakType
 
-teamSubmissionLocation :: RunnerOptions -> TeamContestId -> Text -> FilePath
-teamSubmissionLocation opts tcId hash = FilePath.addExtension (FilePath.joinPath pieces) "zip"
-  where basePath = runnerRepositoryPath opts
-        pieces = [basePath, "commits", show (keyToInt tcId), Text.unpack hash]
+-- teamSubmissionLocation :: RunnerOptions -> TeamContestId -> Text -> FilePath
+-- teamSubmissionLocation opts tcId hash = FilePath.addExtension (FilePath.joinPath pieces) "zip"
+--   where basePath = runnerRepositoryPath opts
+--         pieces = [basePath, "commits", show (keyToInt tcId), Text.unpack hash]

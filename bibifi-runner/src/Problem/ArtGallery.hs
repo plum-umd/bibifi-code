@@ -358,7 +358,7 @@ instance ProblemRunnerClass ArtGallery where
                     Just _ ->
                         return $ Right ()
 
-    runBreakSubmission (ArtGallery (Entity _contestId _contest)) opts (Entity submissionId submission) _ = undefined {-FIXME-} {-do
+    runBreakSubmission (ArtGallery (Entity _contestId _contest)) opts (Entity submissionId submission) = undefined {-FIXME-} {-do
         -- Load input json. 
         breakJSONE <- safeReadFileLazy breakFilePath
         case breakJSONE of

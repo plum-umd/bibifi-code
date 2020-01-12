@@ -251,12 +251,6 @@ BreakSubmission json
 --     fixed Bool default=FALSE
 --     bayesianScore Double Maybe default=null
 
--- File of a break submission (tar.gz)
-BreakSubmissionFile
-    break BreakSubmissionId
-    file ByteString
-    UniqueBreakSubmissionFile break
-
 BreakFixSubmission json
     break BreakSubmissionId
     fix FixSubmissionId Maybe -- If this is Nothing, this run is against the latest build submission.
@@ -286,6 +280,24 @@ FixSubmission json
 -- FixSubmissionBugs json
 --     fix FixSubmissionId
 --     bugId BreakSubmissionId
+
+-- File of a break submission (tar.gz)
+BreakSubmissionFile
+    break BreakSubmissionId
+    file ByteString
+    UniqueBreakSubmissionFile break
+
+-- File of a build submission (tar.gz)
+BuildSubmissionFile
+    team TeamContestId
+    file ByteString
+    UniqueBuildSubmissionFile team
+
+-- File of a fix submission (tar.gz)
+FixSubmissionFile
+    fix FixSubmissionId
+    file ByteString
+    UniqueFixSubmissionFile fix
 
 BuildCoreResult json
     submission BuildSubmissionId
