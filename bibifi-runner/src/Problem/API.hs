@@ -708,7 +708,7 @@ uploadAndCompileBreakerSubmission buildFail session portRef bs tarSubmission = d
     when (exit /= ExitSuccess) $ 
         fail "Could not extract submission"
 
-    let remoteBreakDir = "/home/" <> username <> "/break/" <> Text.unpack (breakSubmissionName bs) <> "/"
+    let remoteBreakDir = "/home/" <> username <> "/submission/break/" <> Text.unpack (breakSubmissionName bs) <> "/"
     makefileExists <- remoteFileExists session username $ remoteBreakDir <> "Makefile"
 
     when makefileExists $ do
