@@ -13,10 +13,13 @@ import Control.Exception.Enclosed
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import qualified Data.Aeson as J
 import qualified Data.ByteString.Char8 as BSC
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy as BSL
 import Data.List (isInfixOf)
 import Data.Maybe (isNothing)
 import Data.Text (pack)
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Encoding.Error as Text
 import qualified GitLab as Gitlab
 --import GitLab.Types as GT
 import qualified GitLab.API.RepositoryFiles as Gitlab
@@ -74,17 +77,26 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
                 forM_ oldBreaks $ \(Entity id _) -> do
                     update id [ BreakSubmissionValid =. Just False
                               , BreakSubmissionMessage =. Just "Break resubmitted" ]
-                    deleteWhere [ BreakFixSubmissionBreak ==. id ]
+                              -- JP: Update status too?
+                    -- deleteWhere [ BreakFixSubmissionBreak ==. id ]
                     -- updateWhere [ BreakFixSubmissionBreak ==. id ]
                     --             -- [ BreakFixSubmissionStatus =. BreakRejected
                     --             [ BreakFixSubmissionResult =. Nothing ] -- JP: Set to BreakFailed, or delete them?
             testCase <- parseBreakMsg pId path h gitConfig
             runDB $ case testCase of
-                Just (BreakMsg breakType tId) -> do
-                    target <- getLatestBuildOrFix tId
-                    case target of
-                        Right (_,t) -> insertPendingBreak tId name t breakType
-                        Left msg    -> insertErrorBreak (Just tId) name msg
+                Just (BreakMsg breakType tId breakJson) -> do
+                    -- Check if team exists.
+                    resM <- get tId
+                    case resM of 
+                        Just _ ->
+                            insertPendingBreak tId name breakType breakJson
+                        Nothing -> 
+                            insertErrorBreak (Just tId) name "Invalid target team. Doesn't exist."
+
+                    -- target <- getLatestBuildOrFix tId
+                    -- case target of
+                    --     Right (_,t) -> insertPendingBreak tId name t breakType
+                    --     Left msg    -> insertErrorBreak (Just tId) name "Invalid target team. Doesn't exist."
                 Nothing -> insertErrorBreak Nothing name "Invalid JSON in test.json"
     -- Handle each change to `build/` as a fix submission
     handleFixes =  when buildChanged $
@@ -103,11 +115,14 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
         BuildSubmission tcId t h BuildPullFail (Just (Textarea msg)) Nothing
 
     insertErrorBreak tId name msg = do
-        insert_ $ BreakSubmission tcId tId t h name BreakPullFail Nothing (Just msg) Nothing (Just False) Nothing
+        insert_ $ BreakSubmission tcId tId t h name BreakPullFail Nothing (Just msg) Nothing (Just False)
         -- insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
 
-    insertPendingBreak tId name target breakType = do
-        insert_ $ BreakSubmission tcId (Just tId) t h name BreakPending (Just breakType) Nothing Nothing Nothing target
+    insertPendingBreak tId name breakType breakJson = do
+        insert_ $ BreakSubmission tcId (Just tId) t h name BreakPending (Just breakType) Nothing (Just breakJson') Nothing
+      
+      where
+        breakJson' = Text.decodeUtf8With Text.lenientDecode (BSL.toStrict $ J.encode breakJson)
 
 parseBreakMsg :: Int -> String -> Text -> GitConfiguration -> LHandler (Maybe BreakMsg)
 -- Parse JSON file from GitLab repo at given path
@@ -158,8 +173,10 @@ instance J.FromJSON Project where
 data BreakMsg = BreakMsg
     { break_type :: BreakType
     , target_team :: TeamContestId
+    , break_json :: J.Value
     } deriving (Eq, Show)
 instance J.FromJSON BreakMsg where
     parseJSON = J.withObject "Break message" $ \o ->
         BreakMsg <$> o .: "type"
                  <*> o .: "target_team"
+                 <*> pure (J.Object o)

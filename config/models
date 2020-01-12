@@ -248,9 +248,14 @@ BreakSubmission json
     message String Maybe
     json Text Maybe default=null
     valid Bool Maybe -- If this break submission is valid/accepted. It should be marked as valid as long as the first run demonstrates a successful break. 
-    targetFix FixSubmissionId Maybe -- If this is Nothing, this run is against the latest build submission.
 --     fixed Bool default=FALSE
 --     bayesianScore Double Maybe default=null
+
+-- File of a break submission (tar.gz)
+BreakSubmissionFile
+    break BreakSubmissionId
+    file ByteString
+    UniqueBreakSubmissionFile break
 
 BreakFixSubmission json
     break BreakSubmissionId

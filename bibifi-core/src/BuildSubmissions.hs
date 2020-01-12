@@ -5,6 +5,7 @@ module BuildSubmissions where
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
 import qualified Data.List as List
+import Data.Time.Clock (UTCTime)
 import Database.Persist
 import qualified Database.Esqueleto as E
 import Database.Esqueleto.Internal.Sql (SqlSelect)
@@ -50,13 +51,14 @@ buildSubmissionPassesRequiredTests cId bsId = do
     let numPassedPerformanceTests = List.length tmps
     return $ numPassedCoreTests == numCoreTests && numPassedPerformanceTests == numPerformanceTests
 
-getLatestBuildOrFix :: MonadIO m => TeamContestId -> E.SqlPersistT m (Either String (Text, Maybe FixSubmissionId))
+getLatestBuildOrFix :: MonadIO m => TeamContestId -> UTCTime -> E.SqlPersistT m (Either String (Text, Maybe FixSubmissionId))
 -- Retrieve the latest successful fix or build for team
-getLatestBuildOrFix teamId = do
+getLatestBuildOrFix teamId time = do
     latestBuild <- selectFirst [ BuildSubmissionTeam ==. teamId ]
                                [ Desc BuildSubmissionTimestamp ]
     latestFix   <- selectFirst [ FixSubmissionTeam ==. teamId
-                               , FixSubmissionResult ==. Just FixFixed ]
+                               , FixSubmissionResult ==. Just FixFixed
+                               , FixSubmissionTimestamp <=. time ]
                                [ Desc FixSubmissionTimestamp ]
     return $ case (latestBuild, latestFix) of
         (_, Just (Entity id f))  -> Right (fixSubmissionCommitHash f, Just id)
