@@ -289,10 +289,14 @@ instance ProblemRunnerClass APIProblem where
                 userFail $ maybe "Test failed" Text.unpack msgM
 
             Right (BreakResult Nothing _) -> runDB $ do
-                -- JP: We don't insert a BreakFixSubmission, so the judgement page must do this.
+                -- JP: We mark as valid so that users can fix. If they appeal, manually judge as invalid.
                 runIfStillValid $
-                    update bsId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Nothing]
-                return $ Just ( True, False)
+                    update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True]
+                return $ Just ( True, True)
+
+                -- runIfStillValid $
+                --     update bsId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Nothing]
+                -- return $ Just ( True, False)
 
             Right (BreakResult (Just True) _) -> runDB $ do
                 insert_ $ BreakFixSubmission bsId targetSubmissionId Nothing Nothing BreakSucceeded
