@@ -115,11 +115,11 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
         BuildSubmission tcId t h BuildPullFail (Just (Textarea msg)) Nothing
 
     insertErrorBreak tId name msg = do
-        insert_ $ BreakSubmission tcId tId t h name BreakPullFail Nothing (Just msg) Nothing (Just False)
+        insert_ $ BreakSubmission tcId tId t h name BreakPullFail Nothing (Just msg) Nothing Nothing Nothing (Just False)
         -- insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
 
     insertPendingBreak tId name breakType breakJson = do
-        insert_ $ BreakSubmission tcId (Just tId) t h name BreakPending (Just breakType) Nothing (Just breakJson') Nothing
+        insert_ $ BreakSubmission tcId (Just tId) t h name BreakPending (Just breakType) Nothing (Just breakJson') Nothing Nothing Nothing
       
       where
         breakJson' = Text.decodeUtf8With Text.lenientDecode (BSL.toStrict $ J.encode breakJson)
