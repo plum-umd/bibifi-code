@@ -283,26 +283,26 @@ instance ProblemRunnerClass APIProblem where
                     update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just msg, BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail msg
 
-            Right (BreakResult (Just False) msgM) -> runDB $ do
-                insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
+            Right (BreakResult False msgM) -> runDB $ do
+                insert_ $ BreakFixSubmission bsId targetSubmissionId BreakFailed
                 runIfStillValid $ 
                     update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail $ maybe "Test failed" Text.unpack msgM
 
-            Right (BreakResult Nothing _) -> runDB $ 
-                runUnlessNewFix targetSubmissionId $ do
-                    -- JP: We mark as valid so that users can fix. If they appeal, manually judge as invalid.
-                    -- TODO: Email target team.
-                    insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
-                    runIfStillValid $
-                        update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
-                    return $ Just ( True, True)
+            -- Right (BreakResult Nothing _) -> runDB $ 
+            --     runUnlessNewFix targetSubmissionId $ do
+            --         -- JP: We mark as valid so that users can fix. If they appeal, manually judge as invalid.
+            --         -- TODO: Email target team.
+            --         insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
+            --         runIfStillValid $
+            --             update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+            --         return $ Just ( True, True)
 
-                    -- runIfStillValid $
-                    --     update bsId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Nothing]
-                    -- return $ Just ( True, False)
+            --         -- runIfStillValid $
+            --         --     update bsId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Nothing]
+            --         -- return $ Just ( True, False)
 
-            Right (BreakResult (Just True) _) -> runDB $ do
+            Right (BreakResult True _) -> runDB $ do
                 runUnlessNewFix targetSubmissionId $ do
                     -- TODO: Email target team.
                     insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
@@ -465,13 +465,13 @@ instance ProblemRunnerClass APIProblem where
                     -- Run break test.
                     res <- runBreakTest session passedOptionalTests portRef remoteUsername remoteBreakDir breakTest
                     lift $ lift $ runDB $ case res of
-                        BreakResult (Just False) _ ->
+                        BreakResult False _ ->
                             insert_ $ BreakFixSubmission bsId (Just submissionId) BreakFailed
 
-                        BreakResult Nothing _ ->
-                            insert_ $ BreakFixSubmission bsId (Just submissionId) BreakSucceeded
+                        -- BreakResult Nothing _ ->
+                        --     insert_ $ BreakFixSubmission bsId (Just submissionId) BreakSucceeded
 
-                        BreakResult (Just True) _ ->
+                        BreakResult True _ ->
                             insert_ $ BreakFixSubmission bsId (Just submissionId) BreakSucceeded
                         
                   ) breaks

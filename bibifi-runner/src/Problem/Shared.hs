@@ -256,13 +256,13 @@ instance FromJSON JSONBreakTest where
     parseJSON _ = fail "Not a JSON object."
 
 data BreakResult = BreakResult {
-    breakResult :: Maybe Bool
+    breakResult :: Bool -- Maybe 
   , breakResultMessage :: Maybe Text
   }
 
 instance FromJSON BreakResult where
     parseJSON (Aeson.Object o) = do
-        res <- o .:? "result"
+        res <- o .: "result"
         message <- o .:? "error"
         return $ BreakResult res message
 
