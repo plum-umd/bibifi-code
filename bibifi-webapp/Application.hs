@@ -89,6 +89,7 @@ import Handler.Participation.OracleSubmissions.Create
 import Handler.Participation.BuildSubmissions
 import Handler.Participation.BuildersCode
 import Handler.Participation.BreakSubmissions
+import Handler.Participation.DownloadBuilder
 import Handler.Participation.FixSubmissions
 import Handler.PasswordReset
 import Handler.Profile

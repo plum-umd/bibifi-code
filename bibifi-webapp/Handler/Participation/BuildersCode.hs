@@ -75,7 +75,7 @@ getParticipationBuildersCodeR tcId = runLHandler $
                           [whamlet'|
                               <tr>
                                   <td>
-                                    #{name} (<a href="#{teamContestGitUrl tc}">code</a>)
+                                    #{name} (<a href="@{ParticipationDownloadBuilderR tcId tId}">code</a>)
                                   <td>
                                     #{teamId}
                                   <td>
@@ -87,6 +87,7 @@ getParticipationBuildersCodeR tcId = runLHandler $
                                   <td>
                                     #{vulns}
                           |]
+                                    -- #{name} (<a href="#{teamContestGitUrl tc}">code</a>)
                     in
                     mconcat $ map disp cachedResults
             [whamlet|

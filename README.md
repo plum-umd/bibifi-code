@@ -60,6 +60,7 @@ Finish configuring the database:
 	# CONNECT TO bibifi AS bibifi;
 	REVOKE ALL ON DATABASE bibifi FROM public;
 	SET timezone='UTC';
+	SET bytea_output = 'escape';
 
 You'll need to update the `config/postgresql.yml` configuration file with your database's `username`, `password`, `host`, and `port` information.
 

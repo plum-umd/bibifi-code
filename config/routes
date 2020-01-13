@@ -54,6 +54,7 @@
 /participation/#TeamContestId/buildsubmission/#BuildSubmissionId ParticipationBuildSubmissionR GET
 /participation/#TeamContestId/buildsubmission/#BuildSubmissionId/rerun ParticipationBuildSubmissionRerunR POST
 /participation/#TeamContestId/builderscode ParticipationBuildersCodeR GET
+/participation/#TeamContestId/builderscode/#TeamContestId/download ParticipationDownloadBuilderR GET
 /participation/#TeamContestId/breaksubmissions ParticipationBreakSubmissionsR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId ParticipationBreakSubmissionR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/delete ParticipationBreakSubmissionDeleteR POST
