@@ -272,30 +272,30 @@ instance ProblemRunnerClass APIProblem where
             Left (BreakErrorBuildFail stdout' stderr') -> runDB $ do
                 let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
                 let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
-                insert_ $ BreakFixSubmission bsId targetSubmissionId stdout stderr BreakFailed
+                insert_ $ BreakFixSubmission bsId targetSubmissionId BreakFailed
                 runIfStillValid $ 
-                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionValid =. Nothing]
+                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
                 userFail "Build failed"
 
             Left (BreakErrorRejected msg) -> runDB $ do
-                insert_ $ BreakFixSubmission bsId targetSubmissionId Nothing Nothing BreakFailed
+                insert_ $ BreakFixSubmission bsId targetSubmissionId BreakFailed
                 runIfStillValid $
-                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just msg, BreakSubmissionValid =. Nothing]
+                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just msg, BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail msg
 
             Right (BreakResult (Just False) msgM) -> runDB $ do
-                insert_ $ BreakFixSubmission bsId targetSubmissionId Nothing Nothing BreakSucceeded
+                insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
                 runIfStillValid $ 
-                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionValid =. Nothing]
+                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail $ maybe "Test failed" Text.unpack msgM
 
             Right (BreakResult Nothing _) -> runDB $ 
                 runUnlessNewFix targetSubmissionId $ do
                     -- JP: We mark as valid so that users can fix. If they appeal, manually judge as invalid.
                     -- TODO: Email target team.
-                    insert_ $ BreakFixSubmission bsId targetSubmissionId Nothing Nothing BreakSucceeded
+                    insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
                     runIfStillValid $
-                        update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True]
+                        update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                     return $ Just ( True, True)
 
                     -- runIfStillValid $
@@ -305,9 +305,9 @@ instance ProblemRunnerClass APIProblem where
             Right (BreakResult (Just True) _) -> runDB $ do
                 runUnlessNewFix targetSubmissionId $ do
                     -- TODO: Email target team.
-                    insert_ $ BreakFixSubmission bsId targetSubmissionId Nothing Nothing BreakSucceeded
+                    insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
                     runIfStillValid $
-                        update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True]
+                        update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                     return $ Just ( True, True)
 
         where
@@ -466,13 +466,13 @@ instance ProblemRunnerClass APIProblem where
                     res <- runBreakTest session passedOptionalTests portRef remoteUsername remoteBreakDir breakTest
                     lift $ lift $ runDB $ case res of
                         BreakResult (Just False) _ ->
-                            insert_ $ BreakFixSubmission bsId (Just submissionId) Nothing Nothing BreakFailed
+                            insert_ $ BreakFixSubmission bsId (Just submissionId) BreakFailed
 
                         BreakResult Nothing _ ->
-                            insert_ $ BreakFixSubmission bsId (Just submissionId) Nothing Nothing BreakSucceeded
+                            insert_ $ BreakFixSubmission bsId (Just submissionId) BreakSucceeded
 
                         BreakResult (Just True) _ ->
-                            insert_ $ BreakFixSubmission bsId (Just submissionId) Nothing Nothing BreakSucceeded
+                            insert_ $ BreakFixSubmission bsId (Just submissionId) BreakSucceeded
                         
                   ) breaks
 
