@@ -320,7 +320,8 @@ getParticipationBreakSubmissionR tcId bsId = undefined --FIXME
         |]
 
         -- Check if we can rerun submission.
-        rerunSubmission <- canRerunBreakSubmission bs contest
+        -- rerunSubmission <- canRerunBreakSubmission bs contest
+        let rerunSubmission = False -- JP: We need to be careful with rerunning breaks as this can cause race conditions. Maybe safe if we update timestamp.
         when rerunSubmission $ 
             rerunWidget bs
 

@@ -215,13 +215,14 @@ breakTestTypeToSuccessfulResult BreakIntegrity = undefined --FIXME BreakExploit
 breakTestTypeToSuccessfulResult BreakConfidentiality = undefined --FIXME BreakExploit
 breakTestTypeToSuccessfulResult BreakSecurity = undefined --FIXME BreakExploit
 
-breakTestToJSONBreakTest :: (Error r, MonadError r m) => Entity BreakSubmission -> m (JSONBreakTest, BreakSubmission)
-breakTestToJSONBreakTest (Entity bsId bs) = do
+breakTestToJSONBreakTest :: (Error r, MonadError r m) => Entity BreakSubmission -> m (JSONBreakTest, Entity BreakSubmission)
+breakTestToJSONBreakTest bsE@(Entity bsId bs) = do
     constr <- case breakSubmissionBreakType bs of
             Just BreakCorrectness -> return JSONBreakCorrectnessTest
             Just BreakCrash -> return JSONBreakCrashTest
             Just BreakConfidentiality -> return JSONBreakConfidentialityTest
             Just BreakIntegrity -> return JSONBreakIntegrityTest
+            Just BreakAvailability -> return JSONBreakAvailabilityTest
             Just BreakSecurity -> return JSONBreakSecurityTest
             Nothing ->
                 throwError $ strMsg $ "Unknown break type for break submission: " ++ show (keyToInt bsId)
@@ -232,7 +233,7 @@ breakTestToJSONBreakTest (Entity bsId bs) = do
             Nothing -> 
                 throwError $ strMsg $ "Invalid JSON stored for break submission: " ++ show (keyToInt bsId)
             Just test -> 
-                return ( constr test, bs)
+                return ( constr test, bsE)
 
 instance FromJSON JSONBreakTest where
     parseJSON j@(Aeson.Object o) = do

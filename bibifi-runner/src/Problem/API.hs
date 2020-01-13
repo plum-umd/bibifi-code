@@ -15,6 +15,7 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.List as List
 import Data.Monoid ((<>))
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
@@ -135,10 +136,11 @@ instance ProblemRunnerClass APIProblem where
             let conf = runnerCloudConfiguration opts
             let manager = runnerHttpManager opts
             launchOneInstanceWithTimeout conf manager 60 $ \_inst session -> do
+                -- Setup firewall.
+                -- setupFirewall session
+
                 -- Upload, extract, and build submission.
                 uploadAndCompileBuilderSubmissionBuild session submissionTarGz
-
-                -- setupFirewall session
 
                 -- Upload problem files.
                 putLog "Sending problem files."
@@ -249,8 +251,7 @@ instance ProblemRunnerClass APIProblem where
                 portRef <- initialPort
 
                 -- Upload and compile break folder.
-                (remoteUsername, remoteBreakDir) <- uploadAndCompileBreakerSubmissionBreak session portRef bs targetSubmissionTarGz
-
+                (remoteUsername, remoteBreakDir) <- uploadAndCompileBreakerSubmissionBreak session portRef bs breakSubmissionTarGz
 
                 -- Make sure break submission description exists.
                 descriptionExists <- remoteFileExists session remoteUsername $ remoteBreakDir <> "description.txt"
@@ -288,23 +289,47 @@ instance ProblemRunnerClass APIProblem where
                     update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionValid =. Nothing]
                 userFail $ maybe "Test failed" Text.unpack msgM
 
-            Right (BreakResult Nothing _) -> runDB $ do
-                -- JP: We mark as valid so that users can fix. If they appeal, manually judge as invalid.
-                runIfStillValid $
-                    update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True]
-                return $ Just ( True, True)
+            Right (BreakResult Nothing _) -> runDB $ 
+                runUnlessNewFix targetSubmissionId $ do
+                    -- JP: We mark as valid so that users can fix. If they appeal, manually judge as invalid.
+                    -- TODO: Email target team.
+                    insert_ $ BreakFixSubmission bsId targetSubmissionId Nothing Nothing BreakSucceeded
+                    runIfStillValid $
+                        update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True]
+                    return $ Just ( True, True)
 
-                -- runIfStillValid $
-                --     update bsId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Nothing]
-                -- return $ Just ( True, False)
+                    -- runIfStillValid $
+                    --     update bsId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Nothing]
+                    -- return $ Just ( True, False)
 
             Right (BreakResult (Just True) _) -> runDB $ do
-                insert_ $ BreakFixSubmission bsId targetSubmissionId Nothing Nothing BreakSucceeded
-                runIfStillValid $
-                    update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True]
-                return $ Just ( True, True)
+                runUnlessNewFix targetSubmissionId $ do
+                    -- TODO: Email target team.
+                    insert_ $ BreakFixSubmission bsId targetSubmissionId Nothing Nothing BreakSucceeded
+                    runIfStillValid $
+                        update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True]
+                    return $ Just ( True, True)
 
         where
+            runUnlessNewFix oldTargetSubmissionId m = do
+                needRerun <- do
+                    case breakSubmissionTargetTeam bs of
+                        Nothing ->
+                            return True
+                        Just targetTeamId -> do
+                            newTargetSubmissionIdE <- getLatestBuildOrFix targetTeamId (breakSubmissionTimestamp bs)
+                            case newTargetSubmissionIdE of
+                                Left _ ->
+                                    return True
+                                Right e ->
+                                    let newTargetSubmissionId = either (const Nothing) Just e in
+                                    return $ newTargetSubmissionId == oldTargetSubmissionId
+
+                if needRerun then
+                    m
+                else 
+                    systemFail "New fix detected after testing a break."
+
             getLatestBuildOrFixTarGz targetTeamId = do
                 resE <- lift $ runDB $ getLatestBuildOrFix targetTeamId $ breakSubmissionTimestamp bs -- can't fail due to prior checks
                 case resE of
@@ -365,85 +390,92 @@ instance ProblemRunnerClass APIProblem where
 
 
     runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
-        error "TODO"
-
-
         
-        -- -- Extract tests.
-        -- let BuildTests coreTests performanceTests optionalTests = runnerBuildTests opts
+        -- Extract tests.
+        let BuildTests coreTests performanceTests optionalTests = runnerBuildTests opts
 
-        -- -- Get all valid breaks against this team
+        -- Delete any previous results.
+        runDB $ deleteWhere [BreakFixSubmissionFix ==. Just submissionId]
+
+        -- -- Get all valid and active breaks against this team
+        breaks' <- runDB $ getValidActiveBreaksAgainst submission
         -- breaks'' <- runDB $ selectList [ BreakSubmissionTargetTeam ==. teamId
         --                                , BreakSubmissionValid !=. Just False ]
         --                                []
 
         -- let archiveLocation = teamSubmissionLocation opts teamId hash
 
-        -- resultsE <- runErrorT $ do
-        --     -- Check for description, other constraints.
-        --     checkForFixDescription submission opts
+        resultsE <- runErrorT $ do
+
+            -- Extract fix submission.
+            submissionTarGz <- extractAndCompressFixSubmission submission opts
+
+
+
 
         --     -- Verify breaks fixed and filter them (only include automatically tested ones).
         --     let breaks' = breaks'' -- FIXME
         --     --breaks' <- verifyAndFilterBreaksForFix breaks'' $ \bs -> breakSubmissionStatus bs == BreakTested
         --     
-        --     -- Convert breaks to JSON breaks.
-        --     breaks <- mapM breakTestToJSONBreakTest breaks'
 
-        --     -- Start instance.
-        --     let conf = runnerCloudConfiguration opts
-        --     let manager = runnerHttpManager opts
-        --     launchOneInstanceWithTimeout conf manager 30 $ \_inst session -> do
-        --         -- Setup firewall.
-        --         -- setupFirewall session
+            -- Convert breaks to JSON breaks.
+            breaks <- mapM breakTestToJSONBreakTest breaks'
 
-        --         -- Send build submission.
-        --         putLog "Sending build submission."
-        --         let destArchiveLocation = "/home/ubuntu/submission.tar.gz"
-        --         _ <- runSSH (FixErrorSystem "Could not send submission") $ sendFile session 0o666 archiveLocation destArchiveLocation
+            -- Start instance.
+            let conf = runnerCloudConfiguration opts
+            let manager = runnerHttpManager opts
+            launchOneInstanceWithTimeout conf manager 30 $ \_inst session -> do
+                -- Setup firewall.
+                -- setupFirewall session
 
-        --         -- Upload problem files.
-        --         putLog "Sending problem files."
-        --         uploadFolder session (runnerProblemDirectory opts) "/problem"
+                -- Upload, extract, and build submission.
+                uploadAndCompileBuilderSubmissionFix session submissionTarGz
 
-        --         -- Setup directory.
-        --         (Result _ _ exit) <- runSSH (FixErrorSystem "Could not make test directory.") $ execCommand session "sudo -i -u builder mkdir /home/builder/submission"
-        --         when (exit /= ExitSuccess) $
-        --             fail "Could not make test directory."
+                -- Upload problem files.
+                putLog "Sending problem files."
+                uploadFolder session (runnerProblemDirectory opts) "/problem"
 
-        --         -- Extract submission.
-        --         putLog "Extracting build submission."
-        --         (Result _ _ exit) <- runSSH (FixErrorSystem "Could not extract submission") $ execCommand session ("cd /home/builder/submission; sudo -u builder tar -xf " <> destArchiveLocation)
-        --         when (exit /= ExitSuccess) $ 
-        --             fail "Could not extract submission"
+                -- Run core tests.
+                let (requiredTests, _) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests)
+                portRef <- initialPort
+                mapM_ (\t -> do
+                    (test, BuildResult pass msgM _) <- runBuildTest session portRef t
+                    when ( not pass) $ 
+                        let msg = maybe "" Text.unpack msgM in
+                        throwError $ FixErrorRejected $ "Failed required test: " <> Text.unpack (buildTestName test) <> ". " <> msg
+                  ) requiredTests
 
-        --         -- Build submission. 
-        --         putLog "Building submission."
-        --         (Result stderr stdout exit) <- runSSH (FixErrorSystem "Could not run make") $ execCommand session "sudo -i -u builder make -B -C /home/builder/submission/fix/code/build"
-        --         when (exit /= ExitSuccess) $
-        --             throwError $ FixErrorBuildFail stderr stdout
+                -- Retrieve list of passed build tests.
+                passedOptionalTests <- retrievePassedOptionalTests teamId
 
-        --         (Result _ _ exit) <- runSSH (FixErrorSystem "Could not delete build dir") $ execCommand session "sudo rm -rf /home/builder/submission/build"
-        --         when (exit /= ExitSuccess) $
-        --             fail "Could not delete build dir"
+                -- Run each break test.
+                mapM_ (\(breakTest, (Entity bsId bs)) -> do
+                    -- Retrieve break folder.
+                    breakSubmissionTarGz <- do
+                        resM <- lift $ lift $ runDB $ getBy $ UniqueBreakSubmissionFile bsId
+                        case resM of
+                            Nothing -> 
+                                fail $ "Break submission tar.gz missing for " <> Text.unpack (breakSubmissionName bs)
+                            Just bsf ->
+                                return $ breakSubmissionFileFile $ entityVal bsf
 
-        --         (Result _ _ exit) <- runSSH (FixErrorSystem "Could not move build dir") $ execCommand session "sudo mv /home/builder/submission/fix/code/build /home/builder/submission/build"
-        --         when (exit /= ExitSuccess) $
-        --             fail "Could not move build dir"
+                    -- Upload and compile break folder.
+                    (remoteUsername, remoteBreakDir) <- uploadAndCompileBreakerSubmissionFix session portRef bs breakSubmissionTarGz
 
-        --         -- Run core tests.
-        --         let (requiredTests, _) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests)
-        --         portRef <- initialPort
-        --         mapM_ (\t -> do
-        --             (test, BuildResult pass msgM _) <- runBuildTest session portRef t
-        --             when ( not pass) $ 
-        --                 let msg = maybe "" Text.unpack msgM in
-        --                 throwError $ FixErrorRejected $ "Failed core test: " <> Text.unpack (buildTestName test) <> ". " <> msg
-        --           ) requiredTests
+                    -- Run break test.
+                    res <- runBreakTest session passedOptionalTests portRef remoteUsername remoteBreakDir breakTest
+                    lift $ lift $ runDB $ case res of
+                        BreakResult (Just False) _ ->
+                            insert_ $ BreakFixSubmission bsId (Just submissionId) Nothing Nothing BreakFailed
 
+                        BreakResult Nothing _ ->
+                            insert_ $ BreakFixSubmission bsId (Just submissionId) Nothing Nothing BreakSucceeded
 
-        --         -- Run each break test.
-        --         mapM_ (\(t, bs) -> do
+                        BreakResult (Just True) _ ->
+                            insert_ $ BreakFixSubmission bsId (Just submissionId) Nothing Nothing BreakSucceeded
+                        
+                  ) breaks
+
         --             -- Delete break directory.
         --             (Result _ _ exit) <- runSSH (FixErrorSystem "Could not delete break directory.") $ execCommand session "sudo rm -rf /break"
         --             when (exit /= ExitSuccess) $
@@ -473,40 +505,56 @@ instance ProblemRunnerClass APIProblem where
         --                     throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
         --                 BreakResult Nothing _ ->
         --                     throwError $ FixErrorRejected $ "Failed test: " ++ Text.unpack (breakSubmissionName bs)
-        --           ) breaks
 
-        -- -- Record result.
-        -- case resultsE of
-        --     Left (FixErrorSystem err) -> 
-        --         systemFail err
-        --     Left FixErrorTimeout ->
-        --         return Nothing
-        --     Left (FixErrorBuildFail stdout' stderr') -> do
-        --         let stdout = decodeUtf8 stdout'
-        --         let stderr = decodeUtf8 stderr'
-        --         updateFix FixRejected (Just "Running make failed") stdout stderr
-        --         userFail "Build failed"
-        --     Left (FixErrorRejected msg) -> do
-        --         updateFix FixRejected (Just msg) Nothing Nothing
-        --         userFail msg
-        --     Right () -> do
-        --         updateFix FixJudging Nothing Nothing Nothing
-        --         return $ Just (True, True)
 
-        -- where
-        --     teamId = fixSubmissionTeam submission
+        -- Record result.
+        case resultsE of
+            Left (FixErrorSystem err) -> 
+                systemFail err
+            Left FixErrorTimeout ->
+                return Nothing
+            Left (FixErrorBuildFail stdout' stderr') -> do
+                let stdout = decodeUtf8 stdout'
+                let stderr = decodeUtf8 stderr'
+                runDB $ updateFix FixRejected (Just "Running make failed") stdout stderr
+                userFail "Build failed"
+            Left (FixErrorRejected msg) -> do
+                runDB $ updateFix FixRejected (Just msg) Nothing Nothing
+                userFail msg
+            Right () -> runDB $ do
+                runUnlessNewBreak breaks' $ do
+                    updateFix FixJudging Nothing Nothing Nothing
+                    return $ Just (True, True)
+
+        where
+            -- Rerun if there's a new break.
+            runUnlessNewBreak origBreaks' m = do
+                let origBreaks = Set.fromList $ map entityKey origBreaks'
+
+                latestBreaks' <- getValidActiveBreaksAgainst submission
+                let latestBreaks = Set.fromList $ map entityKey latestBreaks'
+
+                if origBreaks == latestBreaks then
+                    m
+                else
+                    -- Mark as pending so that we try again.
+                    systemFail "New break detected after testing a fix."
+                
+
+
+            teamId = fixSubmissionTeam submission
         --     hash = fixSubmissionCommitHash submission
         --     basePath = runnerRepositoryPath opts
 
-        --     updateFix status msg stdout stderr = 
-        --         runDB $ update submissionId [FixSubmissionStatus =. status, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
+            updateFix status msg stdout stderr = 
+                update submissionId [FixSubmissionStatus =. status, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
 
-        --     userFail err = do
-        --         putLog err
-        --         return $ Just (True, False)
-        --     systemFail err = do
-        --         putLog err
-        --         return $ Just (False, False)
+            userFail err = do
+                putLog err
+                return $ Just (True, False)
+            systemFail err = do
+                putLog err
+                return $ Just (False, False)
 
 -- Could use a state transformer...
 initialPort :: MonadIO m => m (IO.IORef Int)
@@ -525,9 +573,9 @@ runBreakTest session passedTests portRef user breakDir breakTest = do
           , "port" .= port
           , "type" .= ("break" :: String)
           , "classification" .= testType
-          , "passed_tests" .= passedTests -- JP: New...
-          , "user" .= user
-          , "break_directory" .= breakDir
+          , "passed_tests" .= passedTests -- Passed optional tests. -- JP: New...
+          , "user" .= user -- JP: New...
+          , "break_directory" .= breakDir -- JP: New...
           ]
 
     -- Upload json input.
@@ -661,6 +709,7 @@ downloadFromGitLab hash url dst = undefined
 
 uploadAndCompileBuilderSubmissionBuild = uploadAndCompileBuilderSubmission $ \stderr stdout -> throwError $ BuildFail stderr stdout
 uploadAndCompileBuilderSubmissionBreak = uploadAndCompileBuilderSubmission $ \_ _ -> fail "Building target failed"
+uploadAndCompileBuilderSubmissionFix = uploadAndCompileBuilderSubmission $ \stderr stdout -> throwError $ FixErrorBuildFail stderr stdout
 
 uploadAndCompileBuilderSubmission buildFail session tarSubmission = do
     putLog "Sending builder submission."
@@ -688,7 +737,7 @@ uploadAndCompileBuilderSubmission buildFail session tarSubmission = do
     -- return "/home/builder/submission/build/"
 
 uploadAndCompileBreakerSubmissionBreak = uploadAndCompileBreakerSubmission $ \stderr stdout -> throwError $ BreakErrorBuildFail stderr stdout
--- uploadAndCompileBreakerSubmissionFix = uploadAndCompileBreakerSubmission $ \_ _ -> fail "Could not build break"
+uploadAndCompileBreakerSubmissionFix = uploadAndCompileBreakerSubmission $ \_ _ -> fail "Could not build break"
 
 uploadAndCompileBreakerSubmission buildFail session portRef bs tarSubmission = do
     -- Create user.
@@ -724,8 +773,8 @@ uploadAndCompileBreakerSubmission buildFail session portRef bs tarSubmission = d
     return (username, remoteBreakDir)
 
 remoteFileExists session username f = do
-        (Result _ _ exit) <- runSSH (strMsg "Could not determine if file exists.") $ execCommand session $ "sudo -i -u " <> username <> " test -f " <> f
-        return $ exit == ExitSuccess
+    (Result _ _ exit) <- runSSH (strMsg "Could not determine if file exists.") $ execCommand session $ "sudo -i -u " <> username <> " test -f " <> f
+    return $ exit == ExitSuccess
 
 extractAndCompressBuildSubmission bs opts = do
     archiveLocation <- getArchiveLocation tcId hash opts
@@ -735,6 +784,18 @@ extractAndCompressBuildSubmission bs opts = do
   where
     tcId = buildSubmissionTeam bs
     hash = buildSubmissionCommitHash bs
+    filter fp = case FilePath.splitDirectories fp of
+      _:"build":_ -> True
+      _           -> False
+
+extractAndCompressFixSubmission bs opts = do
+    archiveLocation <- getArchiveLocation tcId hash opts
+
+    extractAndFilterSubmission archiveLocation filter
+  
+  where
+    tcId = fixSubmissionTeam bs
+    hash = fixSubmissionCommitHash bs
     filter fp = case FilePath.splitDirectories fp of
       _:"build":_ -> True
       _           -> False
@@ -805,4 +866,43 @@ retrievePassedOptionalTests targetId = do
 
             return $ map E.unValue $ optionalTests <> optionalPerformanceTests
 
+getValidActiveBreaksAgainst fs = do
+    -- Get break, latest break fix submission against teamId.
+    --
+    --
+    --
+    -- Get latest breaks.
+
+    
+    -- Filter out valid == False || break/fix = success || filter result = ???
+    error "TODO"
+
+  where
+    teamId = fixSubmissionTeam fs
+    time = fixSubmissionTimestamp fs
+
+-- getLatestBreakFixSubmissions :: (MonadIO m, SqlSelect a b) => TeamContestId -> E.SqlPersistT m [(Entity BreakSubmission, Entity BreakFixSubmission)]
+-- getLatestBreakFixSubmissions tcId = do
+--     E.select $ E.from $ \(E.InnerJoin bs (E.LeftOuterJoin bfs bfs')) -> do
+--         -- Now assumes that BreakFixSubmissionId is monotonically increasing. 
+--         E.on ( E.just ( bfs E.^. BreakFixSubmissionId) E.<. bfs' E.?. BreakFixSubmissionId E.&&. E.just ( bfs E.^. BreakFixSubmissionFix) E.==. bfs' E.?. BreakFixSubmissionFix)
+--         E.on ( bs E.^. BreakSubmissionId E.==. bfs E.^. BreakFixSubmissionBreak)
+-- 
+--         E.where_ (
+--                 E.isNothing (bfs' E.?. BreakFixSubmissionId)
+--           -- E.&&. 
+--           )
+--         return 
+        
+    
+
+-- getLatestBuildSubmissions :: (MonadIO m, SqlSelect a b) => ContestId -> (E.SqlExpr (Entity TeamContest) -> E.SqlExpr (Entity BuildSubmission) -> E.SqlQuery a) -> E.SqlPersistT m [b]
+-- getLatestBuildSubmissions cId f = do
+--     E.select $ E.from $ \(E.InnerJoin tc (E.LeftOuterJoin bs bs')) -> do
+--         -- E.on ( E.just ( bs E.^. BuildSubmissionTimestamp) E.<. bs' E.?. BuildSubmissionTimestamp E.&&. E.just ( bs E.^. BuildSubmissionTeam) E.==. bs' E.?. BuildSubmissionTeam)
+--         -- Now assumes that BuildSubmissionId is monotonically increasing. 
+--         E.on ( E.just ( bs E.^. BuildSubmissionId) E.<. bs' E.?. BuildSubmissionId E.&&. E.just ( bs E.^. BuildSubmissionTeam) E.==. bs' E.?. BuildSubmissionTeam)
+--         E.on ( tc E.^. TeamContestId E.==. bs E.^. BuildSubmissionTeam)
+--         E.where_ ( tc E.^. TeamContestContest E.==. E.val cId E.&&. E.isNothing (bs' E.?. BuildSubmissionTeam) E.&&. tc E.^. TeamContestProfessional E.==. E.val False)
+--         f tc bs
 

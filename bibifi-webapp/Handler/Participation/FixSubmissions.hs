@@ -195,7 +195,8 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                 --             #{fixSubmissionName fs}
         
         -- Check if can rerun submission.
-        canRerun <- canRerunFixSubmission fs contest
+        -- canRerun <- canRerunFixSubmission fs contest
+        let canRerun = False -- JP: We need to be careful with rerunning fixes as this can cause race conditions. Maybe safe if we update timestamp.
         when canRerun $
             rerunW
 
