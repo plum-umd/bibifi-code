@@ -101,6 +101,7 @@ library
                      Handler.Participation.BuildSubmissions
                      Handler.Participation.BuildersCode
                      Handler.Participation.BreakSubmissions
+                     Handler.Participation.BreakSubmissions.Download
                      Handler.Participation.DownloadBuilder
                      Handler.Participation.FixSubmissions
                      Handler.PasswordReset

@@ -49,3 +49,10 @@ getBothTeams bsId f = do
         _ -> 
             return Nothing
     
+checkBreakSubmissionTeam tcId bsId = do
+    bs <- runDB $ get404 bsId
+    when (breakSubmissionTeam bs /= tcId && breakSubmissionTargetTeam bs /= Just tcId) $
+        notFound
+
+    return bs
+

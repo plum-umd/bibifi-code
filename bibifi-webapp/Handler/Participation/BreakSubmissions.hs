@@ -51,10 +51,14 @@ getParticipationBreakSubmissionsR tcId = runLHandler $
         |]
         againstW
 
+-- TODO: 
+-- Link to download.
+-- Show active status
+
 getParticipationBreakSubmissionR :: TeamContestId -> BreakSubmissionId -> Handler Html
 getParticipationBreakSubmissionR tcId bsId = undefined --FIXME
 {- runLHandler $ do
-    bs <- checkBreakSubmissionTeam tcId bsId
+    bs <- BreakSubmissions.checkBreakSubmissionTeam tcId bsId
     let victim = (breakSubmissionTargetTeam bs) == tcId
     Participation.layout Participation.BreakSubmissions tcId $ \userId teamcontest contest team -> do
         let status = (if victim then
@@ -506,17 +510,10 @@ canRerunBreakSubmission bs contest = undefined --FIXME
             return $ now <= contestBreakEnd contest
 -}
 
-checkBreakSubmissionTeam tcId bsId = do
-    bs <- runDB $ get404 bsId
-    when (breakSubmissionTeam bs /= tcId && breakSubmissionTargetTeam bs /= Just tcId) $
-        notFound
-
-    return bs
-
 postParticipationBreakSubmissionRerunR :: TeamContestId -> BreakSubmissionId -> Handler Html
 postParticipationBreakSubmissionRerunR tcId bsId = undefined -- FIXME
 {-runLHandler $ do
-    bs <- checkBreakSubmissionTeam tcId bsId
+    bs <- BreakSubmissions.checkBreakSubmissionTeam tcId bsId
     Participation.layout Participation.BreakSubmissions tcId $ \userId teamcontest contest team -> do
         ((res, widget), enctype) <- handlerToWidget $ runFormPost rerunForm
         case res of

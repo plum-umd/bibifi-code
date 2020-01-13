@@ -59,6 +59,7 @@
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId ParticipationBreakSubmissionR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/delete ParticipationBreakSubmissionDeleteR POST
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/dispute ParticipationBreakSubmissionDisputeR POST
+/participation/#TeamContestId/breaksubmission/#BreakSubmissionId/download ParticipationBreakSubmissionDownloadR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/rerun ParticipationBreakSubmissionRerunR POST
 /participation/#TeamContestId/fixsubmissions ParticipationFixSubmissionsR GET
 /participation/#TeamContestId/fixsubmission/#FixSubmissionId ParticipationFixSubmissionR GET
