@@ -25,12 +25,12 @@ import Network.SSH.Client.SimpleSSH
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.FilePath as FilePath
-import qualified System.Posix.Files as Files
+-- import qualified System.Posix.Files as Files
 import Yesod.Form.Fields (Textarea(..))
 
 import Cloud
 import Common
-import Core (keyToInt)
+-- import Core (keyToInt)
 import Core.Score
 import Core.SSH
 import Problem.Class
@@ -118,7 +118,7 @@ instance ProblemRunnerClass APIProblem where
                 -- Parse resOut.
                 return $ Aeson.decodeStrict' resOut
 
-    runBuildSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
+    runBuildSubmission (APIProblem (Entity _contestId _contest)) opts (Entity submissionId submission) = do
         -- Extract tests.
         let BuildTests coreTests performanceTests optionalTests = runnerBuildTests opts
 
@@ -153,7 +153,7 @@ instance ProblemRunnerClass APIProblem where
                 mapM_ (recordBuildResult submissionId) requiredResults
 
                 -- Store submission in db.
-                lift $ lift $ runDB $ do
+                _ <- lift $ lift $ runDB $ do
                     -- Delete old one if it exists.
                     deleteBy $ UniqueBuildSubmissionFile tcId
                     
@@ -216,7 +216,7 @@ instance ProblemRunnerClass APIProblem where
             breakSubmissionTarGz <- extractAndCompressBreakSubmission bs opts
 
             -- Store break submission in database.
-            lift $ runDB $ do
+            _ <- lift $ runDB $ do
                 -- Delete old one if it exists.
                 deleteBy $ UniqueBreakSubmissionFile bsId
 
@@ -356,7 +356,7 @@ instance ProblemRunnerClass APIProblem where
         --     breakDir = FilePath.joinPath [basePath, "repos", submitTeamIdS, "break", breakName]
         --     breakMakefile = FilePath.joinPath [breakDir, "Makefile"]
         --     targetTeamIdS = show $ keyToInt targetTeamId
-            submitTeamId = breakSubmissionTeam bs
+        --     submitTeamId = breakSubmissionTeam bs
         --     submitTeamIdS = show $ keyToInt submitTeamId
         --     breakName = Text.unpack $ breakSubmissionName submission
 
@@ -389,10 +389,10 @@ instance ProblemRunnerClass APIProblem where
         --             update submissionId [BreakSubmissionMessage =. msg, BreakSubmissionValid =. Just True]
 
 
-    runFixSubmission (APIProblem (Entity contestId _contest)) opts (Entity submissionId submission) = do
+    runFixSubmission (APIProblem (Entity _contestId _contest)) opts (Entity submissionId submission) = do
         
         -- Extract tests.
-        let BuildTests coreTests performanceTests optionalTests = runnerBuildTests opts
+        let BuildTests coreTests performanceTests _optionalTests = runnerBuildTests opts
 
         -- Delete any previous results.
         runDB $ deleteWhere [BreakFixSubmissionFix ==. Just submissionId]
@@ -866,7 +866,14 @@ retrievePassedOptionalTests targetId = do
 
             return $ map E.unValue $ optionalTests <> optionalPerformanceTests
 
+-- Get the valid, active breaks against the fixing team before the fix timestamp.
 getValidActiveBreaksAgainst fs = do
+    -- Get valid breaks.
+    breaks <- getValidBreaks teamId time
+
+    -- Filter out inactive breaks.
+    filterM (isActiveBreak . entityKey) breaks
+
     -- Get break, latest break fix submission against teamId.
     --
     --
@@ -874,12 +881,30 @@ getValidActiveBreaksAgainst fs = do
     -- Get latest breaks.
 
     
-    -- Filter out valid == False || break/fix = success || filter result = ???
-    error "TODO"
+    -- Filter out valid == False || break/fix = fail || fixed result = fixed
 
   where
     teamId = fixSubmissionTeam fs
     time = fixSubmissionTimestamp fs
+
+    isActiveBreak bsId = do
+        n <- E.select $ E.from $ \(E.InnerJoin bfs fs) -> do
+            E.on (bfs E.^. BreakFixSubmissionFix E.==. E.just (fs E.^. FixSubmissionId))
+            E.where_ (
+                    bfs E.^. BreakFixSubmissionBreak E.==. E.val bsId
+              E.&&. fs E.^. FixSubmissionResult E.==. E.just (E.val FixFixed)
+              E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakFailed
+              )
+            return $ fs E.^. FixSubmissionId
+
+        -- Fixed if there exists an accepted fix and the break failed.
+        return $ length n > 0
+
+    getValidBreaks teamId time = selectList [
+        BreakSubmissionValid ==. Just True
+      , BreakSubmissionTargetTeam ==. Just teamId
+      , BreakSubmissionTimestamp ==. time
+      ] [Asc BreakSubmissionTimestamp]
 
 -- getLatestBreakFixSubmissions :: (MonadIO m, SqlSelect a b) => TeamContestId -> E.SqlPersistT m [(Entity BreakSubmission, Entity BreakFixSubmission)]
 -- getLatestBreakFixSubmissions tcId = do
