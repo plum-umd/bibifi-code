@@ -184,6 +184,7 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                         <p class="form-control-static">
                             #{message}
                 ^{judgementW}
+            ^{breakFixesW}
             ^{buildOutputW}
             ^{deleteW}
         |] :: LWidget
@@ -212,6 +213,32 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                         Rerun
             |]
 
+        breakFixesW = do
+            bfs <- handlerToWidget $ runDB $ [lsql| select BreakFixSubmission.result, BreakSubmission.* from BreakFixSubmission inner join BreakSubmission on BreakFixSubmission.break == BreakSubmission.id where (BreakFixSubmission.fix == #{Just fsId}) order by BreakSubmission.id desc|]
+            let rows = mconcat $ map breakFixesRow bfs
+            [whamlet|
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                Break
+                            <th>
+                                Break result
+                    <tbody>
+                        ^{rows}
+            |]
+
+        breakFixesRow (res', Entity bsId break) = 
+            let res = prettyBreakResultVictim res' in
+            [whamlet|
+                <tr>
+                    <td>
+                        <a href="@{ParticipationBreakSubmissionR tcId bsId}">
+                            #{breakSubmissionName break}
+                    <td>
+                        #{res}
+            |]
+            
 postParticipationFixSubmissionRerunR :: TeamContestId -> FixSubmissionId -> Handler Html
 postParticipationFixSubmissionRerunR tcId fsId = runLHandler $ do
     fs <- checkFixSubmissionTeam tcId fsId
