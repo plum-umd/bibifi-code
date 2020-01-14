@@ -147,7 +147,7 @@ instance ProblemRunnerClass APIProblem where
                 uploadFolder session (runnerProblemDirectory opts) "/problem"
 
                 -- Map over tests.
-                let (requiredTests, optTests) = List.partition (isBuildTestRequired . fst) (coreTests <> performanceTests <> optionalTests)
+                let (requiredTests, optTests) = List.partition (isBuildTestRequired . fst) (coreTests <> optionalTests <> performanceTests)
                 portRef <- initialPort
                 requiredResults <- mapM (runBuildTest session portRef) requiredTests
                 mapM_ (recordBuildResult submissionId) requiredResults
@@ -164,11 +164,21 @@ instance ProblemRunnerClass APIProblem where
                 coreDoneRef `IO.writeIORef` True
 
                 -- Continue running optional tests.
-                -- TODO: We should stop once the first optional test fails. XXX
-                mapM_ (\test -> do
-                    result <- runBuildTest session portRef test 
-                    (recordBuildResult submissionId) result
-                  ) optTests
+                -- We stop once any optional test fails, so they must be inserted in the DB in correct order.
+                -- mapM_ (\test -> do
+                --     result <- runBuildTest session portRef test 
+                --     (recordBuildResult submissionId) result
+                --   ) optTests
+                foldM_ (\prevRes test -> 
+                    if prevRes then do
+                      result@(_,res) <- runBuildTest session portRef test 
+                      recordBuildResult submissionId result
+                      return $ buildResult res
+                    else do
+                      let result = BuildResult False (Just "A previous optional test did pass.") Nothing
+                      recordBuildResult submissionId (fst test, result)
+                      return False
+                  ) True optTests
 
 
 
