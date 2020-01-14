@@ -28,6 +28,7 @@ import qualified System.FilePath as FilePath
 -- import qualified System.Posix.Files as Files
 import Yesod.Form.Fields (Textarea(..))
 
+import BuildSubmissions (isActiveBreak)
 import Cloud
 import Common
 -- import Core (keyToInt)
@@ -969,19 +970,6 @@ getValidActiveBreaksAgainst fs = do
   where
     teamId = fixSubmissionTeam fs
     time = fixSubmissionTimestamp fs
-
-    isActiveBreak bsId = do
-        n <- E.select $ E.from $ \(E.InnerJoin bfs fs) -> do
-            E.on (bfs E.^. BreakFixSubmissionFix E.==. E.just (fs E.^. FixSubmissionId))
-            E.where_ (
-                    bfs E.^. BreakFixSubmissionBreak E.==. E.val bsId
-              E.&&. fs E.^. FixSubmissionResult E.==. E.just (E.val FixFixed)
-              E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakFailed
-              )
-            return $ fs E.^. FixSubmissionId
-
-        -- Fixed if there exists an accepted fix and the break failed.
-        return $ length n > 0
 
     getValidBreaks teamId time = selectList [
         BreakSubmissionValid ==. Just True

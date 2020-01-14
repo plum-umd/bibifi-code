@@ -2,6 +2,7 @@ module Submissions where
 
 import qualified Database.Esqueleto as E
 
+import BuildSubmissions (isActiveBreak)
 import Import
 import PostDependencyType
 
@@ -250,17 +251,29 @@ displayBreakSubmissionsTable contest viewer submissions = do
                             Disputed
                     |]
                 Nothing -> do
-                    -- Check if a non pending/rejected fix exists.
-                    fixs <- runDB $ E.select $ E.from $ \(E.InnerJoin f bf) -> do
-                        E.on (E.just (f E.^. FixSubmissionId) E.==. bf E.^. BreakFixSubmissionFix)
-                        E.where_ (bf E.^. BreakFixSubmissionBreak E.==. E.val bsId E.&&.
-                            (f E.^. FixSubmissionStatus E.==. E.val FixBuilt E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudging E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudged))
-                        return bf
-                    case fixs of
-                        [_a] ->
-                            return [shamlet|
-                                <span>
-                                    Submitted
-                            |]
-                        _ ->
-                            return dash
+                    active <- runDB $ isActiveBreak bsId
+                    if active then
+                        return [shamlet|
+                            <span .text-danger>
+                                Active
+                        |]
+                    else
+                        return [shamlet|
+                            <span .text-success>
+                                Fixed
+                        |]
+
+                    -- -- Check if a non pending/rejected fix exists.
+                    -- fixs <- runDB $ E.select $ E.from $ \(E.InnerJoin f bf) -> do
+                    --     E.on (E.just (f E.^. FixSubmissionId) E.==. bf E.^. BreakFixSubmissionFix)
+                    --     E.where_ (bf E.^. BreakFixSubmissionBreak E.==. E.val bsId E.&&.
+                    --         (f E.^. FixSubmissionStatus E.==. E.val FixBuilt E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudging E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudged))
+                    --     return bf
+                    -- case fixs of
+                    --     [_a] ->
+                    --         return [shamlet|
+                    --             <span>
+                    --                 Submitted
+                    --         |]
+                    --     _ ->
+                    --         return dash

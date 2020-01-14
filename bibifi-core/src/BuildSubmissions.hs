@@ -12,7 +12,7 @@ import Database.Esqueleto.Internal.Sql (SqlSelect)
 
 import Model
 import PostDependencyType
-    ( FixSubmissionResult(..))
+    ( FixSubmissionResult(..), BreakSubmissionResult(..))
 
 getLatestBuildSubmissions :: (MonadIO m, SqlSelect a b) => ContestId -> (E.SqlExpr (Entity TeamContest) -> E.SqlExpr (Entity BuildSubmission) -> E.SqlQuery a) -> E.SqlPersistT m [b]
 getLatestBuildSubmissions cId f = do
@@ -63,3 +63,19 @@ getLatestBuildOrFix teamId time = do
         (_, Just (Entity id _))  -> Right $ Right id -- (fixSubmissionCommitHash f, Just id)
         (Just (Entity id _), _)   -> Right $ Left id -- (buildSubmissionCommitHash b, Nothing)
         _                        -> Left "No valid target"
+
+-- JP: Should probably put this in a new module...
+isActiveBreak :: (MonadIO m) => Key BreakSubmission -> E.SqlPersistT m Bool
+isActiveBreak bsId = do
+    n <- E.select $ E.from $ \(E.InnerJoin bfs fs) -> do
+        E.on (bfs E.^. BreakFixSubmissionFix E.==. E.just (fs E.^. FixSubmissionId))
+        E.where_ (
+                bfs E.^. BreakFixSubmissionBreak E.==. E.val bsId
+          E.&&. fs E.^. FixSubmissionResult E.==. E.just (E.val FixFixed)
+          E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakFailed
+          )
+        return $ fs E.^. FixSubmissionId
+
+    -- Fixed if there exists an accepted fix and the break failed.
+    return $ length n == 0
+
