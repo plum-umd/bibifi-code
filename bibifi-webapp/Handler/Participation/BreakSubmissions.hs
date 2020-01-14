@@ -259,7 +259,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                         Submission ID
                     <div class="col-xs-9">
                         <p class="form-control-static">
-                            #{keyToInt bsId}
+                            #{keyToInt bsId} (<a href="@{ParticipationBreakSubmissionDownloadR tcId bsId}">Download</a>)
                 <div class="form-group">
                     <label class="col-xs-3 control-label">
                         Test name

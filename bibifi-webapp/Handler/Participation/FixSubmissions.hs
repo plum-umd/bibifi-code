@@ -27,12 +27,12 @@ getParticipationFixSubmissionsR tcId = runLHandler $
                 _ ->
                     displayFixSubmissionsTable False submissions
 
-            [whamlet|
-                <h3>
-                    Break submissions
-                <p>
-                    You can find break submissions in <a href="/static/doc/#{contestUrl contest}/fix.zip">this file</a>. There is folder for each team, which contains the break tests submitted by that team. 
-            |]
+            -- [whamlet|
+            --     <h3>
+            --         Break submissions
+            --     <p>
+            --         You can find break submissions in <a href="/static/doc/#{contestUrl contest}/fix.zip">this file</a>. There is folder for each team, which contains the break tests submitted by that team. 
+            -- |]
             clickableDiv
 
 checkFixSubmissionTeam tcId fsId = do
