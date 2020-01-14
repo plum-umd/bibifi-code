@@ -249,10 +249,46 @@ prettyBreakResultVictim s = case s of
         |]
     Just BreakFailed ->
         [shamlet|
-            <span class="text-danger">
+            <span class="text-success">
                 Break failed
         |]
         
+prettyBreakValid :: Maybe Bool -> Html
+prettyBreakValid s = case s of
+    Nothing ->
+        [shamlet|
+            <span>
+                &#8212;
+        |]
+    Just True ->
+        [shamlet|
+            <span class="text-success">
+                Break valid
+        |]
+    Just False ->
+        [shamlet|
+            <span class="text-danger">
+                Break invalid
+        |]
+
+prettyBreakValidVictim :: Maybe Bool -> Html
+prettyBreakValidVictim s = case s of
+    Nothing ->
+        [shamlet|
+            <span>
+                &#8212;
+        |]
+    Just True ->
+        [shamlet|
+            <span class="text-danger">
+                Break valid
+        |]
+    Just False ->
+        [shamlet|
+            <span class="text-success">
+                Break invalid
+        |]
+
 prettyFixStatus :: FixSubmissionStatus -> Html
 prettyFixStatus s = case s of 
     FixPending ->
