@@ -5,16 +5,15 @@ import qualified Database.Esqueleto as E
 import Import
 import PostDependencyType
 
-displayFixSubmissionsTable details submissions = return undefined --FIXME
-{- do
-    rows <- mapM row submissions
+displayFixSubmissionsTable details submissions = do
+    let rows = map row submissions
     [whamlet|
         <table class="table table-hover">
             <thead>
                 <tr>
                     ^{teamHeader}
                     <th>
-                        Fix name
+                        Fix commit
                     <th>
                         Timestamp
                     <th>
@@ -38,19 +37,19 @@ displayFixSubmissionsTable details submissions = return undefined --FIXME
         row (Entity sId s) = do
             let status = prettyFixStatus $ fixSubmissionStatus s
             let result = prettyFixResult $ fixSubmissionResult s
-            time <- lLift $ lift $ displayTime $ fixSubmissionTimestamp s
+            time <- displayTime $ fixSubmissionTimestamp s
             let team = if details then
-                    [whamlet'|
+                    [shamlet|
                         <td>
                             #{keyToInt $ fixSubmissionTeam s}
                     |]
                   else
                     mempty
-            return $ [whamlet'|
+            [whamlet|
               <tr .clickable href="@{ParticipationFixSubmissionR (fixSubmissionTeam s) sId}">
                   ^{team}
                   <td>
-                      #{fixSubmissionName s}
+                      #{fixSubmissionCommitHash s}
                   <td>
                       #{time}
                   <td>
@@ -58,7 +57,6 @@ displayFixSubmissionsTable details submissions = return undefined --FIXME
                   <td>
                       #{result}
             |]
--}
               
 -- displayBuildSubmissionsTable :: a -> b -> LMonadT l (WidgetT site IO) ()
 displayBuildSubmissionsTable details submissions = do
@@ -115,8 +113,7 @@ data BreakSubmissionViewer =
     | BreakSubmissionAttacker
     | BreakSubmissionVictim
 
-displayBreakSubmissionsTable contest viewer submissions = return undefined -- FIXME
-{- do
+displayBreakSubmissionsTable contest viewer submissions = do
     rows <- mapM (row viewer) submissions
     [whamlet|
         <table class="table table-hover">
@@ -132,8 +129,9 @@ displayBreakSubmissionsTable contest viewer submissions = return undefined -- FI
         -- row :: BreakSubmissionViewer -> (Entity BreakSubmission, Text) -> LWidget
         row BreakSubmissionVictim (Entity sId s, attacker) = do
             let status = prettyBreakStatusVictim $ breakSubmissionStatus s
-            let result = prettyBreakResultVictim $ breakSubmissionResult s
+            let result = prettyBreakValidVictim $ breakSubmissionValid s
             let bType = maybe dash prettyBreakType $ breakSubmissionBreakType s
+            let (Just targetTeamId) = breakSubmissionTargetTeam s
             fixStatus <- prettyFixStatus sId
             time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             now <- getCurrentTime
@@ -143,7 +141,7 @@ displayBreakSubmissionsTable contest viewer submissions = return undefined -- FI
                   else
                       dash
             return [whamlet'|
-              <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTargetTeam s) sId}">
+              <tr .clickable href="@{ParticipationBreakSubmissionR targetTeamId sId}">
                   <td>
                       #{name} (#{keyToInt sId})
                   <td>
@@ -162,7 +160,7 @@ displayBreakSubmissionsTable contest viewer submissions = return undefined -- FI
 
         row BreakSubmissionAttacker (Entity sId s, target) = do
             let status = prettyBreakStatus $ breakSubmissionStatus s
-            let result = prettyBreakResult $ breakSubmissionResult s
+            let result = prettyBreakValid $ breakSubmissionValid s
             time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             return [whamlet'|
                 <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTeam s) sId}">
@@ -180,7 +178,7 @@ displayBreakSubmissionsTable contest viewer submissions = return undefined -- FI
 
         row BreakSubmissionAdmin (Entity sId s, target) = do
             let status = prettyBreakStatus $ breakSubmissionStatus s
-            let result = prettyBreakResult $ breakSubmissionResult s
+            let result = prettyBreakValid $ breakSubmissionValid s
             time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             return [whamlet'|
                 <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTeam s) sId}">
@@ -253,11 +251,11 @@ displayBreakSubmissionsTable contest viewer submissions = return undefined -- FI
                     |]
                 Nothing -> do
                     -- Check if a non pending/rejected fix exists.
-                    fixs <- runDB $ E.select $ E.from $ \(E.InnerJoin f fb) -> do
-                        E.on (f E.^. FixSubmissionId E.==. fb E.^. FixSubmissionBugsFix)
-                        E.where_ (fb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&.
+                    fixs <- runDB $ E.select $ E.from $ \(E.InnerJoin f bf) -> do
+                        E.on (E.just (f E.^. FixSubmissionId) E.==. bf E.^. BreakFixSubmissionFix)
+                        E.where_ (bf E.^. BreakFixSubmissionBreak E.==. E.val bsId E.&&.
                             (f E.^. FixSubmissionStatus E.==. E.val FixBuilt E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudging E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudged))
-                        return fb
+                        return bf
                     case fixs of
                         [_a] ->
                             return [shamlet|
@@ -266,4 +264,3 @@ displayBreakSubmissionsTable contest viewer submissions = return undefined -- FI
                             |]
                         _ ->
                             return dash
--}

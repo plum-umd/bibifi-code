@@ -253,9 +253,9 @@ deleteFixSubmissionForm = renderBootstrap3 (BootstrapInlineForm) $ DeleteForm
     <$> pure ()
     <* bootstrapSubmit (BootstrapSubmit ("Delete"::Text) "btn btn-danger" [])
 
+-- JP: Does it make sense to let them delete fixes now?
 postParticipationFixSubmissionDeleteR :: TeamContestId -> FixSubmissionId -> Handler Html
-postParticipationFixSubmissionDeleteR tcId fsId = undefined -- FIXME
-{- runLHandler $ Participation.layout Participation.FixSubmissions tcId $ \userId teamContest contest team -> do
+postParticipationFixSubmissionDeleteR tcId fsId = runLHandler $ Participation.layout Participation.FixSubmissions tcId $ \userId teamContest contest team -> do
     ((res, widget), enctype) <- handlerToWidget $ runFormPost deleteFixSubmissionForm
     case res of
         FormFailure _msg -> 
@@ -273,7 +273,7 @@ postParticipationFixSubmissionDeleteR tcId fsId = undefined -- FIXME
                     else do
                         -- Check that it's during the "fix it" round.
                         now <- getCurrentTime
-                        if not development && (now < contestBreakStart contest || now > contestBreakEnd contest) then
+                        if not development && (now < contestBreakFixStart contest || now > contestBreakEnd contest) then
                             failureHandler
                         else
                             -- Check if team leader.
@@ -286,7 +286,7 @@ postParticipationFixSubmissionDeleteR tcId fsId = undefined -- FIXME
                                     failureHandler
                                 else do
                                     handlerToWidget $ runDB $ do
-                                        deleteWhere [FixSubmissionBugsFix ==. fsId]
+                                        deleteWhere [BreakFixSubmissionFix ==. Just fsId] -- [FixSubmissionBugsFix ==. fsId]
                                         delete fsId
                                     handlerToWidget $ rescoreFixRound $ teamContestContest teamContest
                                     setMessage [shamlet|
@@ -304,7 +304,6 @@ postParticipationFixSubmissionDeleteR tcId fsId = undefined -- FIXME
                         Could not delete fix submission.
             |]
             redirect $ ParticipationFixSubmissionR tcId fsId
--}
 
 -- Determines if we can rerun submission.
 canRerunFixSubmission fs contest = do

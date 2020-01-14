@@ -337,8 +337,8 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                         Rerun
             |]
         
-        mKeyToInt Nothing = "-"
-        mKeyToInt (Just x) = show $ keyToInt x
+        mKeyToInt Nothing = dash
+        mKeyToInt (Just x) = toHtml $ keyToInt x
 
 data DisputeBreakForm = DisputeBreakForm Textarea
 

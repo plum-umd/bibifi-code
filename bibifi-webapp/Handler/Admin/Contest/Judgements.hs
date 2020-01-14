@@ -69,8 +69,8 @@ getAdminContestJudgementsR url = runLHandler $ do
                             inner join BreakSubmission on TeamContest.id == BreakSubmission.targetTeam
                             left outer join BreakDispute on BreakDispute.break == BreakSubmission.id
                             where TeamContest.contest == #{cId}
-                                and (BreakDispute.id is not null)
-                        |] -- FIXME
+                                and (BreakSubmission.status == #{BreakJudging} or BreakSubmission.status == #{BreakJudged} or BreakDispute.id is not null)
+                        |] 
                     -- getLatestBreakSubmissions cId $ \tc bs -> do
                     --     E.where_ ( bs E.^. BreakSubmissionStatus E.==. E.val BreakJudging E.||. 
                     --         bs E.^. BreakSubmissionStatus E.==. E.val BreakJudged)
