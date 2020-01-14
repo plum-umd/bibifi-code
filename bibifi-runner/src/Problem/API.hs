@@ -164,6 +164,7 @@ instance ProblemRunnerClass APIProblem where
                 coreDoneRef `IO.writeIORef` True
 
                 -- Continue running optional tests.
+                -- TODO: We should stop once the first optional test fails. XXX
                 mapM_ (\test -> do
                     result <- runBuildTest session portRef test 
                     (recordBuildResult submissionId) result
@@ -205,7 +206,7 @@ instance ProblemRunnerClass APIProblem where
         runDB $ deleteWhere [BreakFixSubmissionBreak ==. bsId]
 
         -- Hack so that we can get the target submission id.
-        targetSubmissionIdRef <- IO.newIORef Nothing
+        targetSubmissionIdRef <- IO.newIORef (Nothing, mempty)
 
         resultE <- runErrorT $ do
             targetTeamId <- checkSubmissionRound2 contestId bsE
@@ -225,7 +226,12 @@ instance ProblemRunnerClass APIProblem where
 
             -- Get latest build or fix submission.
             (targetSubmissionId, targetSubmissionTarGz) <- getLatestBuildOrFixTarGz targetTeamId
-            IO.writeIORef targetSubmissionIdRef targetSubmissionId
+            subsequentFixes' <- lift $ runDB $ getSubsequentFixes targetTeamId targetSubmissionId
+            let subsequentFixes = Set.fromList $ fmap entityKey subsequentFixes'
+
+
+
+            IO.writeIORef targetSubmissionIdRef (targetSubmissionId, subsequentFixes)
             
 
         --     (breakTest :: JSONBreakTest) <- loadBreakSubmissionJSON submissionId breakJSONFile
@@ -258,10 +264,16 @@ instance ProblemRunnerClass APIProblem where
                 unless descriptionExists $
                     fail "description.txt does not exist."
 
-                runBreakTest session passedOptionalTests portRef remoteUsername remoteBreakDir breakTest
+                -- Run test.
+                res@(BreakResult success _) <- runBreakTest session passedOptionalTests portRef remoteUsername remoteBreakDir breakTest
+
+                -- If successful, run on subsequent fixes.
+                foldM_ (runSubsequentFixes session passedOptionalTests portRef remoteUsername remoteBreakDir breakTest) success subsequentFixes
+
+                return res
 
         -- Record result.
-        targetSubmissionId <- IO.readIORef targetSubmissionIdRef
+        (targetSubmissionId, subsequentFixes) <- IO.readIORef targetSubmissionIdRef
         case resultE of
             Left (BreakErrorSystem err) -> do
                 systemFail err
@@ -303,7 +315,7 @@ instance ProblemRunnerClass APIProblem where
             --         -- return $ Just ( True, False)
 
             Right (BreakResult True _) -> runDB $ do
-                runUnlessNewFix targetSubmissionId $ do
+                runUnlessNewFix targetSubmissionId subsequentFixes $ do
                     -- TODO: Email target team.
                     insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
                     runIfStillValid $
@@ -311,7 +323,57 @@ instance ProblemRunnerClass APIProblem where
                     return $ Just ( True, True)
 
         where
-            runUnlessNewFix oldTargetSubmissionId m = do
+            breakTime = breakSubmissionTimestamp bs
+
+            runSubsequentFixes _ _ _ _ _ _ False _ = return False
+            runSubsequentFixes session passedOptionalTests portRef remoteUsername remoteBreakDir breakTest True fsId = do
+                -- Get fix tar.
+                fixTar <- do
+                    f <- lift $ lift $ runDB $ getBy $ UniqueFixSubmissionFile fsId
+                    case f of
+                        Nothing ->
+                            fail "Subsequent fix submission does not exist."
+                        Just (Entity _ f) ->
+                            return $ fixSubmissionFileFile f
+
+                -- Delete old submission on VM.
+                deleteBuilderSubmissionDirectory session
+
+                -- Upload and compile fix.
+                uploadAndCompileBuilderSubmissionBreak session fixTar
+
+                -- Run break test.
+                (BreakResult success _) <- runBreakTest session passedOptionalTests portRef remoteUsername remoteBreakDir breakTest
+
+                -- Record result.
+                let breakRes = if success then BreakSucceeded else BreakFailed
+                lift $ lift $ runDB $ insert_ $ BreakFixSubmission bsId (Just fsId) breakRes
+
+                -- Return result.
+                return success
+
+            -- Return all subsequent fixed fixes.
+            getSubsequentFixes targetTeamId Nothing =
+                selectList [
+                      FixSubmissionTimestamp >=. breakTime
+                    , FixSubmissionResult ==. Just FixFixed
+                    , FixSubmissionTeam ==. targetTeamId
+                    ]
+                    [ Asc FixSubmissionTimestamp
+                    , Asc FixSubmissionId
+                    ]
+            getSubsequentFixes targetTeamId (Just targetSubmissionId) =
+                selectList [
+                      FixSubmissionTimestamp >=. breakTime
+                    , FixSubmissionResult ==. Just FixFixed
+                    , FixSubmissionTeam ==. targetTeamId
+                    , FixSubmissionId !=. targetSubmissionId
+                    ]
+                    [ Asc FixSubmissionTimestamp
+                    , Asc FixSubmissionId
+                    ]
+
+            runUnlessNewFix oldTargetSubmissionId oldSubsequentFixes m = do
                 needRerun <- do
                     case breakSubmissionTargetTeam bs of
                         Nothing ->
@@ -323,7 +385,12 @@ instance ProblemRunnerClass APIProblem where
                                     return True
                                 Right e ->
                                     let newTargetSubmissionId = either (const Nothing) Just e in
-                                    return $ newTargetSubmissionId == oldTargetSubmissionId
+                                    if newTargetSubmissionId /= oldTargetSubmissionId then
+                                        return True
+                                    else do
+                                        newSubsequentFixes' <- getSubsequentFixes targetTeamId oldTargetSubmissionId
+                                        let newSubsequentFixes = Set.fromList $ fmap entityKey newSubsequentFixes'
+                                        return $ oldSubsequentFixes /= newSubsequentFixes
 
                 if needRerun then
                     m
@@ -706,6 +773,12 @@ downloadFromGitLab :: Text -> Text -> FilePath.FilePath -> IO ()
 -- Download the file at given commit hash and url and save to the specified location
 downloadFromGitLab hash url dst = undefined
 -}
+
+deleteBuilderSubmissionDirectory session = do
+    (Result _ _ _exit) <- runSSH (strMsg "Could not delete test directory.") $ execCommand session "sudo -i -u builder rm -rf /home/builder/submission"
+    -- when (exit /= ExitSuccess) $
+    --     fail "Could not delete test directory."
+    return ()
 
 uploadAndCompileBuilderSubmissionBuild = uploadAndCompileBuilderSubmission $ \stderr stdout -> throwError $ BuildFail stderr stdout
 uploadAndCompileBuilderSubmissionBreak = uploadAndCompileBuilderSubmission $ \_ _ -> fail "Building target failed"
