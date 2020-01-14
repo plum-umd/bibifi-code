@@ -315,6 +315,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                         <p class="form-control-static">
                             #{message}
                 ^{judgementW}
+            ^{breakFixesW victim}
             ^{buildOutputW}
             ^{disputeW}
             ^{deleteW}
@@ -326,6 +327,32 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
             rerunWidget bs
 
     where
+
+        breakFixesW victim = do
+            bfs <- handlerToWidget $ runDB $ [lsql| select BreakFixSubmission.result, FixSubmission.commitHash from BreakFixSubmission left outer join FixSubmission on BreakFixSubmission.fix == FixSubmission.id where (BreakFixSubmission.break == #{bsId}) order by FixSubmission.id desc|]
+            let rows = mconcat $ map (breakFixesRow victim) bfs
+            [whamlet|
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                Fix commit hash
+                            <th>
+                                Break result
+                    <tbody>
+                        ^{rows}
+            |]
+
+        breakFixesRow victim (res', commitM) = 
+            let res = if victim then prettyBreakResultVictim res' else prettyBreakResult res' in
+            [whamlet|
+                <tr>
+                    <td>
+                        #{maybe dash toHtml commitM}
+                    <td>
+                        #{res}
+            |]
+            
         rerunWidget bs = do
             ( widget, enctype) <- handlerToWidget $ generateFormPost rerunForm
             [whamlet|

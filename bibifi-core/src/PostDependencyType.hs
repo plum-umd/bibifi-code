@@ -217,37 +217,37 @@ prettyBreakStatusVictim s =
             #{txt}
     |]
         
-prettyBreakResult :: Maybe BreakSubmissionResult -> Html
+prettyBreakResult :: BreakSubmissionResult -> Html
 prettyBreakResult s = case s of
-    Nothing ->
-        [shamlet|
-            <span>
-                &#8212;
-        |]
-    Just BreakSucceeded ->
+    -- Nothing ->
+    --     [shamlet|
+    --         <span>
+    --             &#8212;
+    --     |]
+    BreakSucceeded ->
         [shamlet|
             <span class="text-success">
                 Break succeeded
         |]
-    Just BreakFailed ->
+    BreakFailed ->
         [shamlet|
             <span class="text-danger">
                 Break failed
         |]
         
-prettyBreakResultVictim :: Maybe BreakSubmissionResult -> Html
+prettyBreakResultVictim :: BreakSubmissionResult -> Html
 prettyBreakResultVictim s = case s of
-    Nothing ->
-        [shamlet|
-            <span>
-                &#8212;
-        |]
-    Just BreakSucceeded ->
+    -- Nothing ->
+    --     [shamlet|
+    --         <span>
+    --             &#8212;
+    --     |]
+    BreakSucceeded ->
         [shamlet|
             <span class="text-danger">
                 Break succeeded
         |]
-    Just BreakFailed ->
+    BreakFailed ->
         [shamlet|
             <span class="text-success">
                 Break failed
