@@ -77,7 +77,7 @@ main = do
         loadBuildTests contestId = do
             -- Retrieve tests from database.
             coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
-            performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId] []
+            performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId] [Asc ContestPerformanceTestId]
             optionalTests' <- runDB $ selectList [ContestOptionalTestContest ==. contestId] [Asc ContestOptionalTestId]
 
             testsE <- runErrorT $ do
