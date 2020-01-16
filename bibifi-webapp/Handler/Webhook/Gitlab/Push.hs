@@ -24,7 +24,7 @@ import qualified GitLab as Gitlab
 --import GitLab.Types as GT
 import qualified GitLab.API.RepositoryFiles as Gitlab
 import PostDependencyType (BreakType)
-import System.FilePath.Posix (splitPath)
+import System.FilePath.Posix (splitDirectories)
 
 postWebhookGitlabPushR :: TeamContestId -> Text -> Handler ()
 -- Handles Gitlab push notification.
@@ -72,6 +72,7 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
     handleBreaks = do
         gitConfig <- appGitConfig <$> getYesod
         forM_ (addedTests ++ modifiedTests) $ \(path, name) -> do
+            -- JP: Do we need to check if name is valid/contains bad characters? What about casing?
             runDB $ do
                 oldBreaks <- selectList [BreakSubmissionTeam ==. tcId, BreakSubmissionName ==. name] []
                 forM_ oldBreaks $ \(Entity id _) -> do
@@ -107,8 +108,8 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
     addedTests = testCases added
     modifiedTests = testCases modified
     testCases ps = [(p,n) | (p,Just n) <- zip ps (map testName ps)]
-    testName p = case reverse (splitPath p) of
-        "test.json":name:"break/":_ -> Just (pack name)
+    testName p = case reverse (splitDirectories p) of
+        "test.json":name:"break":_ -> Just (pack name)
         _                           -> Nothing
 
     insertErrorBuild msg = insert_ $
