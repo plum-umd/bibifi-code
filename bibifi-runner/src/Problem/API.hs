@@ -277,7 +277,7 @@ instance ProblemRunnerClass APIProblem where
                 -- Make sure break submission description exists.
                 descriptionExists <- remoteFileExists session remoteUsername $ remoteBreakDir <> "description.txt"
                 unless descriptionExists $
-                    fail "description.txt does not exist."
+                    throwError $ BreakErrorRejected "description.txt does not exist."
 
                 -- Run test.
                 res@(BreakResult success _) <- runBreakTest session passedOptionalTests portRef remoteUsername remoteBreakDir breakTest
