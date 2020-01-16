@@ -12,7 +12,7 @@ import Database.Esqueleto.Internal.Sql (SqlSelect)
 
 import Model
 import PostDependencyType
-    ( FixSubmissionResult(..), BreakSubmissionResult(..))
+    ( FixSubmissionResult(..), BreakSubmissionResult(..), BuildSubmissionStatus(..))
 
 getLatestBuildSubmissions :: (MonadIO m, SqlSelect a b) => ContestId -> (E.SqlExpr (Entity TeamContest) -> E.SqlExpr (Entity BuildSubmission) -> E.SqlQuery a) -> E.SqlPersistT m [b]
 getLatestBuildSubmissions cId f = do
@@ -70,7 +70,24 @@ getLatestBuildOrFix teamId time = do
         (Just (Entity id _), _)   -> Right $ Left id -- (buildSubmissionCommitHash b, Nothing)
         _                        -> Left "No valid target"
 
+-- isValidBreakTeam :: ContestId -> TeamContestId -> DatabaseM Bool
+-- Builder team qualified for breakit?
+isQualifiedBuilderTeam :: MonadIO m => Entity Contest -> Key TeamContest -> ReaderT E.SqlBackend m Bool
+isQualifiedBuilderTeam (Entity contestId contest) targetTeamId = do
+    bsId <- selectFirst [BuildSubmissionTeam ==. targetTeamId, BuildSubmissionTimestamp <=. contestBuildEnd contest] [Desc BuildSubmissionId]
+    case bsId of
+        Just (Entity bsId bs) | qualifiedBuildSubmission bs -> do
+            buildSubmissionPassesRequiredTests contestId bsId
+        _ ->
+            return False
+  
+  where
+    qualifiedBuildSubmission bs = 
+        let st = buildSubmissionStatus bs in
+        st == BuildBuilt
+
 -- JP: Should probably put this in a new module...
+-- Assumes the break is valid.
 isActiveBreak :: (MonadIO m) => Key BreakSubmission -> E.SqlPersistT m Bool
 isActiveBreak bsId = do
     n <- E.select $ E.from $ \(E.InnerJoin bfs fs) -> do
