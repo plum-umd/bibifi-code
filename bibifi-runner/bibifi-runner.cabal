@@ -112,7 +112,7 @@ executable runner
                      , tar
                      , temporary
                      , text
-                     , time
+                     , time == 1.9.3
                      , transformers
                      , transformers-base
                      , unix

@@ -10,12 +10,15 @@ import Data.Hashable
 import qualified Data.HashMap as M
 -- import qualified Data.Function as F
 import qualified Data.List as L
+import Data.Maybe
 import qualified Data.Set as S
-import Data.Time
+import Data.Time.Clock
 import qualified Database.Esqueleto as E
 import Database.Persist
 import Model
 import PostDependencyType
+
+import Problem.Shared
 
 -- startScore = -1000.0
 -- baselineScore = 100.0
@@ -311,6 +314,107 @@ isBreakCrash :: BreakSubmission -> Bool
 isBreakCrash submission =
     let breakTypeM = breakSubmissionBreakType submission in
     breakTypeM == Just BreakCrash
+
+defaultScoreBreakFixRound :: Entity Contest -> UTCTime -> DatabaseM ()
+defaultScoreBreakFixRound (Entity cId c) now = do
+    error "TODO"
+
+--     -- Get all qualified builder teams.
+--     builderTeams <- runDB $ getQualifiedBuilders cId
+-- 
+--     -- Map TeamContestId (BreakGained, BreakLost, BuildLost, BuildGained)
+--     let scores' = mempty
+-- 
+--     -- Fold over each team.
+--     scores <- foldM (scoreTeam now) scores' builderTeams
+-- 
+--     -- Record scores.
+--     error "TODO"
+--     
+--   where
+--     -- getQualifiedBuilders :: ContestId -> DatabaseM [TeamContestId]
+--     getQualifiedBuilders cId = do
+--         teams <- fmap entityKey <$> selectList [TeamContestContest ==. cId] []
+--         filterM (isQualifiedBuilderTeam cId) teams
+-- 
+--     scoreTeam now scores' targetTeamId = do
+--         -- Get all valid, accepted breaks against the team (in ascending ordered).
+--         validBreaks <- runDB $ getValidBreaks targetTeamId now
+-- 
+--         -- Map (Maybe (FixId, Timestamp)) [Entity BreakSubmission]
+--         resM' <- foldM (\acc bsE@(Entity bsId bs) -> do
+--             -- Get all break fix submission for each break inner joined with fix submissions, ordered by fix timestamp, fix id, before now.
+--             fs <- runDB $ E.select $ E.from $ \(bfs `E.InnerJoin` fs) -> do
+--                 E.on (bfs E.^. BreakFixSubmissionFix E.==. E.just (fs E.^. FixSubmissionId))
+--                 E.where_ (
+--                         bfs E.^. BreakFixSubmissionBreak E.==. E.val bsId
+--                   E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakSucceeded
+--                   E.&&. fs E.^. FixSubmissionTimestamp E.<=. E.val now
+--                   )
+--                 E.orderBy [E.asc (fs E.^. FixSubmissionTimestamp), E.asc (fs E.^. FixSubmissionId)]
+--                 return fs
+-- 
+--             -- Grab the first accepted fix.
+--             let fM = (\(Entity fsId fs) -> (fsId, fixSubmissionTimestamp fs)) <$> listToMaybe fs
+--             
+--             -- Group these breaks by the fix that fixed it (or not fixed)
+--             return $ M.insertWith (++) fM [bsE]
+--           ) mempty validBreaks
+-- 
+--         -- Reverse breaks so they're in the right order.
+--         let resM = L.reverse <$> resM'
+-- 
+-- 
+--         -- Sort by timestamp + allocate/remove points.
+--         -- Cap end time to fix round end date.
+--         return $ M.foldWithKey (\fixM breaks scores'' ->
+--             let endTime = maybe capTime snd fixM in
+--             let scores' = scoreBreakIt scores'' endTime breaks in
+-- 
+--             error "TODO"
+--             -- scoreFixIt scores' 
+-- 
+-- 
+-- 
+-- 
+--             -- let startTime = snd $ L.head breaks in -- There should always be at least one break.
+-- 
+--             -- L.foldl' (\(correctnessC, crashC, securityC) (Entity bsId bs) -> 
+--             --   
+--             --   ) (0,0,0) breaks
+--           
+--           ) scores' resM
+--     
+--     capTime = min now (contestFixEnd c)
+
+
+-- scoreBreakIt scores' _ [] = scores'
+-- scoreBreakIt scores' endTime ((Entity _ bs):breaks) = 
+--     let m = breakTypeToM (breakSubmissionBreakType bs) in
+--     let diff = scoreOverTime m (breakSubmissionTimestamp bs) endTime in
+-- 
+--     error "TODO"
+-- 
+-- 
+-- scoreOverTime :: Double -> UTCTime -> UTCTime -> Double
+-- scoreOverTime m startTime endTime 
+--   | endTime `diffUTCTime` startTime < fromInteger bufferTime = m
+--   | otherwise = (fromInteger $ nominalDiffTimeToSeconds $ endTime `diffUTCTime` startTime) / fromInteger bufferTime * m
+
+-- 24 hours
+-- bufferTime = secondsToNominalDiffTime $ 24 * 60 * 60
+bufferTime :: Integer
+bufferTime = 24 * 60 * 60
+
+
+
+breakTypeToM (Just BreakCorrectness)     = 25
+breakTypeToM (Just BreakCrash)           = 50
+breakTypeToM (Just BreakConfidentiality) = 100
+breakTypeToM (Just BreakIntegrity)       = 100
+breakTypeToM (Just BreakAvailability)    = 100
+breakTypeToM (Just BreakSecurity)        = 100
+        
 
 defaultScoreBreakRound :: ContestId -> DatabaseM ()
 defaultScoreBreakRound cId = error "TODO"

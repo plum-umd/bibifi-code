@@ -526,10 +526,10 @@ instance ProblemRunnerClass APIProblem where
                 -- Store submission in db.
                 _ <- lift $ lift $ runDB $ do
                     -- Delete old one if it exists.
-                    deleteBy $ UniqueFixSubmissionFile fsId
+                    deleteBy $ UniqueFixSubmissionFile submissionId
 
                     -- Insert new one.
-                    insertUnique $ FixSubmissionFile fsId submissionTarGz
+                    insertUnique $ FixSubmissionFile submissionId submissionTarGz
 
                 -- Retrieve list of passed build tests.
                 passedOptionalTests <- retrievePassedOptionalTests teamId
@@ -978,12 +978,6 @@ getValidActiveBreaksAgainst fs = do
   where
     teamId = fixSubmissionTeam fs
     time = fixSubmissionTimestamp fs
-
-    getValidBreaks teamId time = selectList [
-        BreakSubmissionValid ==. Just True
-      , BreakSubmissionTargetTeam ==. Just teamId
-      , BreakSubmissionTimestamp ==. time
-      ] [Asc BreakSubmissionTimestamp]
 
 -- getLatestBreakFixSubmissions :: (MonadIO m, SqlSelect a b) => TeamContestId -> E.SqlPersistT m [(Entity BreakSubmission, Entity BreakFixSubmission)]
 -- getLatestBreakFixSubmissions tcId = do
