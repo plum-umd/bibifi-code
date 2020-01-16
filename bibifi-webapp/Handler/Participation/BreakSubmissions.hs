@@ -207,7 +207,8 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
         -- Delete widget.
         deleteW <- do
             -- Check that not on victim team, and it's during the break it round.
-            if not development && (victim || now < contestBreakFixStart contest || now > contestBreakEnd contest) then
+            -- if not development && (victim || now < contestBreakFixStart contest || now > contestBreakEnd contest) then
+            if True then
                 return mempty
               else 
                 -- Check if team leader.
