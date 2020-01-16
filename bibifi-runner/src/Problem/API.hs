@@ -213,7 +213,7 @@ instance ProblemRunnerClass APIProblem where
             tcId = buildSubmissionTeam submission
 
 
-    runBreakSubmission (APIProblem (Entity contestId _contest)) opts bsE@(Entity bsId bs) = do
+    runBreakSubmission (APIProblem contestE) opts bsE@(Entity bsId bs) = do
         -- Delete any previous break fix submissions.
         runDB $ deleteWhere [BreakFixSubmissionBreak ==. bsId]
 
@@ -221,7 +221,7 @@ instance ProblemRunnerClass APIProblem where
         targetSubmissionIdRef <- IO.newIORef (Nothing, mempty)
 
         resultE <- runErrorT $ do
-            targetTeamId <- checkSubmissionRound2 contestId bsE
+            targetTeamId <- checkSubmissionRound2 contestE bsE
 
             unless (Text.all (\c -> Char.isAscii c && (Char.isAlpha c || Char.isDigit c || c == '-' || c == '_')) $ breakSubmissionName bs) $
                 throwError $ BreakErrorRejected "Test names can only contain characters, numbers, dashes, and underscores."

@@ -9,6 +9,7 @@ import Data.Ord
 import Data.Time (addUTCTime, NominalDiffTime)
 import qualified Database.Esqueleto as E
 
+import BuildSubmissions (isQualifiedBuilderTeam)
 import Import
 import PostDependencyType
 
@@ -37,7 +38,7 @@ isExpired key period = do
 buildersCode contestId direction tcId = 
     let updateCache = runDB $ do
           -- Query inspired from: http://stackoverflow.com/questions/8748986/get-records-with-highest-smallest-whatever-per-group/8749095#8749095
-          builderScores <- E.select $ E.from $ \( tc `E.InnerJoin` (tbs `E.LeftOuterJoin` tbs')) -> do
+          builderScores' <- E.select $ E.from $ \( tc `E.InnerJoin` (tbs `E.LeftOuterJoin` tbs')) -> do
             E.on ( E.just (tbs E.^. TeamBuildScoreTeam) E.==. tbs' E.?. TeamBuildScoreTeam E.&&. E.just (tbs E.^. TeamBuildScoreTimestamp) E.<. tbs' E.?. TeamBuildScoreTimestamp)
             E.on ( tc E.^. TeamContestId E.==. tbs E.^. TeamBuildScoreTeam)
             E.where_ ( tc E.^. TeamContestContest E.==. E.val contestId E.&&. E.isNothing (tbs' E.?. TeamBuildScoreTeam) E.&&. tc E.^. TeamContestProfessional E.==. E.val False)
@@ -45,6 +46,11 @@ buildersCode contestId direction tcId =
             return tbs
           -- Delete old cache. Not sure if this is the best way to do this...
           deleteWhere [CacheBuildersCodeContestId ==. contestId]
+
+          -- Filter qualified build teams.
+          contest <- get404 contestId
+          builderScores <- filterM (isQualifiedBuilderTeam (Entity contestId contest) . teamBuildScoreTeam . entityVal) builderScores'
+
           -- Iterate over new builder scores, updating accordingly. 
           mapM_ (\(Entity _ (TeamBuildScore teamId tbsBS tbsRS tbsFS _)) -> 
                 -- Filter out teams that don't make it pass the first round.

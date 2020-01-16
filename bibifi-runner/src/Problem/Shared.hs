@@ -30,24 +30,14 @@ import Common
 --import Core.Modular.Class
 import Problem.Class
 
--- isValidBreakTeam :: ContestId -> TeamContestId -> DatabaseM Bool
--- Builder team qualified for breakit?
-isQualifiedBuilderTeam contestId targetTeamId = do
-    bsId <- selectFirst [BuildSubmissionTeam ==. targetTeamId] [Desc BuildSubmissionId]
-    case bsId of
-        Just (Entity bsId _) -> do
-            buildSubmissionPassesRequiredTests contestId bsId
-        Nothing ->
-            return False
-
 getValidBreaks teamId time = selectList [
     BreakSubmissionValid ==. Just True
   , BreakSubmissionTargetTeam ==. Just teamId
   , BreakSubmissionTimestamp ==. time
   ] [Asc BreakSubmissionTimestamp, Asc BreakSubmissionId]
 
-checkSubmissionRound2 :: ContestId -> Entity BreakSubmission -> ErrorT BreakError DatabaseM TeamContestId
-checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $ case targetteamid of
+checkSubmissionRound2 :: Entity Contest -> Entity BreakSubmission -> ErrorT BreakError DatabaseM TeamContestId
+checkSubmissionRound2 contestE@(Entity contestId _) (Entity bsId bs) = checkSubmissionLimit $ case targetteamid of
     Nothing ->
         reject "Invalid target team. No target team given."
     Just targetteamid ->
@@ -61,7 +51,7 @@ checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $ case t
                 Just tt | teamContestContest tt /= contestId -> do
                     reject "Invalid target team. Not in this contest."
                 Just _ -> do
-                    validBreakTeam <- lift $ runDB $ isQualifiedBuilderTeam contestId targetteamid
+                    validBreakTeam <- lift $ runDB $ isQualifiedBuilderTeam contestE targetteamid
                         
                     if not validBreakTeam then
                         reject "Invalid target team."
