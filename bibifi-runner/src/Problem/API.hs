@@ -223,7 +223,7 @@ instance ProblemRunnerClass APIProblem where
             targetTeamId <- checkSubmissionRound2 contestId bsE
 
             -- Disallow correctness...
-            when (breakSubmissionType == Just BreakCorrectness) $ 
+            when (breakSubmissionBreakType bs == Just BreakCorrectness) $ 
                 fail "Correctness bugs are not allowed."
 
             -- let breakArchiveLocation = teamSubmissionLocation opts submitTeamId $ breakSubmissionCommitHash bs
@@ -530,10 +530,10 @@ instance ProblemRunnerClass APIProblem where
                 -- Store submission in db.
                 _ <- lift $ lift $ runDB $ do
                     -- Delete old one if it exists.
-                    deleteBy $ UniqueFixSubmissionFile fsId
+                    deleteBy $ UniqueFixSubmissionFile submissionId
 
                     -- Insert new one.
-                    insertUnique $ FixSubmissionFile fsId submissionTarGz
+                    insertUnique $ FixSubmissionFile submissionId submissionTarGz
 
                 -- Retrieve list of passed build tests.
                 passedOptionalTests <- retrievePassedOptionalTests teamId
