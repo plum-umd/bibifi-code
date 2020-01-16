@@ -249,6 +249,17 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                   toHtml $ breakSubmissionName bs 
               else
                   dash
+
+        breakDownloadW <- do
+            exists <- (> 0) <$> (handlerToWidget $ runDB $ count [BreakSubmissionFileBreak ==. bsId])
+            return $ if exists then
+                [whamlet'|
+                            #{keyToInt bsId} (<a href="@{ParticipationBreakSubmissionDownloadR tcId bsId}">Download</a>)
+                |]
+            else
+                [whamlet'|
+                            #{keyToInt bsId} (Download not available yet)
+                |]
         [whamlet|
             <a href="@{ParticipationBreakSubmissionsR tcId}" type="button" class="btn btn-primary">
                 Back
@@ -260,7 +271,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                         Submission ID
                     <div class="col-xs-9">
                         <p class="form-control-static">
-                            #{keyToInt bsId} (<a href="@{ParticipationBreakSubmissionDownloadR tcId bsId}">Download</a>)
+                            ^{breakDownloadW}
                 <div class="form-group">
                     <label class="col-xs-3 control-label">
                         Test name
