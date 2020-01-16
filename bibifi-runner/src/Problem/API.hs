@@ -983,12 +983,6 @@ getValidActiveBreaksAgainst fs = do
     teamId = fixSubmissionTeam fs
     time = fixSubmissionTimestamp fs
 
-    getValidBreaks teamId time = selectList [
-        BreakSubmissionValid ==. Just True
-      , BreakSubmissionTargetTeam ==. Just teamId
-      , BreakSubmissionTimestamp ==. time
-      ] [Asc BreakSubmissionTimestamp]
-
 -- getLatestBreakFixSubmissions :: (MonadIO m, SqlSelect a b) => TeamContestId -> E.SqlPersistT m [(Entity BreakSubmission, Entity BreakFixSubmission)]
 -- getLatestBreakFixSubmissions tcId = do
 --     E.select $ E.from $ \(E.InnerJoin bs (E.LeftOuterJoin bfs bfs')) -> do

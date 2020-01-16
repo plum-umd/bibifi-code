@@ -25,6 +25,12 @@ getLatestBuildSubmissions cId f = do
         f tc bs
 
 buildSubmissionPassesRequiredTests :: (MonadIO m) => ContestId -> BuildSubmissionId -> ReaderT E.SqlBackend m Bool
+-- buildSubmissionPassesRequiredTests :: (PersistQueryRead backend,
+--      MonadIO m, BackendCompatible E.SqlBackend backend,
+--      PersistUniqueRead backend,
+--      BaseBackend backend ~ E.SqlBackend) =>
+--     Key Contest -> Key BuildSubmission -> ReaderT backend m Bool
+-- buildSubmissionPassesRequiredTests :: (MonadIO m, BaseBackend backend ~ E.SqlBackend, BackendCompatible E.SqlBackend backend, PersistUniqueRead backend, PersistQueryRead backend) => ContestId -> BuildSubmissionId -> ReaderT backend m Bool
 buildSubmissionPassesRequiredTests cId bsId = do
     -- Total number of required tests
     numCoreTests <- count [ContestCoreTestContest ==. cId]

@@ -30,6 +30,22 @@ import Common
 --import Core.Modular.Class
 import Problem.Class
 
+-- isValidBreakTeam :: ContestId -> TeamContestId -> DatabaseM Bool
+-- Builder team qualified for breakit?
+isQualifiedBuilderTeam contestId targetTeamId = do
+    bsId <- selectFirst [BuildSubmissionTeam ==. targetTeamId] [Desc BuildSubmissionId]
+    case bsId of
+        Just (Entity bsId _) -> do
+            buildSubmissionPassesRequiredTests contestId bsId
+        Nothing ->
+            return False
+
+getValidBreaks teamId time = selectList [
+    BreakSubmissionValid ==. Just True
+  , BreakSubmissionTargetTeam ==. Just teamId
+  , BreakSubmissionTimestamp ==. time
+  ] [Asc BreakSubmissionTimestamp, Asc BreakSubmissionId]
+
 checkSubmissionRound2 :: ContestId -> Entity BreakSubmission -> ErrorT BreakError DatabaseM TeamContestId
 checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $ case targetteamid of
     Nothing ->
@@ -45,13 +61,8 @@ checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $ case t
                 Just tt | teamContestContest tt /= contestId -> do
                     reject "Invalid target team. Not in this contest."
                 Just _ -> do
-                    validBreakTeam <- lift $ runDB $ do
-                        bsId <- selectFirst [BuildSubmissionTeam ==. targetteamid] [Desc BuildSubmissionId]
-                        case bsId of
-                            Just (Entity bsId _) -> do
-                                buildSubmissionPassesRequiredTests contestId bsId
-                            Nothing ->
-                                return False
+                    validBreakTeam <- lift $ runDB $ isQualifiedBuilderTeam contestId targetteamid
+                        
                     if not validBreakTeam then
                         reject "Invalid target team."
                     else
@@ -449,21 +460,21 @@ runJSONBreakTest session targetDestFile oracleDestFile breakTest = do
           JSONBreakCrashTest v -> v
           JSONBreakSecurityTest v -> v
             
-verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
-    where
-        helper acc bsE@(Entity bsId bs) = undefined {-FIXME-} {-do
-            fixes <- lift $ runDB $ E.select $ E.from $ \(fs `E.InnerJoin` fsb) -> do
-                E.on (fs E.^. FixSubmissionId E.==. fsb E.^. FixSubmissionBugsFix)
-                E.where_ (fsb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&. (fs E.^. FixSubmissionStatus E.!=. E.val FixRejected E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixBuildFail E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixInvalidBugId))
-                return fsb -- TODO: E.countRows
-            when (List.length fixes > 1) $
-                throwError $ FixErrorRejected $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
-
-            -- Include if passes filter.
-            if filterF bs then
-                return $ bsE:acc
-            else
-                return acc -}
+-- verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
+--     where
+--         helper acc bsE@(Entity bsId bs) = undefined {-FIXME-} {-do
+--             fixes <- lift $ runDB $ E.select $ E.from $ \(fs `E.InnerJoin` fsb) -> do
+--                 E.on (fs E.^. FixSubmissionId E.==. fsb E.^. FixSubmissionBugsFix)
+--                 E.where_ (fsb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&. (fs E.^. FixSubmissionStatus E.!=. E.val FixRejected E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixBuildFail E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixInvalidBugId))
+--                 return fsb -- TODO: E.countRows
+--             when (List.length fixes > 1) $
+--                 throwError $ FixErrorRejected $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
+-- 
+--             -- Include if passes filter.
+--             if filterF bs then
+--                 return $ bsE:acc
+--             else
+--                 return acc -}
 archiveLocationDirectory :: TeamContestId -> RunnerOptions -> FilePath
 archiveLocationDirectory team' opts =
     let repoDir = runnerRepositoryPath opts in
