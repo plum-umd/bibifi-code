@@ -228,7 +228,7 @@ instance ProblemRunnerClass APIProblem where
                 fail "Correctness bugs are not allowed."
 
             unless (Text.all (\c -> Char.isAscii c && (Char.isAlpha c || Char.isDigit c || c == '-' || c == '_')) $ breakSubmissionName bs) $
-                fail "Test names can only contain characters, numbers, dashes, and underscores."
+                throwError $ BreakErrorRejected "Test names can only contain characters, numbers, dashes, and underscores."
 
             -- let breakArchiveLocation = teamSubmissionLocation opts submitTeamId $ breakSubmissionCommitHash bs
 
