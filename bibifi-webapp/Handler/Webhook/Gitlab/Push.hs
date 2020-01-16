@@ -104,7 +104,7 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
         runDB $ insert_ $ FixSubmission tcId t h FixPending Nothing Nothing Nothing Nothing
     (∈) x (lo,hi) = lo <= x && x <= addUTCTime tolerance hi
       where tolerance = 10 * 60
-    buildChanged = any ("build/" `isInfixOf`) modified
+    buildChanged = any ("build" `isInfixOf`) modified
     addedTests = testCases added
     modifiedTests = testCases modified
     testCases ps = [(p,n) | (p,Just n) <- zip ps (map testName ps)]

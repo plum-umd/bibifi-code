@@ -45,7 +45,7 @@ scheduler queue exiting lockedTeams (Entity contestId _) = loopUntilExit $ do
                         Just break -> do
                             lockTeam (breakSubmissionTeam $ entityVal break) lockedTeams
 
-                            runDB $ updateWhere [BreakSubmissionId ==. entityKey break] [{-BreakSubmissionStatus =. BreakTesting-}] -- FIXME
+                            runDB $ updateWhere [BreakSubmissionId ==. entityKey break] [BreakSubmissionStatus =. BreakTesting]
                             
                             pushQueue (BreakJob break) queue
                         Nothing -> do
@@ -152,9 +152,9 @@ getBreakSubmission :: [TeamContestId] -> DatabaseM (Maybe (Entity BreakSubmissio
 getBreakSubmission availableTeams = do
     -- Get next pending.
     ss <- runDB $ select $ from $ \bs -> do
-        where_ $ -- FIXME
-            {-bs ^. BreakSubmissionStatus E.==. val BreakPending
-            &&. -} bs ^. BreakSubmissionTeam `in_` valList availableTeams
+        where_ $ 
+            bs ^. BreakSubmissionStatus E.==. val BreakPending
+            &&. bs ^. BreakSubmissionTeam `in_` valList availableTeams
         orderBy [asc $ bs ^. BreakSubmissionTimestamp]
         limit 1
         return bs
