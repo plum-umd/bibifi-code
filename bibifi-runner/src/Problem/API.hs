@@ -13,6 +13,7 @@ import qualified Data.IORef.Lifted as IO
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.Char as Char
 import qualified Data.List as List
 import Data.Monoid ((<>))
 import qualified Data.Set as Set
@@ -225,6 +226,9 @@ instance ProblemRunnerClass APIProblem where
             -- Disallow correctness...
             when (breakSubmissionBreakType bs == Just BreakCorrectness) $ 
                 fail "Correctness bugs are not allowed."
+
+            unless (Text.all (\c -> Char.isAscii c && (Char.isAlpha c || Char.isDigit c || c == '-' || c == '_')) $ breakSubmissionName bs) $
+                fail "Test names can only contain characters, numbers, dashes, and underscores."
 
             -- let breakArchiveLocation = teamSubmissionLocation opts submitTeamId $ breakSubmissionCommitHash bs
 
