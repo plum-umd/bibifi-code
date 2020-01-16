@@ -2,14 +2,14 @@ module Scheduler (scheduler) where
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Database.Esqueleto hiding (update, count, (!=.), (=.), (==.))
+import Database.Esqueleto hiding (update, count, (!=.), (=.), (==.), (<=.))
 import qualified Database.Esqueleto as E
 
 import Common
 import Queue
 
 scheduler :: MVar (Queue Job) -> MVar Int -> MVar (Set TeamContestId) -> Entity Contest -> DatabaseM ()
-scheduler queue exiting lockedTeams (Entity contestId _) = loopUntilExit $ do
+scheduler queue exiting lockedTeams (Entity contestId contest) = loopUntilExit $ do
     -- Get available teams.
     availableTeams <- getAvailableTeams contestId lockedTeams
     
@@ -27,7 +27,7 @@ scheduler queue exiting lockedTeams (Entity contestId _) = loopUntilExit $ do
             pushQueue (OracleJob oracle) queue
         Nothing -> do
             -- Get next build-it submission for available teams.
-            buildM <- getBuildSubmission availableTeams
+            buildM <- getBuildSubmission availableTeams contest
             case buildM of 
                 Just build -> do
                     -- Lock team.
@@ -117,8 +117,8 @@ getOracleSubmission availableTeams = do
         return os
     return $ maybeList submissions
 
-getBuildSubmission :: [TeamContestId] -> DatabaseM (Maybe (Entity BuildSubmission))
-getBuildSubmission availableTeams = do
+getBuildSubmission :: [TeamContestId] -> Contest -> DatabaseM (Maybe (Entity BuildSubmission))
+getBuildSubmission availableTeams contest = do
     -- Get next pending build submission for available teams.
     submissions <- runDB $ select $ from $ \bs -> do
         where_ $
@@ -136,6 +136,7 @@ getBuildSubmission availableTeams = do
                   BuildSubmissionTeam ==. buildSubmissionTeam bs
                 , BuildSubmissionId !=. bsId
                 , BuildSubmissionStatus ==. BuildPending
+                , BuildSubmissionTimestamp <=. contestBuildEnd contest
                 ]
             if c > 0 then do
                 -- Skip test.
