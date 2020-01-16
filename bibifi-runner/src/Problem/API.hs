@@ -176,7 +176,7 @@ instance ProblemRunnerClass APIProblem where
                       recordBuildResult submissionId result
                       return $ buildResult res
                     else do
-                      let result = BuildResult False (Just "A previous optional test did pass.") Nothing
+                      let result = BuildResult False (Just "A previous optional test did not pass.") Nothing
                       recordBuildResult submissionId (fst test, result)
                       return False
                   ) True optTests
@@ -522,6 +522,14 @@ instance ProblemRunnerClass APIProblem where
                         let msg = maybe "" Text.unpack msgM in
                         throwError $ FixErrorRejected $ "Failed required test: " <> Text.unpack (buildTestName test) <> ". " <> msg
                   ) requiredTests
+
+                -- Store submission in db.
+                _ <- lift $ lift $ runDB $ do
+                    -- Delete old one if it exists.
+                    deleteBy $ UniqueFixSubmissionFile fsId
+
+                    -- Insert new one.
+                    insertUnique $ FixSubmissionFile fsId submissionTarGz
 
                 -- Retrieve list of passed build tests.
                 passedOptionalTests <- retrievePassedOptionalTests teamId
