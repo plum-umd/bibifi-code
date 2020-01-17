@@ -29,7 +29,7 @@ import qualified System.FilePath as FilePath
 -- import qualified System.Posix.Files as Files
 import Yesod.Form.Fields (Textarea(..))
 
-import BuildSubmissions (isActiveBreak)
+import BuildSubmissions (isActiveBreak, getLatestBuildOrFix)
 import Cloud
 import Common
 -- import Core (keyToInt)
@@ -38,8 +38,6 @@ import Core.SSH
 import Problem.Class
 import Problem.Shared hiding (grader, runBuildTest, runTestAt)
 import Scorer.Class
-
-import BuildSubmissions (getLatestBuildOrFix)
 
 newtype APIProblem = APIProblem (Entity Contest)
 
@@ -213,7 +211,7 @@ instance ProblemRunnerClass APIProblem where
             tcId = buildSubmissionTeam submission
 
 
-    runBreakSubmission (APIProblem contestE) opts bsE@(Entity bsId bs) = do
+    runBreakSubmission (APIProblem contestE@(Entity _ contest)) opts bsE@(Entity bsId bs) = do
         -- Delete any previous break fix submissions.
         runDB $ deleteWhere [BreakFixSubmissionBreak ==. bsId]
 
@@ -244,7 +242,7 @@ instance ProblemRunnerClass APIProblem where
                 insertUnique $ BreakSubmissionFile bsId breakSubmissionTarGz
 
             -- Get latest build or fix submission.
-            (targetSubmissionId, targetSubmissionTarGz) <- getLatestBuildOrFixTarGz targetTeamId
+            (targetSubmissionId, targetSubmissionTarGz) <- getLatestBuildOrFixTarGz contest targetTeamId
             subsequentFixes' <- lift $ runDB $ getSubsequentFixes targetTeamId targetSubmissionId
             let subsequentFixes = Set.fromList $ fmap entityKey subsequentFixes'
 
@@ -398,7 +396,7 @@ instance ProblemRunnerClass APIProblem where
                         Nothing ->
                             return True
                         Just targetTeamId -> do
-                            newTargetSubmissionIdE <- getLatestBuildOrFix targetTeamId (breakSubmissionTimestamp bs)
+                            newTargetSubmissionIdE <- getLatestBuildOrFix contest targetTeamId (breakSubmissionTimestamp bs)
                             case newTargetSubmissionIdE of
                                 Left _ ->
                                     return True
@@ -416,8 +414,8 @@ instance ProblemRunnerClass APIProblem where
                 else 
                     systemFail "New fix detected after testing a break."
 
-            getLatestBuildOrFixTarGz targetTeamId = do
-                resE <- lift $ runDB $ getLatestBuildOrFix targetTeamId $ breakSubmissionTimestamp bs -- can't fail due to prior checks
+            getLatestBuildOrFixTarGz contest targetTeamId = do
+                resE <- lift $ runDB $ getLatestBuildOrFix contest targetTeamId $ breakSubmissionTimestamp bs -- can't fail due to prior checks
                 case resE of
                     Left _err ->
                         fail "Could not retrieve target submission."
@@ -610,14 +608,14 @@ instance ProblemRunnerClass APIProblem where
             Left (FixErrorBuildFail stdout' stderr') -> do
                 let stdout = decodeUtf8 stdout'
                 let stderr = decodeUtf8 stderr'
-                runDB $ updateFix FixRejected (Just "Running make failed") stdout stderr
+                runDB $ updateFix FixRejected Nothing (Just "Running make failed") stdout stderr
                 userFail "Build failed"
             Left (FixErrorRejected msg) -> do
-                runDB $ updateFix FixRejected (Just msg) Nothing Nothing
+                runDB $ updateFix FixRejected Nothing (Just msg) Nothing Nothing
                 userFail msg
             Right () -> runDB $ do
                 runUnlessNewBreak breaks' $ do
-                    updateFix FixJudging Nothing Nothing Nothing
+                    updateFix FixBuilt (Just FixFixed) Nothing Nothing Nothing
                     return $ Just (True, True)
 
         where
@@ -640,8 +638,8 @@ instance ProblemRunnerClass APIProblem where
         --     hash = fixSubmissionCommitHash submission
         --     basePath = runnerRepositoryPath opts
 
-            updateFix status msg stdout stderr = 
-                update submissionId [FixSubmissionStatus =. status, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
+            updateFix status result msg stdout stderr = 
+                update submissionId [FixSubmissionStatus =. status, FixSubmissionResult =. result, FixSubmissionMessage =. msg, FixSubmissionStdout =. stdout, FixSubmissionStderr =. stderr]
 
             userFail err = do
                 putLog err
