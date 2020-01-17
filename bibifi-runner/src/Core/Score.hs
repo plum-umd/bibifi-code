@@ -12,7 +12,6 @@ import qualified Data.Map as M
 -- import qualified Data.Function as F
 import qualified Data.List as L
 import Data.Maybe
-import qualified Data.Set as S
 import Data.Time.Clock
 import qualified Database.Esqueleto as E
 import Database.Persist
@@ -313,10 +312,10 @@ defaultScoreBuildRound cId = do
     --  return 100 + optional + performance
     --  set score in db
 
-isBreakCrash :: BreakSubmission -> Bool
-isBreakCrash submission =
-    let breakTypeM = breakSubmissionBreakType submission in
-    breakTypeM == Just BreakCrash
+-- isBreakCrash :: BreakSubmission -> Bool
+-- isBreakCrash submission =
+--     let breakTypeM = breakSubmissionBreakType submission in
+--     breakTypeM == Just BreakCrash
 
 defaultScoreBreakFixRound :: Entity Contest -> UTCTime -> DatabaseM ()
 defaultScoreBreakFixRound contestE@(Entity _ c) now = do
@@ -352,7 +351,7 @@ defaultScoreBreakFixRound contestE@(Entity _ c) now = do
         validBreaks <- runDB $ getValidBreaks targetTeamId now
 
         -- Map (Maybe (FixId, Timestamp)) [Entity BreakSubmission]
-        resM' <- foldM (\acc bsE@(Entity bsId bs) -> do
+        resM' <- foldM (\acc bsE@(Entity bsId _bs) -> do
             -- Get all break fix submission for each break inner joined with fix submissions, ordered by fix timestamp, fix id, before now.
             fs <- runDB $ E.select $ E.from $ \(bfs `E.InnerJoin` fs) -> do
                 E.on (bfs E.^. BreakFixSubmissionFix E.==. E.just (fs E.^. FixSubmissionId))
@@ -387,7 +386,7 @@ defaultScoreBreakFixRound contestE@(Entity _ c) now = do
         -- addScores scores' breakScores
         
     -- Score all the breaks for a given fix.
-    scoreFix targetTeamId (Just (fixId, fixTime)) breaks scores = 
+    scoreFix targetTeamId (Just (_fixId, fixTime)) breaks scores = 
         let endTime = min capTime fixTime in
         let bScores' = scoreBreakIt targetTeamId mempty endTime breaks in
         let bScores = convertBreakItScores bScores' in
@@ -421,7 +420,7 @@ scoreBreakIt targetTeamId scores'' endTime ((Entity _ bs):breaks) =
     let m = breakTypeToM (breakSubmissionBreakType bs) in
     let diff = scoreOverTime m (breakSubmissionTimestamp bs) endTime in
     let scores' = insertScore scores'' targetTeamId (-diff, 0, 0, 0) in
-    let scores = insertScore scores submitTeamId (0, diff, 0, 0) in
+    let scores = insertScore scores' submitTeamId (0, diff, 0, 0) in
     scoreBreakIt targetTeamId scores endTime breaks
 
   where
