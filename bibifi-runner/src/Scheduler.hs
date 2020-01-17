@@ -124,7 +124,7 @@ getBuildSubmission availableTeams contest = do
         where_ $
             bs ^. BuildSubmissionStatus E.==. val BuildPending
             &&. bs ^. BuildSubmissionTeam `in_` valList availableTeams
-        orderBy [asc $ bs ^. BuildSubmissionTimestamp]
+        orderBy [asc $ bs ^. BuildSubmissionTimestamp, asc $ bs ^. BuildSubmissionId]
         limit 1
         return bs
     case maybeList submissions of
@@ -156,7 +156,7 @@ getBreakSubmission availableTeams = do
         where_ $ 
             bs ^. BreakSubmissionStatus E.==. val BreakPending
             &&. bs ^. BreakSubmissionTeam `in_` valList availableTeams
-        orderBy [asc $ bs ^. BreakSubmissionTimestamp]
+        orderBy [asc $ bs ^. BreakSubmissionTimestamp, asc $ bs ^. BreakSubmissionId]
         limit 1
         return bs
     return $ maybeList ss
@@ -167,7 +167,7 @@ getFixSubmission availableTeams = do
         where_ $ 
             fs ^. FixSubmissionStatus E.==. val FixPending
             &&. fs ^. FixSubmissionTeam `in_` valList availableTeams
-        orderBy [asc $ fs ^. FixSubmissionTimestamp]
+        orderBy [asc $ fs ^. FixSubmissionTimestamp, asc $ fs ^. FixSubmissionId]
         limit 1
         return fs
     return $ maybeList ss
