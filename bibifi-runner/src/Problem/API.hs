@@ -221,6 +221,9 @@ instance ProblemRunnerClass APIProblem where
         resultE <- runErrorT $ do
             targetTeamId <- checkSubmissionRound2 contestE bsE
 
+            when (isNothing $ breakSubmissionBreakType bs) $ 
+                throwError $ BreakErrorRejected "Unknown break type."
+
             unless (Text.all (\c -> Char.isAscii c && (Char.isAlpha c || Char.isDigit c || c == '-' || c == '_')) $ breakSubmissionName bs) $
                 throwError $ BreakErrorRejected "Test names can only contain characters, numbers, dashes, and underscores."
 
