@@ -410,9 +410,9 @@ instance ProblemRunnerClass APIProblem where
                                         return $ oldSubsequentFixes /= newSubsequentFixes
 
                 if needRerun then
-                    m
-                else 
                     systemFail "New fix detected after testing a break."
+                else 
+                    m
 
             getLatestBuildOrFixTarGz contest targetTeamId = do
                 resE <- lift $ runDB $ getLatestBuildOrFix contest targetTeamId $ breakSubmissionTimestamp bs -- can't fail due to prior checks
