@@ -357,7 +357,9 @@ defaultScoreBreakFixRound contestE@(Entity _ c) now = do
                 E.on (bfs E.^. BreakFixSubmissionFix E.==. E.just (fs E.^. FixSubmissionId))
                 E.where_ (
                         bfs E.^. BreakFixSubmissionBreak E.==. E.val bsId
-                  E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakSucceeded
+                  -- E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakSucceeded
+                  E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakFailed
+                  E.&&. fs E.^. FixSubmissionResult E.==. E.just (E.val FixFixed)
                   E.&&. fs E.^. FixSubmissionTimestamp E.<=. E.val now
                   )
                 E.orderBy [E.asc (fs E.^. FixSubmissionTimestamp), E.asc (fs E.^. FixSubmissionId)]
