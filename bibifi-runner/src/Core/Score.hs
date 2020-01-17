@@ -357,7 +357,9 @@ defaultScoreBreakFixRound contestE@(Entity _ c) now = do
                 E.on (bfs E.^. BreakFixSubmissionFix E.==. E.just (fs E.^. FixSubmissionId))
                 E.where_ (
                         bfs E.^. BreakFixSubmissionBreak E.==. E.val bsId
-                  E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakSucceeded
+                  -- E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakSucceeded
+                  E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakFailed
+                  E.&&. fs E.^. FixSubmissionResult E.==. E.just (E.val FixFixed)
                   E.&&. fs E.^. FixSubmissionTimestamp E.<=. E.val now
                   )
                 E.orderBy [E.asc (fs E.^. FixSubmissionTimestamp), E.asc (fs E.^. FixSubmissionId)]
@@ -492,16 +494,16 @@ scorePeriods targetTeamId scores startTime endTime ((periodStart, periodEnd, cou
 -- breaksToPeriods ::    -> [Entity BreakSubmission] -> [(UTCTime, UTCTime, Map AttackerTeamContestId (Int, Int, Int))]
 breaksToPeriods endTime periodStart currentCounts acc [] = L.reverse $ (periodStart, endTime, currentCounts):acc
 breaksToPeriods endTime periodStart currentCounts acc ((Entity _ bs):breaks) = 
+    let currentCounts' = M.insertWith combineCounts attackerId (breakToCount bs) currentCounts in
     if periodStart == breakSubmissionTimestamp bs then
         -- Add to current period.
-        let currentCounts' = M.insertWith combineCounts attackerId (breakToCount bs) currentCounts in
         breaksToPeriods endTime periodStart currentCounts' acc breaks
     else
         -- Close old period, start new period.
-        let acc' = (periodStart, endTime, currentCounts):acc in
         let periodStart' = breakSubmissionTimestamp bs in
+        let acc' = (periodStart, periodStart', currentCounts):acc in
 
-        breaksToPeriods endTime periodStart' mempty acc' breaks
+        breaksToPeriods endTime periodStart' currentCounts' acc' breaks
     
     where
         combineCounts (a1, a2, a3) (b1, b2, b3) = (a1 + b1, a2 + b2, a3 + b3)
