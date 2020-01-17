@@ -15,6 +15,7 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Char as Char
 import qualified Data.List as List
+import Data.Maybe
 import Data.Monoid ((<>))
 import qualified Data.Set as Set
 import Data.Text (Text)
@@ -46,8 +47,8 @@ instance ExtractContest APIProblem where
 
 instance ScorerClass APIProblem where
     scoreContestBuild p _ = defaultScoreBuildRound $ extractContestId p
-    scoreContestBreak p _ = defaultScoreBreakRound $ extractContestId p
-    scoreContestFix p _ = defaultScoreFixRound $ extractContestId p
+    scoreContestBreakFix p now _ = defaultScoreBreakFixRound (extractContest p) now
+    -- scoreContestFix p _ = defaultScoreFixRound $ extractContestId p
 
 instance ProblemRunnerClass APIProblem where
     runOracleSubmission (APIProblem _) opts (Entity submissionId submission) = 

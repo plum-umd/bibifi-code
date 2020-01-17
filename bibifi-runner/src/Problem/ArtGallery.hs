@@ -48,10 +48,10 @@ foldr' = foldr
 instance ExtractContest ArtGallery where
     extractContest (ArtGallery c) = c
 
-instance ScorerClass ArtGallery where
-    scoreContestBuild (ArtGallery (Entity cId _)) _ = defaultScoreBuildRound cId
-    scoreContestBreak (ArtGallery (Entity cId _)) _ = defaultScoreBreakRound cId
-    scoreContestFix (ArtGallery (Entity cId _)) _ = defaultScoreFixRound cId
+-- instance ScorerClass ArtGallery where
+--     scoreContestBuild (ArtGallery (Entity cId _)) _ = defaultScoreBuildRound cId
+--     scoreContestBreak (ArtGallery (Entity cId _)) _ = defaultScoreBreakRound cId
+--     scoreContestFix (ArtGallery (Entity cId _)) _ = defaultScoreFixRound cId
 
 instance ProblemRunnerClass ArtGallery where
     runOracleSubmission (ArtGallery _contest) opts (Entity submissionId submission) = 
