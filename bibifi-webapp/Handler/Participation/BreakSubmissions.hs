@@ -557,7 +557,7 @@ postParticipationBreakSubmissionRerunR tcId bsId = runLHandler $ do
                 if not canRerun then
                     errorHandler
                 else do
-                    handlerToWidget $ runDB $ update bsId [BreakSubmissionStatus =. BreakPending]
+                    handlerToWidget $ runDB $ update bsId [BreakSubmissionStatus =. BreakPending, BreakSubmissionMessage =. Nothing]
 
                     setMessage [shamlet|
                         <div .container>

@@ -7,7 +7,7 @@ import PostDependencyType
     , BreakSubmissionResult(..)
     , FixSubmissionResult(..)
     )
-import BuildSubmissions (getLatestBuildOrFix)
+-- import BuildSubmissions (getLatestBuildOrFix)
 import Import
 import Control.Exception.Enclosed
 import Control.Monad.Trans.Maybe (MaybeT(..))

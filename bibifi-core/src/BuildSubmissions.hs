@@ -56,10 +56,10 @@ buildSubmissionPassesRequiredTests cId bsId = do
     let numPassedPerformanceTests = List.length tmps
     return $ numPassedCoreTests == numCoreTests && numPassedPerformanceTests == numPerformanceTests
 
-getLatestBuildOrFix :: MonadIO m => TeamContestId -> UTCTime -> E.SqlPersistT m (Either String (Either BuildSubmissionId FixSubmissionId))
+getLatestBuildOrFix :: MonadIO m => Contest -> TeamContestId -> UTCTime -> E.SqlPersistT m (Either String (Either BuildSubmissionId FixSubmissionId))
 -- Retrieve the latest successful fix or build for team
-getLatestBuildOrFix teamId time = do
-    latestBuild <- selectFirst [ BuildSubmissionTeam ==. teamId ]
+getLatestBuildOrFix contest teamId time = do
+    latestBuild <- selectFirst [ BuildSubmissionTeam ==. teamId, BuildSubmissionTimestamp <=. contestBuildEnd contest]
                                [ Desc BuildSubmissionTimestamp ]
     latestFix   <- selectFirst [ FixSubmissionTeam ==. teamId
                                , FixSubmissionResult ==. Just FixFixed
