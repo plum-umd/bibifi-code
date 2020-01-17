@@ -223,7 +223,7 @@ instance ProblemRunnerClass APIProblem where
 
             -- Disallow correctness...
             when (breakSubmissionBreakType bs == Just BreakCorrectness) $ 
-                fail "Correctness bugs are not allowed."
+                throwError $ BreakErrorRejected "Correctness bugs are not allowed."
 
             unless (Text.all (\c -> Char.isAscii c && (Char.isAlpha c || Char.isDigit c || c == '-' || c == '_')) $ breakSubmissionName bs) $
                 throwError $ BreakErrorRejected "Test names can only contain characters, numbers, dashes, and underscores."
