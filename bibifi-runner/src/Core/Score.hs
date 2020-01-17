@@ -492,16 +492,16 @@ scorePeriods targetTeamId scores startTime endTime ((periodStart, periodEnd, cou
 -- breaksToPeriods ::    -> [Entity BreakSubmission] -> [(UTCTime, UTCTime, Map AttackerTeamContestId (Int, Int, Int))]
 breaksToPeriods endTime periodStart currentCounts acc [] = L.reverse $ (periodStart, endTime, currentCounts):acc
 breaksToPeriods endTime periodStart currentCounts acc ((Entity _ bs):breaks) = 
+    let currentCounts' = M.insertWith combineCounts attackerId (breakToCount bs) currentCounts in
     if periodStart == breakSubmissionTimestamp bs then
         -- Add to current period.
-        let currentCounts' = M.insertWith combineCounts attackerId (breakToCount bs) currentCounts in
         breaksToPeriods endTime periodStart currentCounts' acc breaks
     else
         -- Close old period, start new period.
-        let acc' = (periodStart, endTime, currentCounts):acc in
         let periodStart' = breakSubmissionTimestamp bs in
+        let acc' = (periodStart, periodStart', currentCounts):acc in
 
-        breaksToPeriods endTime periodStart' mempty acc' breaks
+        breaksToPeriods endTime periodStart' currentCounts' acc' breaks
     
     where
         combineCounts (a1, a2, a3) (b1, b2, b3) = (a1 + b1, a2 + b2, a3 + b3)
