@@ -33,7 +33,7 @@ import Problem.Class
 getValidBreaks teamId time = selectList [
     BreakSubmissionValid ==. Just True
   , BreakSubmissionTargetTeam ==. Just teamId
-  , BreakSubmissionTimestamp ==. time
+  , BreakSubmissionTimestamp <=. time
   ] [Asc BreakSubmissionTimestamp, Asc BreakSubmissionId]
 
 checkSubmissionRound2 :: Entity Contest -> Entity BreakSubmission -> ErrorT BreakError DatabaseM TeamContestId
