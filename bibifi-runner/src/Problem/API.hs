@@ -475,7 +475,9 @@ instance ProblemRunnerClass APIProblem where
         let BuildTests coreTests performanceTests _optionalTests = runnerBuildTests opts
 
         -- Delete any previous results.
-        runDB $ deleteWhere [BreakFixSubmissionFix ==. Just submissionId]
+        runDB $ do
+            update submissionId [FixSubmissionResult =. Nothing]
+            deleteWhere [BreakFixSubmissionFix ==. Just submissionId]
 
         -- -- Get all valid and active breaks against this team
         breaks' <- runDB $ getValidActiveBreaksAgainst submission
@@ -622,7 +624,7 @@ instance ProblemRunnerClass APIProblem where
                 latestBreaks' <- getValidActiveBreaksAgainst submission
                 let latestBreaks = Set.fromList $ map entityKey latestBreaks'
 
-                if origBreaks == latestBreaks then
+                if latestBreaks `Set.isSubsetOf` origBreaks then
                     m
                 else
                     -- Mark as pending so that we try again.
