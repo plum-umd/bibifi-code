@@ -38,10 +38,10 @@ newtype ATMSpec = ATMSpec (Entity Contest)
 instance ExtractContest ATMSpec where
     extractContest (ATMSpec c) = c
 
-instance ScorerClass ATMSpec where
-    scoreContestBuild (ATMSpec (Entity cId _)) _ = defaultScoreBuildRound cId
-    scoreContestBreak (ATMSpec (Entity cId _)) _ = defaultScoreBreakRound cId
-    scoreContestFix (ATMSpec (Entity cId _)) _ = defaultScoreFixRound cId
+-- instance ScorerClass ATMSpec where
+--     scoreContestBuild (ATMSpec (Entity cId _)) _ = defaultScoreBuildRound cId
+--     scoreContestBreak (ATMSpec (Entity cId _)) _ = defaultScoreBreakRound cId
+--     scoreContestFix (ATMSpec (Entity cId _)) _ = defaultScoreFixRound cId
 
 instance ProblemRunnerClass ATMSpec where
     runOracleSubmission (ATMSpec _contest) opts (Entity submissionId submission) = 
