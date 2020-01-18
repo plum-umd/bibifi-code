@@ -17,7 +17,7 @@ getParticipationDownloadBuilderR dlId tcId = runLHandler $ do
         notFound
     else do
         content <- runDB $ do
-            submissionE <- getLatestBuildOrFix tcId now
+            submissionE <- getLatestBuildOrFix contest tcId now
             case submissionE of
                 Left _ ->
                     notFound

@@ -154,8 +154,9 @@ getBreakSubmission availableTeams = do
     -- Get next pending.
     ss <- runDB $ select $ from $ \bs -> do
         where_ $ 
-            bs ^. BreakSubmissionStatus E.==. val BreakPending
+                bs ^. BreakSubmissionStatus E.==. val BreakPending
             &&. bs ^. BreakSubmissionTeam `in_` valList availableTeams
+            -- &&. bs ^. BreakSubmissionWithdrawn E.==. val False
         orderBy [asc $ bs ^. BreakSubmissionTimestamp, asc $ bs ^. BreakSubmissionId]
         limit 1
         return bs

@@ -326,6 +326,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                     <div class="col-xs-9">
                         <p class="form-control-static">
                             #{message}
+                ^{withdrawnW bs}
                 ^{judgementW}
             ^{breakFixesW victim}
             ^{buildOutputW}
@@ -339,6 +340,14 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
             rerunWidget bs
 
     where
+        withdrawnW bs = when (breakSubmissionWithdrawn bs) [whamlet|
+                <div class="form-group">
+                    <label class="col-xs-3 control-label">
+                        Withdrawn
+                    <div class="col-xs-9">
+                        <p class="form-control-static">
+                            True
+            |]
 
         breakFixesW victim = do
             bfs <- handlerToWidget $ runDB $ [lsql| select BreakFixSubmission.result, FixSubmission.commitHash from BreakFixSubmission left outer join FixSubmission on BreakFixSubmission.fix == FixSubmission.id where (BreakFixSubmission.break == #{bsId}) order by FixSubmission.id desc|]
@@ -496,7 +505,7 @@ postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
                                     else
                                         -- Check that the break is finished testing.
                                         let st = breakSubmissionStatus bs in
-                                        if st == BreakPending || st == BreakTesting then
+                                        if st == BreakPending || st == BreakTesting || breakSubmissionWithdrawn bs == True then
                                             failureHandler
                                         else do
                                             runDB $ delete bsId
@@ -533,7 +542,7 @@ canRerunBreakSubmission bs contest = do
         return False
     else
         let status = breakSubmissionStatus bs in
-        if status == BreakPending || status == BreakTesting then
+        if status == BreakPending || status == BreakTesting || breakSubmissionWithdrawn bs == True then
             return False
         else if development then
             return True
