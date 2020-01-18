@@ -137,11 +137,12 @@ displayBreakSubmissionsTable contest viewer submissions = do
             fixStatus <- prettyFixStatus sId
             time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             now <- getCurrentTime
-            let name = 
-                  if now > contestBreakEnd contest then 
-                      toHtml $ breakSubmissionName s 
-                  else
-                      dash
+            -- let name = 
+            --       if now > contestBreakEnd contest then 
+            --           toHtml $ breakSubmissionName s 
+            --       else
+            --           dash
+            let name = breakSubmissionName s
             return [whamlet'|
               <tr .clickable href="@{ParticipationBreakSubmissionR targetTeamId sId}">
                   <td>
