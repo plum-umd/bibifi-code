@@ -184,7 +184,7 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                         <p class="form-control-static">
                             #{message}
                 ^{judgementW}
-            ^{breakFixesW}
+            ^{breakFixesW fs}
             ^{buildOutputW}
             ^{deleteW}
         |] :: LWidget
@@ -213,7 +213,7 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                         Rerun
             |]
 
-        breakFixesW = do
+        breakFixesW fs = when (fixSubmissionResult fs == Just FixFixed) $ do
             bfs <- handlerToWidget $ runDB $ [lsql| select BreakFixSubmission.result, BreakSubmission.* from BreakFixSubmission inner join BreakSubmission on BreakFixSubmission.break == BreakSubmission.id where (BreakFixSubmission.fix == #{Just fsId}) order by BreakSubmission.id desc|]
             let rows = mconcat $ map breakFixesRow bfs
             [whamlet|

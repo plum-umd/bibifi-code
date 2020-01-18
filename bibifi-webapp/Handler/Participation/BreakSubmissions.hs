@@ -1,5 +1,6 @@
 module Handler.Participation.BreakSubmissions where
 
+import Data.Maybe
 import qualified Database.Esqueleto as E
 import Score
 
@@ -12,8 +13,19 @@ import Submissions
 getParticipationBreakSubmissionsR :: TeamContestId -> Handler Html
 getParticipationBreakSubmissionsR tcId = runLHandler $ 
     Participation.layout Participation.BreakSubmissions tcId $ \_ _ contest _ -> do
-        -- submissions <- handlerToWidget $ runDB $ selectList [BreakSubmissionTeam ==. tcId] [Desc BreakSubmissionTimestamp]
-        submissions <- handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission inner join TeamContest on BreakSubmission.targetTeam == TeamContest.id inner join Team on TeamContest.team == Team.id where BreakSubmission.team == #{tcId} order by BreakSubmission.id desc |]
+        -- submissions <- handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission left outer join TeamContest on BreakSubmission.targetTeam == TeamContest.id inner join Team on TeamContest.team == Team.id where BreakSubmission.team == #{tcId} order by BreakSubmission.id desc |]
+        -- TODO: Fix the above query..
+        submissions <- handlerToWidget $ runDB $ do
+            subs <- [lsql| select BreakSubmission.* from BreakSubmission where BreakSubmission.team == #{tcId} order by BreakSubmission.id desc |]
+            mapM (\bsE@(Entity _ bs) -> case breakSubmissionTargetTeam bs of
+                Nothing ->
+                    return (bsE, Nothing)
+                Just targetTeamId -> do
+                    names <- [lsql| select Team.name from TeamContest inner join Team on TeamContest.team == Team.id where TeamContest.id == #{targetTeamId} limit 1|]
+                    return (bsE, listToMaybe names)
+              ) subs
+            
+        
         -- E.select $ E.from $ \( s `E.InnerJoin` tc `E.InnerJoin` tt) -> do
         --     E.on ( tc E.^. TeamContestTeam E.==. tt E.^. TeamId)
         --     E.on ( s E.^. BreakSubmissionTargetTeam E.==. tc E.^. TeamContestId)
@@ -44,7 +56,7 @@ getParticipationBreakSubmissionsR tcId = runLHandler $
                             No submissions have targeted against your team.
                     |]
                 _ ->
-                    displayBreakSubmissionsTable contest BreakSubmissionVictim ss
+                    displayBreakSubmissionsTable contest BreakSubmissionVictim $ fmap (fmap Just) ss
         [whamlet|
             <h3>
                 Against your team
@@ -77,15 +89,15 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
               Just typ -> prettyBreakType typ 
         time <- displayTime $ breakSubmissionTimestamp bs
         (attackTeamName,targetTeam) <- do
-            res <- handlerToWidget $ runDB $ BreakSubmissions.getBothTeams bsId $ \(Entity _ t) _tc _bs _tct (Entity _ tt) ->
-                ( teamName t, tt)
+            res <- handlerToWidget $ runDB $ BreakSubmissions.getBothTeams bsId $ \(Entity _ t) _tc _bs _tct tt ->
+                ( teamName t, fmap entityVal tt)
             case res of
                 Just names ->
                     return names
                 _ ->
                     notFound
 
-        let targetTeamName = teamName targetTeam
+        let targetTeamName = maybe dash (toHtml . teamName) targetTeam
 
         -- Judgement widget.
         judgementW <- do
@@ -155,7 +167,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                       return mempty
                     else
                       -- Check if team leader.
-                      if userId /= teamLeader targetTeam then
+                      if Just userId /= fmap teamLeader targetTeam then
                           return [whamlet'|
                               <h3>
                                   Dispute
@@ -204,11 +216,11 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
               _ ->
                 mempty
 
-        -- Delete widget.
-        deleteW <- do
+        -- Withdraw widget.
+        withdrawW <- do
             -- Check that not on victim team, and it's during the break it round.
-            -- if not development && (victim || now < contestBreakFixStart contest || now > contestBreakEnd contest) then
-            if True then
+            if not development && (victim || now < contestBreakFixStart contest || now > contestBreakEnd contest || breakSubmissionWithdrawn bs == True) then
+            -- if True then
                 return mempty
               else 
                 -- Check if team leader.
@@ -218,37 +230,38 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                     if st == BreakPending || st == BreakTesting then
                         return [whamlet'|
                             <h3>
-                                Delete
+                                Withdraw
                             <p>
-                                You cannot delete a break submission until it is finished being tested.
+                                You cannot withdraw a break submission until it is finished being tested.
                         |]
                     else do
-                        (deleteW, deleteE) <- handlerToWidget $ generateFormPost deleteBreakSubmissionForm
+                        (withdrawW, withdrawE) <- handlerToWidget $ generateFormPost withdrawBreakSubmissionForm
                         return [whamlet'|
                             <h3>
-                                Delete
+                                Withdraw
                             <p>
-                                Delete this break submission. 
+                                Withdraw this break submission. 
                             <p .text-danger>
                                 Warning: This cannot be undone!
-                            <form .form-inline role=form method=post action="@{ParticipationBreakSubmissionDeleteR tcId bsId}" enctype=#{deleteE}>
-                                ^{deleteW}
+                            <form .form-inline role=form method=post action="@{ParticipationBreakSubmissionWithdrawR tcId bsId}" enctype=#{withdrawE}>
+                                ^{withdrawW}
                         |]
                 else
                     return [whamlet'|
                         <h3>
-                            Delete
+                            Withdraw
                         <p>
-                            Only the team leader may delete a break submission. 
+                            Only the team leader may withdraw a break submission. 
                     |]
                     
-        -- Show break name if attacker or break-it has ended.
-        now <- getCurrentTime
-        let name = 
-              if not victim || now > contestBreakEnd contest then
-                  toHtml $ breakSubmissionName bs 
-              else
-                  dash
+        -- -- Show break name if attacker or break-it has ended.
+        -- now <- getCurrentTime
+        -- let name = 
+        --       if not victim || now > contestBreakEnd contest then
+        --           toHtml $ breakSubmissionName bs 
+        --       else
+        --           dash
+        let name = breakSubmissionName bs
 
         breakDownloadW <- do
             exists <- (> 0) <$> (handlerToWidget $ runDB $ count [BreakSubmissionFileBreak ==. bsId])
@@ -326,11 +339,12 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                     <div class="col-xs-9">
                         <p class="form-control-static">
                             #{message}
+                ^{withdrawnW bs}
                 ^{judgementW}
-            ^{breakFixesW victim}
+            ^{breakFixesW victim (breakSubmissionTimestamp bs)}
             ^{buildOutputW}
             ^{disputeW}
-            ^{deleteW}
+            ^{withdrawW}
         |]
 
         -- Check if we can rerun submission.
@@ -339,10 +353,18 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
             rerunWidget bs
 
     where
+        withdrawnW bs = when (breakSubmissionWithdrawn bs) [whamlet|
+                <div class="form-group">
+                    <label class="col-xs-3 control-label">
+                        Withdrawn
+                    <div class="col-xs-9">
+                        <p class="form-control-static">
+                            True
+            |]
 
-        breakFixesW victim = do
-            bfs <- handlerToWidget $ runDB $ [lsql| select BreakFixSubmission.result, FixSubmission.commitHash from BreakFixSubmission left outer join FixSubmission on BreakFixSubmission.fix == FixSubmission.id where (BreakFixSubmission.break == #{bsId}) order by FixSubmission.id desc|]
-            let rows = mconcat $ map (breakFixesRow victim) bfs
+        breakFixesW victim breakTime = do
+            bfs <- handlerToWidget $ runDB $ [lsql| select BreakFixSubmission.result, FixSubmission.timestamp, FixSubmission.commitHash from BreakFixSubmission left outer join FixSubmission on BreakFixSubmission.fix == FixSubmission.id where (BreakFixSubmission.break == #{bsId}) order by FixSubmission.id desc|]
+            let rows = mconcat $ map (breakFixesRow victim breakTime) bfs
             [whamlet|
                 <table class="table table-hover">
                     <thead>
@@ -350,17 +372,23 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                             <th>
                                 Fix commit hash
                             <th>
+                                Fix timestamp
+                            <th>
                                 Break result
                     <tbody>
                         ^{rows}
             |]
 
-        breakFixesRow victim (res', commitM) = 
-            let res = if victim then prettyBreakResultVictim res' else prettyBreakResult res' in
+        breakFixesRow victim breakTime (res', fixTimeM, commitM) = do
+            let res = if victim then prettyBreakResultVictim res' else prettyBreakResult res'
+            time <- displayTime $ maybe breakTime id fixTimeM
+
             [whamlet|
                 <tr>
                     <td>
                         #{maybe dash toHtml commitM}
+                    <td>
+                        #{time}
                     <td>
                         #{res}
             |]
@@ -450,23 +478,23 @@ postParticipationBreakSubmissionDisputeR tcId bsId = runLHandler $ do
             |]
             redirect $ ParticipationBreakSubmissionR tcId bsId
 
-data DeleteForm = DeleteForm ()
+data WithdrawForm = WithdrawForm ()
 
-deleteBreakSubmissionForm :: Form DeleteForm
-deleteBreakSubmissionForm = identifyForm "delete-break-submission" $ renderBootstrap3 BootstrapInlineForm $ DeleteForm
+withdrawBreakSubmissionForm :: Form WithdrawForm
+withdrawBreakSubmissionForm = identifyForm "withdraw-break-submission" $ renderBootstrap3 BootstrapInlineForm $ WithdrawForm
     <$> pure ()
-    <*  bootstrapSubmit (BootstrapSubmit ("Delete"::Text) "btn btn-danger" [])
+    <*  bootstrapSubmit (BootstrapSubmit ("Withdraw"::Text) "btn btn-danger" [])
 
-postParticipationBreakSubmissionDeleteR :: TeamContestId -> BreakSubmissionId -> Handler ()
-postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
+postParticipationBreakSubmissionWithdrawR :: TeamContestId -> BreakSubmissionId -> Handler ()
+postParticipationBreakSubmissionWithdrawR tcId bsId = runLHandler $ do
     raiseUserLabel
-    ((res, widget), enctype) <- runFormPost deleteBreakSubmissionForm
+    ((res, widget), enctype) <- runFormPost withdrawBreakSubmissionForm
     case res of
         FormFailure _msg ->
             failureHandler
         FormMissing ->
             failureHandler
-        FormSuccess (DeleteForm ()) -> do
+        FormSuccess (WithdrawForm ()) -> do
             bsM <- runDB $ E.select $ E.from $ \(E.InnerJoin (E.InnerJoin bs tc) t) -> do
                 E.on (tc E.^. TeamContestTeam E.==. t E.^. TeamId)
                 E.on (tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
@@ -496,15 +524,15 @@ postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
                                     else
                                         -- Check that the break is finished testing.
                                         let st = breakSubmissionStatus bs in
-                                        if st == BreakPending || st == BreakTesting then
+                                        if st == BreakPending || st == BreakTesting || breakSubmissionWithdrawn bs == True then
                                             failureHandler
                                         else do
-                                            runDB $ delete bsId
+                                            runDB $ BreakSubmissions.withdrawBreakSubmission bsId
                                             rescoreBreakRound contestId
                                             setMessage [shamlet|
                                                 <div class="container">
                                                     <div class="alert alert-success">
-                                                        Successfully deleted break submission.
+                                                        Successfully withdrew break submission.
                                             |]
                                             redirect $ ParticipationBreakSubmissionsR tcId
                             
@@ -516,7 +544,7 @@ postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
             setMessage [shamlet|
                 <div class="container">
                     <div class="alert alert-danger">
-                        Could not delete break submission.
+                        Could not withdraw break submission.
             |]
             redirect $ ParticipationBreakSubmissionR tcId bsId
 
@@ -533,7 +561,7 @@ canRerunBreakSubmission bs contest = do
         return False
     else
         let status = breakSubmissionStatus bs in
-        if status == BreakPending || status == BreakTesting then
+        if status == BreakPending || status == BreakTesting || breakSubmissionWithdrawn bs == True then
             return False
         else if development then
             return True

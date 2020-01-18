@@ -7,7 +7,8 @@ import PostDependencyType
     , BreakSubmissionResult(..)
     , FixSubmissionResult(..)
     )
--- import BuildSubmissions (getLatestBuildOrFix)
+
+import BreakSubmissions (withdrawBreakSubmission)
 import Import
 import Control.Exception.Enclosed
 import Control.Monad.Trans.Maybe (MaybeT(..))
@@ -76,9 +77,7 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
             runDB $ do
                 oldBreaks <- selectList [BreakSubmissionTeam ==. tcId, BreakSubmissionName ==. name] []
                 forM_ oldBreaks $ \(Entity id _) -> do
-                    update id [ BreakSubmissionValid =. Just False
-                              , BreakSubmissionMessage =. Just "Break resubmitted" ]
-                              -- JP: Update status too?
+                    withdrawBreakSubmission id
                     -- deleteWhere [ BreakFixSubmissionBreak ==. id ]
                     -- updateWhere [ BreakFixSubmissionBreak ==. id ]
                     --             -- [ BreakFixSubmissionStatus =. BreakRejected
@@ -116,11 +115,11 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
         BuildSubmission tcId t h BuildPullFail (Just (Textarea msg)) Nothing
 
     insertErrorBreak tId name msg = do
-        insert_ $ BreakSubmission tcId tId t h name BreakPullFail Nothing (Just msg) Nothing Nothing Nothing (Just False)
+        insert_ $ BreakSubmission tcId tId t h name BreakPullFail Nothing (Just msg) Nothing Nothing Nothing (Just False) False
         -- insert_ $ BreakFixSubmission id Nothing Nothing Nothing BreakRejected (Just BreakFailed)
 
     insertPendingBreak tId name breakType breakJson = do
-        insert_ $ BreakSubmission tcId (Just tId) t h name BreakPending (Just breakType) Nothing (Just breakJson') Nothing Nothing Nothing
+        insert_ $ BreakSubmission tcId (Just tId) t h name BreakPending (Just breakType) Nothing (Just breakJson') Nothing Nothing Nothing False
       
       where
         breakJson' = Text.decodeUtf8With Text.lenientDecode (BSL.toStrict $ J.encode breakJson)

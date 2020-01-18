@@ -229,6 +229,9 @@ instance ProblemRunnerClass APIProblem where
             when (isNothing $ breakSubmissionBreakType bs) $ 
                 throwError $ BreakErrorRejected "Unknown break type."
 
+            when (breakSubmissionWithdrawn bs) $ 
+                throwError $ BreakErrorRejected "Withdrawn break."
+
             unless (Text.all (\c -> Char.isAscii c && (Char.isAlpha c || Char.isDigit c || c == '-' || c == '_')) $ breakSubmissionName bs) $
                 throwError $ BreakErrorRejected "Test names can only contain characters, numbers, dashes, and underscores."
 
@@ -306,20 +309,20 @@ instance ProblemRunnerClass APIProblem where
                 let stdout = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stdout'
                 let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
                 insert_ $ BreakFixSubmission bsId targetSubmissionId BreakFailed
-                runIfStillValid $ 
-                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                runIfNotWithdrawn $ 
+                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionValid =. Just False, BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
                 userFail "Build failed"
 
             Left (BreakErrorRejected msg) -> runDB $ do
                 insert_ $ BreakFixSubmission bsId targetSubmissionId BreakFailed
-                runIfStillValid $
-                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just msg, BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                runIfNotWithdrawn $
+                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just msg, BreakSubmissionValid =. Just False, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail msg
 
             Right (BreakResult False msgM) -> runDB $ do
                 insert_ $ BreakFixSubmission bsId targetSubmissionId BreakFailed
-                runIfStillValid $ 
-                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                runIfNotWithdrawn $ 
+                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionValid =. Just False, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail $ maybe "Test failed" Text.unpack msgM
 
             -- Right (BreakResult Nothing _) -> runDB $ 
@@ -327,11 +330,11 @@ instance ProblemRunnerClass APIProblem where
             --         -- JP: We mark as valid so that users can fix. If they appeal, manually judge as invalid.
             --         -- TODO: Email target team.
             --         insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
-            --         runIfStillValid $
+            --         runIfNotWithdrawn $
             --             update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
             --         return $ Just ( True, True)
 
-            --         -- runIfStillValid $
+            --         -- runIfNotWithdrawn $
             --         --     update bsId [BreakSubmissionStatus =. BreakJudging, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Nothing]
             --         -- return $ Just ( True, False)
 
@@ -339,7 +342,7 @@ instance ProblemRunnerClass APIProblem where
                 runUnlessNewFix targetSubmissionId subsequentFixes $ do
                     -- TODO: Email target team.
                     insert_ $ BreakFixSubmission bsId targetSubmissionId BreakSucceeded
-                    runIfStillValid $
+                    runIfNotWithdrawn $
                         update bsId [BreakSubmissionStatus =. BreakTested, BreakSubmissionMessage =. Nothing, BreakSubmissionValid =. Just True, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                     return $ Just ( True, True)
 
@@ -457,12 +460,12 @@ instance ProblemRunnerClass APIProblem where
 
         --     targetId = breakFixSubmissionFix bfs
 
-            runIfStillValid m = do
+            runIfNotWithdrawn m = do
                 bsM <- get bsId
                 case bsM of
                     Nothing ->
                         return ()
-                    Just bs | breakSubmissionValid bs == Just False -> 
+                    Just bs | breakSubmissionWithdrawn bs == True -> 
                         return ()
                     _ ->
                         m
