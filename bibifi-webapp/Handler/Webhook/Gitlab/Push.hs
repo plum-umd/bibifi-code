@@ -7,6 +7,8 @@ import PostDependencyType
     , BreakSubmissionResult(..)
     , FixSubmissionResult(..)
     )
+
+import BreakSubmissions (withdrawBreakSubmission)
 import Import
 import Control.Exception.Enclosed
 import Control.Monad.Trans.Maybe (MaybeT(..))
@@ -75,12 +77,7 @@ handleCommit t pId (Contest _ _ bld0 bld1 brk0 brk1 fix1) tcId (Commit h added m
             runDB $ do
                 oldBreaks <- selectList [BreakSubmissionTeam ==. tcId, BreakSubmissionName ==. name] []
                 forM_ oldBreaks $ \(Entity id _) -> do
-                    update id [ BreakSubmissionValid =. Just False
-                              , BreakSubmissionMessage =. Just "Break resubmitted" 
-                              , BreakSubmissionStatus =. BreakRejected
-                              , BreakSubmissionWithdrawn =. True
-                              ]
-                              -- JP: Update status too?
+                    withdrawBreakSubmission id
                     -- deleteWhere [ BreakFixSubmissionBreak ==. id ]
                     -- updateWhere [ BreakFixSubmissionBreak ==. id ]
                     --             -- [ BreakFixSubmissionStatus =. BreakRejected

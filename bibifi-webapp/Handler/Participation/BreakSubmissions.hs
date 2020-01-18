@@ -204,11 +204,11 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
               _ ->
                 mempty
 
-        -- Delete widget.
-        deleteW <- do
+        -- Withdraw widget.
+        withdrawW <- do
             -- Check that not on victim team, and it's during the break it round.
-            -- if not development && (victim || now < contestBreakFixStart contest || now > contestBreakEnd contest) then
-            if True then
+            if not development && (victim || now < contestBreakFixStart contest || now > contestBreakEnd contest || breakSubmissionWithdrawn bs == True) then
+            -- if True then
                 return mempty
               else 
                 -- Check if team leader.
@@ -218,28 +218,28 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                     if st == BreakPending || st == BreakTesting then
                         return [whamlet'|
                             <h3>
-                                Delete
+                                Withdraw
                             <p>
-                                You cannot delete a break submission until it is finished being tested.
+                                You cannot withdraw a break submission until it is finished being tested.
                         |]
                     else do
-                        (deleteW, deleteE) <- handlerToWidget $ generateFormPost deleteBreakSubmissionForm
+                        (withdrawW, withdrawE) <- handlerToWidget $ generateFormPost withdrawBreakSubmissionForm
                         return [whamlet'|
                             <h3>
-                                Delete
+                                Withdraw
                             <p>
-                                Delete this break submission. 
+                                Withdraw this break submission. 
                             <p .text-danger>
                                 Warning: This cannot be undone!
-                            <form .form-inline role=form method=post action="@{ParticipationBreakSubmissionDeleteR tcId bsId}" enctype=#{deleteE}>
-                                ^{deleteW}
+                            <form .form-inline role=form method=post action="@{ParticipationBreakSubmissionWithdrawR tcId bsId}" enctype=#{withdrawE}>
+                                ^{withdrawW}
                         |]
                 else
                     return [whamlet'|
                         <h3>
-                            Delete
+                            Withdraw
                         <p>
-                            Only the team leader may delete a break submission. 
+                            Only the team leader may withdraw a break submission. 
                     |]
                     
         -- Show break name if attacker or break-it has ended.
@@ -331,7 +331,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
             ^{breakFixesW victim}
             ^{buildOutputW}
             ^{disputeW}
-            ^{deleteW}
+            ^{withdrawW}
         |]
 
         -- Check if we can rerun submission.
@@ -459,23 +459,23 @@ postParticipationBreakSubmissionDisputeR tcId bsId = runLHandler $ do
             |]
             redirect $ ParticipationBreakSubmissionR tcId bsId
 
-data DeleteForm = DeleteForm ()
+data WithdrawForm = WithdrawForm ()
 
-deleteBreakSubmissionForm :: Form DeleteForm
-deleteBreakSubmissionForm = identifyForm "delete-break-submission" $ renderBootstrap3 BootstrapInlineForm $ DeleteForm
+withdrawBreakSubmissionForm :: Form WithdrawForm
+withdrawBreakSubmissionForm = identifyForm "withdraw-break-submission" $ renderBootstrap3 BootstrapInlineForm $ WithdrawForm
     <$> pure ()
-    <*  bootstrapSubmit (BootstrapSubmit ("Delete"::Text) "btn btn-danger" [])
+    <*  bootstrapSubmit (BootstrapSubmit ("Withdraw"::Text) "btn btn-danger" [])
 
-postParticipationBreakSubmissionDeleteR :: TeamContestId -> BreakSubmissionId -> Handler ()
-postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
+postParticipationBreakSubmissionWithdrawR :: TeamContestId -> BreakSubmissionId -> Handler ()
+postParticipationBreakSubmissionWithdrawR tcId bsId = runLHandler $ do
     raiseUserLabel
-    ((res, widget), enctype) <- runFormPost deleteBreakSubmissionForm
+    ((res, widget), enctype) <- runFormPost withdrawBreakSubmissionForm
     case res of
         FormFailure _msg ->
             failureHandler
         FormMissing ->
             failureHandler
-        FormSuccess (DeleteForm ()) -> do
+        FormSuccess (WithdrawForm ()) -> do
             bsM <- runDB $ E.select $ E.from $ \(E.InnerJoin (E.InnerJoin bs tc) t) -> do
                 E.on (tc E.^. TeamContestTeam E.==. t E.^. TeamId)
                 E.on (tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
@@ -508,12 +508,12 @@ postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
                                         if st == BreakPending || st == BreakTesting || breakSubmissionWithdrawn bs == True then
                                             failureHandler
                                         else do
-                                            runDB $ delete bsId
+                                            runDB $ BreakSubmissions.withdrawBreakSubmission bsId
                                             rescoreBreakRound contestId
                                             setMessage [shamlet|
                                                 <div class="container">
                                                     <div class="alert alert-success">
-                                                        Successfully deleted break submission.
+                                                        Successfully withdrew break submission.
                                             |]
                                             redirect $ ParticipationBreakSubmissionsR tcId
                             
@@ -525,7 +525,7 @@ postParticipationBreakSubmissionDeleteR tcId bsId = runLHandler $ do
             setMessage [shamlet|
                 <div class="container">
                     <div class="alert alert-danger">
-                        Could not delete break submission.
+                        Could not withdraw break submission.
             |]
             redirect $ ParticipationBreakSubmissionR tcId bsId
 

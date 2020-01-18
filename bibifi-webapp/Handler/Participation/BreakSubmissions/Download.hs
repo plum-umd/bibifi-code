@@ -8,7 +8,7 @@ import qualified Data.Text.Encoding as Text
 
 getParticipationBreakSubmissionDownloadR :: TeamContestId -> BreakSubmissionId -> Handler Html
 getParticipationBreakSubmissionDownloadR tcId bsId = runLHandler $ do
-    bs <- checkBreakSubmissionTeam tcId bsId
+    _bs <- checkBreakSubmissionTeam tcId bsId
 
     content <- (breakSubmissionFileFile . entityVal) <$> runDB (getBy404 $ UniqueBreakSubmissionFile bsId)
     

@@ -4,6 +4,7 @@ import qualified Database.Esqueleto as E
 import Database.Esqueleto.Internal.Sql (SqlSelect)
 
 import Import
+import PostDependencyType
 
 -- getLatestBreakSubmissions :: ( MonadResource m, SqlSelect a r, E.MonadSqlPersist m) => 
 --     ContestId -> 
@@ -56,3 +57,10 @@ checkBreakSubmissionTeam tcId bsId = do
 
     return bs
 
+withdrawBreakSubmission bsId =
+    update bsId [ BreakSubmissionValid =. Just False
+                , BreakSubmissionMessage =. Just "Break resubmitted" 
+                , BreakSubmissionStatus =. BreakRejected
+                , BreakSubmissionWithdrawn =. True
+                ]
+                -- JP: Update status too?
