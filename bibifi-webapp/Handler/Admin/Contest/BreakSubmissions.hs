@@ -23,7 +23,7 @@ getAdminContestBreakSubmissionsR url = runLHandler $ Admin.layoutContest url $ \
                 There are no break submissions.
         |]
     else
-        displayBreakSubmissionsTable contest BreakSubmissionAdmin submissions
+        displayBreakSubmissionsTable contest BreakSubmissionAdmin $ fmap (fmap Just) submissions
 
 
     where
@@ -32,5 +32,5 @@ getAdminContestBreakSubmissionsR url = runLHandler $ Admin.layoutContest url $ \
             -- teams <- fmap (fmap entityKey) $ handlerToWidget $ runDB $ selectList [TeamContestContest ==. contestId] []
             -- TODO: Add filters by status, team, etc. XXX
 
-            handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission inner join TeamContest on BreakSubmission.targetTeam == TeamContest.id inner join Team on TeamContest.team == Team.id where TeamContest.contest == #{contestId} order by BreakSubmission.id desc |]
+            handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission inner join TeamContest on BreakSubmission.team == TeamContest.id inner join Team on TeamContest.team == Team.id where TeamContest.contest == #{contestId} order by BreakSubmission.id desc |]
 

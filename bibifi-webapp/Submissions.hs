@@ -128,11 +128,12 @@ displayBreakSubmissionsTable contest viewer submissions = do
 
     where
         -- row :: BreakSubmissionViewer -> (Entity BreakSubmission, Text) -> LWidget
-        row BreakSubmissionVictim (Entity sId s, attacker) = do
+        row BreakSubmissionVictim (Entity sId s, attackerM) = do
             let status = prettyBreakStatusVictim $ breakSubmissionStatus s
             let result = prettyBreakValidVictim $ breakSubmissionValid s
             let bType = maybe dash prettyBreakType $ breakSubmissionBreakType s
             let (Just targetTeamId) = breakSubmissionTargetTeam s
+            let attacker = maybe dash toHtml attackerM
             fixStatus <- prettyFixStatus sId
             time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             now <- getCurrentTime
@@ -159,9 +160,10 @@ displayBreakSubmissionsTable contest viewer submissions = do
                       #{fixStatus}
             |]
 
-        row BreakSubmissionAttacker (Entity sId s, target) = do
+        row BreakSubmissionAttacker (Entity sId s, targetM) = do
             let status = prettyBreakStatus $ breakSubmissionStatus s
             let result = prettyBreakValid $ breakSubmissionValid s
+            let target = maybe dash toHtml targetM
             time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             return [whamlet'|
                 <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTeam s) sId}">
@@ -177,9 +179,10 @@ displayBreakSubmissionsTable contest viewer submissions = do
                         #{result}
             |]
 
-        row BreakSubmissionAdmin (Entity sId s, target) = do
+        row BreakSubmissionAdmin (Entity sId s, targetM) = do
             let status = prettyBreakStatus $ breakSubmissionStatus s
             let result = prettyBreakValid $ breakSubmissionValid s
+            let target = maybe dash toHtml targetM
             time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             return [whamlet'|
                 <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTeam s) sId}">

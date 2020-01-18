@@ -13,7 +13,7 @@ getParticipationBreakSubmissionsR :: TeamContestId -> Handler Html
 getParticipationBreakSubmissionsR tcId = runLHandler $ 
     Participation.layout Participation.BreakSubmissions tcId $ \_ _ contest _ -> do
         -- submissions <- handlerToWidget $ runDB $ selectList [BreakSubmissionTeam ==. tcId] [Desc BreakSubmissionTimestamp]
-        submissions <- handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission inner join TeamContest on BreakSubmission.targetTeam == TeamContest.id inner join Team on TeamContest.team == Team.id where BreakSubmission.team == #{tcId} order by BreakSubmission.id desc |]
+        submissions <- handlerToWidget $ runDB $ [lsql| select BreakSubmission.*, Team.name from BreakSubmission left outer join TeamContest on BreakSubmission.targetTeam == TeamContest.id inner join Team on TeamContest.team == Team.id where BreakSubmission.team == #{tcId} order by BreakSubmission.id desc |]
         -- E.select $ E.from $ \( s `E.InnerJoin` tc `E.InnerJoin` tt) -> do
         --     E.on ( tc E.^. TeamContestTeam E.==. tt E.^. TeamId)
         --     E.on ( s E.^. BreakSubmissionTargetTeam E.==. tc E.^. TeamContestId)
@@ -44,7 +44,7 @@ getParticipationBreakSubmissionsR tcId = runLHandler $
                             No submissions have targeted against your team.
                     |]
                 _ ->
-                    displayBreakSubmissionsTable contest BreakSubmissionVictim ss
+                    displayBreakSubmissionsTable contest BreakSubmissionVictim $ fmap (fmap Just) ss
         [whamlet|
             <h3>
                 Against your team
@@ -77,15 +77,15 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
               Just typ -> prettyBreakType typ 
         time <- displayTime $ breakSubmissionTimestamp bs
         (attackTeamName,targetTeam) <- do
-            res <- handlerToWidget $ runDB $ BreakSubmissions.getBothTeams bsId $ \(Entity _ t) _tc _bs _tct (Entity _ tt) ->
-                ( teamName t, tt)
+            res <- handlerToWidget $ runDB $ BreakSubmissions.getBothTeams bsId $ \(Entity _ t) _tc _bs _tct tt ->
+                ( teamName t, fmap entityVal tt)
             case res of
                 Just names ->
                     return names
                 _ ->
                     notFound
 
-        let targetTeamName = teamName targetTeam
+        let targetTeamName = maybe dash (toHtml . teamName) targetTeam
 
         -- Judgement widget.
         judgementW <- do
@@ -155,7 +155,7 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                       return mempty
                     else
                       -- Check if team leader.
-                      if userId /= teamLeader targetTeam then
+                      if Just userId /= fmap teamLeader targetTeam then
                           return [whamlet'|
                               <h3>
                                   Dispute
