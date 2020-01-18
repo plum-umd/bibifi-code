@@ -306,19 +306,19 @@ instance ProblemRunnerClass APIProblem where
                 let stderr = Just $ Textarea $ Text.decodeUtf8With Text.lenientDecode stderr'
                 insert_ $ BreakFixSubmission bsId targetSubmissionId BreakFailed
                 runIfNotWithdrawn $ 
-                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
+                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just "Running make failed", BreakSubmissionValid =. Just False, BreakSubmissionStdout =. stdout, BreakSubmissionStderr =. stderr]
                 userFail "Build failed"
 
             Left (BreakErrorRejected msg) -> runDB $ do
                 insert_ $ BreakFixSubmission bsId targetSubmissionId BreakFailed
                 runIfNotWithdrawn $
-                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just msg, BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just msg, BreakSubmissionValid =. Just False, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail msg
 
             Right (BreakResult False msgM) -> runDB $ do
                 insert_ $ BreakFixSubmission bsId targetSubmissionId BreakFailed
                 runIfNotWithdrawn $ 
-                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionValid =. Nothing, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
+                    update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. fmap Text.unpack msgM, BreakSubmissionValid =. Just False, BreakSubmissionStdout =. Nothing, BreakSubmissionStderr =. Nothing]
                 userFail $ maybe "Test failed" Text.unpack msgM
 
             -- Right (BreakResult Nothing _) -> runDB $ 

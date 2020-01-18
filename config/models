@@ -250,7 +250,7 @@ BreakSubmission json
     stdout Textarea Maybe default=null
     stderr Textarea Maybe default=null
     valid Bool Maybe -- If this break submission is valid/accepted. It should be marked as valid as long as the first run demonstrates a successful break. 
-    withdrawn Bool
+    withdrawn Bool default=FALSE
 --     fixed Bool default=FALSE
 --     bayesianScore Double Maybe default=null
 
