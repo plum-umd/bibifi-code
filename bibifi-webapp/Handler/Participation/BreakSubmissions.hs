@@ -254,13 +254,14 @@ getParticipationBreakSubmissionR tcId bsId = runLHandler $ do
                             Only the team leader may withdraw a break submission. 
                     |]
                     
-        -- Show break name if attacker or break-it has ended.
-        now <- getCurrentTime
-        let name = 
-              if not victim || now > contestBreakEnd contest then
-                  toHtml $ breakSubmissionName bs 
-              else
-                  dash
+        -- -- Show break name if attacker or break-it has ended.
+        -- now <- getCurrentTime
+        -- let name = 
+        --       if not victim || now > contestBreakEnd contest then
+        --           toHtml $ breakSubmissionName bs 
+        --       else
+        --           dash
+        let name = breakSubmissionName bs
 
         breakDownloadW <- do
             exists <- (> 0) <$> (handlerToWidget $ runDB $ count [BreakSubmissionFileBreak ==. bsId])
