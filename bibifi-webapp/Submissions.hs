@@ -134,7 +134,7 @@ displayBreakSubmissionsTable contest viewer submissions = do
             let bType = maybe dash prettyBreakType $ breakSubmissionBreakType s
             let (Just targetTeamId) = breakSubmissionTargetTeam s
             let attacker = maybe dash toHtml attackerM
-            fixStatus <- prettyFixStatus sId
+            fixStatus <- prettyFixStatus sId s
             time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             now <- getCurrentTime
             -- let name = 
@@ -246,7 +246,7 @@ displayBreakSubmissionsTable contest viewer submissions = do
                     Result
             |]
         
-        prettyFixStatus bsId = handlerToWidget $ do
+        prettyFixStatus bsId bs = handlerToWidget $ do
             disputeM <- runDB $ getBy $ UniqueBreakDispute bsId
             case disputeM of
                 Just _ ->
@@ -254,18 +254,21 @@ displayBreakSubmissionsTable contest viewer submissions = do
                         <span>
                             Disputed
                     |]
-                Nothing -> do
-                    active <- runDB $ isActiveBreak bsId
-                    if active then
-                        return [shamlet|
-                            <span .text-danger>
-                                Active
-                        |]
-                    else
-                        return [shamlet|
-                            <span .text-success>
-                                Fixed
-                        |]
+                Nothing ->
+                    if breakSubmissionValid bs /= Just True then
+                        return dash
+                    else do
+                        active <- runDB $ isActiveBreak bsId
+                        if active then
+                            return [shamlet|
+                                <span .text-danger>
+                                    Active
+                            |]
+                        else
+                            return [shamlet|
+                                <span .text-success>
+                                    Fixed
+                            |]
 
                     -- -- Check if a non pending/rejected fix exists.
                     -- fixs <- runDB $ E.select $ E.from $ \(E.InnerJoin f bf) -> do
