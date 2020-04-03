@@ -63,11 +63,11 @@ instance ProblemRunnerClass ATMSpec where
                     -- Send oracle bank. 
                     putLog "Sending oracle files."
 -- <<<<<<< HEAD:bibifi-runner/src/Core/Modular/ATM.hs
-                    let oracleBankFile = runnerOracleDirectory opts ++ "/bank"
+                    let oracleBankFile = runnerProblemDirectory opts ++ "/dist/build/bank/bank"
                     _ <- runSSH (OracleErr "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
 
                     -- Send oracle atm.
-                    let oracleAtmFile = runnerOracleDirectory opts ++ "/atm"
+                    let oracleAtmFile = runnerProblemDirectory opts ++ "/dist/build/atm/atm"
 -- =======
 --                     let oracleBankFile = runnerProblemDirectory opts ++ "/dist/build/bank/bank"
 --                     _ <- runSSH (OracleErr "Could not send bank oracle to instance.") $ sendFile session 0o700 oracleBankFile oracleBankDestFile
