@@ -10,8 +10,8 @@ import qualified Database.Esqueleto as E
 buildSubmission :: Entity BuildSubmission -> ContestId -> Bool -> LWidget
 buildSubmission (Entity bsId bs) cId public = do
     let status = prettyBuildStatus $ buildSubmissionStatus bs
-    time <- lLift $ lift $ displayTime $ buildSubmissionTimestamp bs
-    toWidget [lucius|
+    time <- lLift $ liftIO $ displayTime $ buildSubmissionTimestamp bs
+    lLift $ toWidget [lucius|
         .message-column {
             border-top-color: transparent !important;
             padding: 0px !important;
@@ -23,9 +23,9 @@ buildSubmission (Entity bsId bs) cId public = do
             margin-left: 6px;
          }
     |]
-    judgementW <- do
+    let judgementW :: LWidget = do
         judgementM <- handlerToWidget $ runDB $ getBy $ UniqueBuildJudgement bsId
-        extractWidget $ case judgementM of
+        case judgementM of
             Nothing ->
                 mempty
             Just (Entity jId j) -> 
@@ -90,16 +90,22 @@ buildSubmission (Entity bsId bs) cId public = do
                 <div class="col-xs-9">
                     <p class="form-control-static">
                         #{status}
-            ^{judgementW}
+            ^{(judgementW)}
     |]
     when (not public) $ do
-        case (buildSubmissionStdout bs, buildSubmissionStderr bs) of
-            (Just stdout, Just stderr) -> 
+        case buildSubmissionStdout bs of
+            Just stdout -> 
                 [whamlet|
                     <h4>
                         Build Standard Output
                     <samp>
                         #{stdout}
+                |]
+            _ ->
+                mempty
+        case buildSubmissionStderr bs of
+            Just stderr -> 
+                [whamlet|
                     <h4>
                         Build Standard Error
                     <samp>
@@ -240,9 +246,9 @@ buildSubmission (Entity bsId bs) cId public = do
                     No tests found.
             |]
         else
-            let cores = mconcat $ map renderCores coreResults in
-            let perfs = mconcat $ map renderPerfs performanceResults in
-            let opts = mconcat $ map renderOpts optionalResults in
+            let cores = mconcat $ map renderCores coreResults :: Widget in
+            let perfs = mconcat $ map renderPerfs performanceResults :: Widget in
+            let opts = mconcat $ map renderOpts optionalResults :: Widget in
             [whamlet|
                 <table class="table">
                     <thead>

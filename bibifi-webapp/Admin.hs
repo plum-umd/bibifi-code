@@ -42,7 +42,6 @@ layout page content =
     raiseUserLabel
     taintLabel $ dcSingleton PrincipalAdmin
     defaultLayout $ do
-        content' <- extractWidget content
         [whamlet|
             <div class="row">
                 <div class="col-md-12">
@@ -67,7 +66,7 @@ layout page content =
                             <a href="@{AdminAnnouncementsR}">
                                 Announcements
                 <div class="col-md-9">
-                    ^{content'}
+                    ^{content}
         |]
 
 contestNotFound :: LWidget

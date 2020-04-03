@@ -1,21 +1,26 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
-module Core.Score (defaultScoreBuildRound, defaultScoreBreakRound, defaultScoreFixRound) where
+module Core.Score (defaultScoreBuildRound, defaultScoreBreakFixRound) where
 
-import BuildSubmissions (buildSubmissionPassesRequiredTests)
+import BuildSubmissions (buildSubmissionPassesRequiredTests, isQualifiedBuilderTeam)
 import Core.DatabaseM
 import Control.Monad
 import Control.Monad.Trans.Class
 import Data.Hashable
-import qualified Data.HashMap as M
+import Data.Map (Map)
+import qualified Data.Map as M
 -- import qualified Data.Function as F
 import qualified Data.List as L
-import qualified Data.Set as S
-import Data.Time
+import Data.Maybe
+import Data.Time.Clock
 import qualified Database.Esqueleto as E
 import Database.Persist
 import Model
 import PostDependencyType
+
+import Problem.Shared
+
+type ScoreMap = Map TeamContestId (Double, Double, Double, Double)
 
 -- startScore = -1000.0
 -- baselineScore = 100.0
@@ -307,244 +312,236 @@ defaultScoreBuildRound cId = do
     --  return 100 + optional + performance
     --  set score in db
 
-isBreakCrash :: BreakSubmission -> Bool
-isBreakCrash submission =
-    let breakTypeM = breakSubmissionBreakType submission in
-    breakTypeM == Just BreakCrash
+-- isBreakCrash :: BreakSubmission -> Bool
+-- isBreakCrash submission =
+--     let breakTypeM = breakSubmissionBreakType submission in
+--     breakTypeM == Just BreakCrash
 
-defaultScoreBreakRound :: ContestId -> DatabaseM ()
-defaultScoreBreakRound cId = 
-    let score m (accBuilder,accBreaker) submission = 
-          let submitter = breakSubmissionTeam submission in
-          let target = breakSubmissionTargetTeam submission in
-          let score = case breakSubmissionResult submission of
-                Just BreakCorrect ->
-                    if isBreakCrash submission then 
-                        m
-                    else
-                        m/2.0
-                Just BreakExploit ->
-                    2*m
-                _ ->
-                    -- make this bool?? IO?
-                    -- silentFail "this should never happen"
-                    error "this should never happen"
-          in
-          let builderS = addScore accBuilder (target,-score) in
-          let breakerS = addScore accBreaker (submitter,score) in
-          ( builderS, breakerS)
-    in
-    do
-    -- Get number of teams, m
-    -- m' <- runDB $ count [TeamContestContest ==. cId]
-    let m = 50 -- fromIntegral m' :: Double
-    -- Select all break submissions from contest where result = bug or exploit
-    submissions' <- runDB $ E.select $ E.from $ \(tc `E.InnerJoin` bs) -> do
-        E.on ( tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
-        E.where_ (tc E.^. TeamContestContest E.==. E.val cId
-            E.&&. ((bs E.^. BreakSubmissionStatus E.==. E.val BreakTested) E.||. (bs E.^. BreakSubmissionStatus E.==. E.val BreakJudged))
-            E.&&. (bs E.^. BreakSubmissionResult E.==. E.val (Just BreakCorrect) 
-            E.||. bs E.^. BreakSubmissionResult E.==. E.val (Just BreakExploit)))
-        return bs
-    let submissions = fmap entityVal submissions'
-    initialScores <- getZeroScores
-    let ( builderScores, breakerScores) = foldl (score m) initialScores submissions
-    -- Insert latest scores
-    now <- lift getCurrentTime
-    mapM_ (updateBuildBreakScore now) builderScores
-    mapM_ (updateBreakBreakScore now) breakerScores
+defaultScoreBreakFixRound :: Entity Contest -> UTCTime -> DatabaseM ()
+defaultScoreBreakFixRound contestE@(Entity _ c) now = do
 
-    where
-        getZeroScores = do
-            -- Get all teams that have made a break submission for the current contest.
-            teams <- runDB $ E.select $ E.distinct $ E.from $ \(tc `E.InnerJoin` bs) -> do
-                E.on ( tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
-                E.where_ (tc E.^. TeamContestContest E.==. E.val cId)
-                return (tc E.^. TeamContestId)
-            let zeros = map (\(E.Value tcId) -> ( tcId, 0)) teams
-            return ([],zeros)
+    -- Get all qualified builder teams.
+    builderTeams <- runDB $ getQualifiedBuilders contestE
+
+    -- Map TeamContestId (BuildLost, BreakGained, BreakLost, BuildGained)
+    let scores' = mempty
+
+    -- Fold over each team.
+    scores <- foldM (scoreTeam now) scores' builderTeams
+
+    -- Record scores.
+    M.foldrWithKey (\tcId (buildLost, breakGained, breakLost, buildGained) m -> do
+        m
+
+        -- TODO: Should combine these functions.
+        updateBuildBreakScore now (tcId, buildLost)
+        updateBuildFixScore now (tcId, buildGained)
+        updateBreakBreakScore now (tcId, breakGained)
+        updateBreakFixScore now (tcId, breakLost)
+      ) (return ()) scores
+    
+  where
+    -- getQualifiedBuilders :: ContestId -> DatabaseM [TeamContestId]
+    getQualifiedBuilders contestE = do
+        teams <- fmap entityKey <$> selectList [TeamContestContest ==. entityKey contestE] []
+        filterM (isQualifiedBuilderTeam contestE) teams
+
+    scoreTeam now scores' targetTeamId = do
+        -- Get all valid, accepted breaks against the team (in ascending ordered).
+        validBreaks <- runDB $ getValidBreaks targetTeamId now
+
+        -- Map (Maybe (FixId, Timestamp)) [Entity BreakSubmission]
+        resM' <- foldM (\acc bsE@(Entity bsId _bs) -> do
+            -- Get all break fix submission for each break inner joined with fix submissions, ordered by fix timestamp, fix id, before now.
+            fs <- runDB $ E.select $ E.from $ \(bfs `E.InnerJoin` fs) -> do
+                E.on (bfs E.^. BreakFixSubmissionFix E.==. E.just (fs E.^. FixSubmissionId))
+                E.where_ (
+                        bfs E.^. BreakFixSubmissionBreak E.==. E.val bsId
+                  -- E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakSucceeded
+                  E.&&. bfs E.^. BreakFixSubmissionResult E.==. E.val BreakFailed
+                  E.&&. fs E.^. FixSubmissionResult E.==. E.just (E.val FixFixed)
+                  E.&&. fs E.^. FixSubmissionTimestamp E.<=. E.val now
+                  )
+                E.orderBy [E.asc (fs E.^. FixSubmissionTimestamp), E.asc (fs E.^. FixSubmissionId)]
+                return fs
+
+            -- Grab the first accepted fix.
+            let fM = (\(Entity fsId fs) -> (fsId, fixSubmissionTimestamp fs)) <$> listToMaybe fs
             
+            -- Group these breaks by the fix that fixed it (or not fixed)
+            return $ M.insertWith (++) fM [bsE] acc
+          ) mempty validBreaks
 
-defaultScoreFixRound :: ContestId -> DatabaseM ()
-defaultScoreFixRound cId = 
-    -- Iterate over a builder team's fix submissions. 
-    let scoreSubmission m disqualified ((accBuilder'',accBreaker''),fixed') s' = do
-          let Entity fsId fs = s'
-          -- get all bugs (inner joing FixSubmissionBugs and breaksubmission) (where result == bug or exploit)
-          bugs <- runDB $ E.select $ E.from $ \(b `E.InnerJoin` bs `E.InnerJoin` tc) -> do
-              E.on ( tc E.^. TeamContestId E.==. bs E.^. BreakSubmissionTeam)
-              E.on (b E.^. FixSubmissionBugsBugId E.==. bs E.^. BreakSubmissionId)
-              E.where_ ( b E.^. FixSubmissionBugsFix E.==. E.val fsId 
-                  E.&&. (bs E.^. BreakSubmissionStatus E.==. E.val BreakTested
-                      E.||. bs E.^. BreakSubmissionStatus E.==. E.val BreakJudged)
-                  E.&&. (bs E.^. BreakSubmissionResult E.==. E.val (Just BreakCorrect)
-                  E.||. bs E.^. BreakSubmissionResult E.==. E.val (Just BreakExploit)))
-              return (b,bs,tc E.^. TeamContestProfessional)
-          -- foreach bug
-          --  check that bugid not in disqualified or already fixed
-          -- .. construct breaker team -> (bug count, exploit count, is professional)
-          (breakCount,fixed) <- foldM (\(acc,fixed') (bug',break',E.Value professionalBreaker) ->
-                  let (Entity _ bug) = bug' in
-                  let (Entity breakId break) = break' in
-                  if S.member (fixSubmissionBugsBugId bug) disqualified || S.member breakId fixed' then
-                      return (acc,fixed')
-                  else
-                      let counts = case breakSubmissionResult break of
-                            Just BreakCorrect -> 
-                                if isBreakCrash break then
-                                    (0,1,0,professionalBreaker)
-                                else
-                                    (1,0,0,professionalBreaker)
-                            Just BreakExploit -> 
-                                (0,0,1,professionalBreaker)
-                            _ -> error "this should never happen"
-                      in
-                      -- Mark break submission as fixed
-                      let fixed = S.insert breakId fixed' in
+        -- Reverse breaks so they're in the right order.
+        let resM = L.reverse <$> resM'
 
-                      -- (liftDB g) $ runDB $ E.update $ \b -> do
-                      --     E.set b [BreakSubmissionFixed E.=. E.val True]
-                      --     E.where_ ( b E.^. BreakSubmissionId E.==. E.val breakId)
-                      -- Update map
-                      let newMap = M.insertWith (\(b1,c1,e1,p1) (b2,c2,e2,p2) -> 
-                              (b1 + b2, c1 + c2, e1 + e2, p1 || p2)
-                            ) (breakSubmissionTeam break) counts acc
-                      in
 
-                      return ( newMap, fixed)
-                ) (M.empty,fixed') bugs
+        -- Sort by timestamp + allocate/remove points.
+        -- Cap end time to fix round end date.
+        return $ M.foldrWithKey (scoreFix targetTeamId) scores' resM
 
-          -- Check if a breaker team hit the same bug multiple times.
-          let (accBuilder',accBreaker',bC,bC',cC,cC',eC,eC') = M.foldWithKey (\k (bC,cC,eC,prof) (accBuilder',accBreaker',accBC,accBC',accCC,accCC',accEC,accEC') ->
-                  let exploit = eC > 0 in
-                  let crash = cC > 0 in
-                  let (accBuilder,accBreaker) = 
-                        if bC + eC > 1 then
-                          -- Compute points to give back for hitting the same bug
-                          let prevPoints = ((fromIntegral bC) * m)/2.0 + (fromIntegral cC) * m + (fromIntegral eC) * 2*m in
-                          let points = if exploit then
-                                  prevPoints - 2*m
-                                else if crash then
-                                  prevPoints - m
-                                else
-                                  prevPoints - m/2.0
-                          in
-                          -- Remove/add points to breaker/fixer
-                          let accBreaker'' = addScore accBreaker' (k,-points) in
-                          let accBuilder'' = addScore accBuilder' ( fixSubmissionTeam fs, points) in
-                          (accBuilder'',accBreaker'')
-                        else
-                          (accBuilder',accBreaker')
-                  in
-                  -- Increment acc counters
-                  case ( exploit, prof) of
-                      ( True, False) ->
-                          (accBuilder,accBreaker,accBC,accBC',accCC,accCC',accEC+1,accEC')
-                      ( True, True) -> 
-                          (accBuilder,accBreaker,accBC,accBC',accCC,accCC',accEC,accEC'+1)
-                      ( False, False) ->
-                          if crash then
-                            (accBuilder,accBreaker,accBC,accBC',accCC+1,accCC',accEC,accEC')
-                            
-                          else
-                            (accBuilder,accBreaker,accBC+1,accBC',accCC,accCC',accEC,accEC')
-                      ( False, True) ->
-                          if crash then
-                            (accBuilder,accBreaker,accBC,accBC',accCC,accCC'+1,accEC,accEC')
-                          else
-                            (accBuilder,accBreaker,accBC,accBC'+1,accCC,accCC',accEC,accEC')
-                ) (accBuilder'',accBreaker'',0,0,0,0,0,0) breakCount
+    
+    -- Unfixed breaks, so given them full points.
+    scoreFix targetTeamId Nothing breaks scores' = 
+        -- let breakScores = map (scoreBreakIt capTime) breaks in
+        scoreBreakIt targetTeamId scores' capTime breaks
+        -- addScores scores' breakScores
+        
+    -- Score all the breaks for a given fix.
+    scoreFix targetTeamId (Just (_fixId, fixTime)) breaks scores = 
+        let endTime = min capTime fixTime in
+        let bScores' = scoreBreakIt targetTeamId mempty endTime breaks in
+        let bScores = convertBreakItScores bScores' in
+        let fScores = scoreFixIt targetTeamId scores endTime breaks in
+        addScores bScores fScores
 
-          -- Compute points to give back for bugs hit by multiple teams
-          let accBuilder = 
-                let bugC = bC + bC' in
-                let crashC = cC + cC' in
-                let exploitC = eC + eC' in
-                let count = bugC + exploitC + crashC in
-                if count > 1 then
-                  let prevPenalty = ((fromIntegral bugC) * m)/2.0 + (fromIntegral exploitC) * 2*m + (fromIntegral crashC) * m in
-                  -- Check if an exploit was found. 
-                  let pointsBack = if exploitC > 0 then
-                          prevPenalty - 2*m
-                        else if crashC > 0 then
-                          prevPenalty - m
-                        else
-                          prevPenalty - m/2.0
-                  in
-                  addScore accBuilder' ( fixSubmissionTeam fs,pointsBack)
-                else
-                  accBuilder'
+    -- BuildLost, BreakGained, BreakLost, BuildGained
+    convertBreakItScores = fmap (\(buildLost, breakGained, breakLost, buildGained) -> (buildLost, breakGained, breakLost - breakGained, buildGained - buildLost))
 
-          -- Compute how to share points between breakers. 
-          let accBreaker = 
-                M.foldWithKey (\k (_foundBC,foundCC,foundEC,prof) acc ->
-                  -- Don't penalize other breakers for professional team findings.
-                  let count = if prof then
-                          bC + bC' + cC + cC' + eC + eC'
-                        else
-                          bC + cC + eC
-                  in
-                  -- Just to be sure we don't divide by zero (and a slight optimisation).
-                  if count > 1 then
-                      let factor = - (fromIntegral (count - 1)) / (fromIntegral count) in
-                      -- Check if the breaker team found an exploit.
-                      let p = if foundEC > 0 then
-                            2*m
-                          else if foundCC > 0 then
-                            m
-                          else
-                            m/2.0
-                      in
-                      addScore acc (k,factor*p)
-                  else
-                      acc
-                ) accBreaker' breakCount
 
-          return ((accBuilder,accBreaker), fixed)
+
+
+        -- let startTime = snd $ L.head breaks in -- There should always be at least one break.
+
+        -- L.foldl' (\(correctnessC, crashC, securityC) (Entity bsId bs) -> 
+        --   
+        --   ) (0,0,0) breaks
+          
+    capTime = min now (contestFixEnd c)
+
+addScores :: ScoreMap -> ScoreMap -> ScoreMap
+addScores = M.unionWith combineScores
+
+combineScores :: (Double, Double, Double, Double) -> (Double, Double, Double, Double) -> (Double, Double, Double, Double)
+combineScores (a1, a2, a3, a4) (b1, b2, b3, b4) = (a1 + b1, a2 + b2, a3 + b3, a4 + b4)
+
+insertScore scores tcId score = M.insertWith combineScores tcId score scores
+
+scoreBreakIt _ scores' _ [] = scores'
+scoreBreakIt targetTeamId scores'' endTime ((Entity _ bs):breaks) = 
+    let m = breakTypeToM (breakSubmissionBreakType bs) in
+    let diff = scoreOverTime m (breakSubmissionTimestamp bs) endTime in
+    let scores' = insertScore scores'' targetTeamId (-diff, 0, 0, 0) in
+    let scores = insertScore scores' submitTeamId (0, diff, 0, 0) in
+    scoreBreakIt targetTeamId scores endTime breaks
+
+  where
+    submitTeamId = breakSubmissionTeam bs
+
+scoreFixIt _ scores'' _ [] = scores'' -- Unreachable?
+scoreFixIt targetTeamId scores'' endTime breaks@(firstBreakE:_) = 
+    let firstStart = breakSubmissionTimestamp $ entityVal firstBreakE in
+    let periods = breaksToPeriods endTime firstStart mempty mempty breaks in
+    let scores' = scorePeriods targetTeamId scores'' firstStart endTime periods in
+    scores'
+
+scorePeriods :: TeamContestId -> ScoreMap -> UTCTime -> UTCTime -> [(UTCTime, UTCTime, Map TeamContestId (Int, Int, Int))] -> ScoreMap
+scorePeriods _ scores _ _ [] = scores
+scorePeriods targetTeamId scores startTime endTime ((periodStart, periodEnd, counts):periods) = 
+    let splitC = fromInteger $ toInteger $ M.size counts in
+    let scores' = M.foldlWithKey (\scores tcId count -> 
+            let m = countToM count in
+            let s = scorePeriod m startTime endTime periodStart periodEnd / splitC in
+            -- let scores' = insertScore scores targetTeamId (0,0,-s,0) in
+            -- insertScore scores' tcId (0,0,0,s)
+            let scores' = insertScore scores targetTeamId (0,0,0,-s) in
+            insertScore scores' tcId (0,0,s,0)
+          ) scores counts 
     in
-    -- Iterate over teams.
-    let score m acc team' = do
-          let (Entity teamId _) = team'
-          -- Get all disqualified bug submissions for team
-          disqualified' <- runDB $ E.select $ E.from $ \( s `E.InnerJoin` b) -> do
-              E.on ( s E.^. FixSubmissionId E.==. b E.^. FixSubmissionBugsFix)
-              E.where_ ( s E.^. FixSubmissionTeam E.==. E.val teamId E.&&. s E.^. FixSubmissionResult E.==. E.val (Just FixDisqualified))
-              return ( b E.^. FixSubmissionBugsBugId)
-          let disqualified = foldl (\acc dis' -> 
-                  let E.Value dis = dis' in
-                  S.insert dis acc
-                ) S.empty disqualified'
+    scorePeriods targetTeamId scores' startTime endTime periods
 
-          -- Select all fix submissions from contest for team where built and fixed
-          submissions <- runDB $ E.select $ E.from $ \s -> do
-              E.where_ (s E.^. FixSubmissionTeam E.==. E.val teamId 
-                  E.&&. (s E.^. FixSubmissionStatus E.==. E.val FixBuilt
-                      E.||. s E.^. FixSubmissionStatus E.==. E.val FixJudged)
-                  E.&&. s E.^. FixSubmissionResult E.==. E.val (Just FixFixed))
-              E.orderBy [E.asc (s E.^. FixSubmissionTimestamp)]
-              return s
+  where
+    countToM (_,_,exploitC) | exploitC >= 1 = breakTypeToM $ Just BreakSecurity
+    countToM (_,crashC,_) | crashC >= 1 = breakTypeToM $ Just BreakCrash
+    countToM (correctnessC,_,_) | correctnessC >= 1 = breakTypeToM $ Just BreakCorrectness
+    countToM _ = error "countToM: unreachable"
 
-          (scoreMap, _fixed) <- foldM (scoreSubmission m disqualified) (acc, S.empty) submissions
-          return scoreMap
-    in
-    do
-    -- Get number of teams, m
-    -- m' <- runDB $ count [TeamContestContest ==. cId]
-    let m = 50 -- fromIntegral m' :: Double
-    -- Produce list of teams
-    teams <- runDB $ selectList [TeamContestContest ==. cId] []
-    ( builderScores, breakerScores) <- foldM (score m) ([],[]) teams
-    -- foreach team
-    --  get all disqualified submission ids
-    --  get all fix submissions for team
-    --      check if disqualifed
-    --      check if same team targeted same bug more than once (remove points)
-    --      assign actual penalty only once (exploit vs bug)
-    --      split up points between breakers
+    scorePeriod m startTime endTime periodStart periodEnd 
+      | startTime > endTime = 0
+      | periodStart > periodEnd = 0
+
+      | endTime `diffUTCTime` startTime < fromInteger bufferTime = 
+            -- (periodEnd - periodStart) / (endTime - startTime) * m
+            m * ((timeToDouble (periodEnd `diffUTCTime` periodStart)) / (timeToDouble (endTime `diffUTCTime` startTime)))
+
+      | otherwise = 
+            scoreOverTime m startTime periodEnd - scoreOverTime m startTime periodStart
 
 
-    -- Insert latest scores
-    now <- lift getCurrentTime
-    mapM_ (updateBuildFixScore now) builderScores
-    mapM_ (updateBreakFixScore now) breakerScores
+      --       -- Split into pre/post buffer.
+      --       let (preStart, preEnd, postStart, postEnd) = 
+      --               -- Before buffer time.
+      --               if (periodStart <= bufferTime && periodEnd <= bufferTime) then
+      --                   (periodStart, periodEnd, endTime, endTime)
+      --               -- Overlaps with buffer time.
+      --               else if (periodStart <= bufferTime && periodEnd > bufferTime) then
+      --                   (periodStart, bufferTime, bufferTime, periodEnd)
+      --               -- After buffer time.
+      --               else
+      --                   (startTime, startTime, periodStart, periodEnd)
+      --       in
+      --       let preScore = m * ((timeToDouble (preEnd `diffUTCTime` preStart)) / fromInteger bufferTime) in
+      --       let postScore = scoreOverTime m startTime postEnd - scoreOverTime m startTime postStart in
+      --       preScore + postScore
+
+      -- where
+      --   bufferTime = addUTCTime bufferTime startTime
+
+    timeToDouble = fromRational . toRational
+
+
+-- Assumes breaks are sorted by timestamp.
+-- breaksToPeriods ::    -> [Entity BreakSubmission] -> [(UTCTime, UTCTime, Map AttackerTeamContestId (Int, Int, Int))]
+breaksToPeriods endTime periodStart currentCounts acc [] = L.reverse $ (periodStart, endTime, currentCounts):acc
+breaksToPeriods endTime periodStart currentCounts acc ((Entity _ bs):breaks) = 
+    let currentCounts' = M.insertWith combineCounts attackerId (breakToCount bs) currentCounts in
+    if periodStart == breakSubmissionTimestamp bs then
+        -- Add to current period.
+        breaksToPeriods endTime periodStart currentCounts' acc breaks
+    else
+        -- Close old period, start new period.
+        let periodStart' = breakSubmissionTimestamp bs in
+        let acc' = (periodStart, periodStart', currentCounts):acc in
+
+        breaksToPeriods endTime periodStart' currentCounts' acc' breaks
+    
+    where
+        combineCounts (a1, a2, a3) (b1, b2, b3) = (a1 + b1, a2 + b2, a3 + b3)
+
+        breakToCount bs = case breakSubmissionBreakType bs of
+            Just BreakCorrectness     -> (1,0,0)
+            Just BreakCrash           -> (0,1,0)
+            Just BreakConfidentiality -> (0,0,1)
+            Just BreakIntegrity       -> (0,0,1)
+            Just BreakAvailability    -> (0,0,1)
+            Just BreakSecurity        -> (0,0,1)
+            Nothing                   -> error "breakToCount: unreachable"
+
+
+    
+        attackerId = breakSubmissionTeam bs
+
+
+scoreOverTime :: Double -> UTCTime -> UTCTime -> Double
+scoreOverTime m startTime endTime 
+  | endTime `diffUTCTime` startTime <= 0 = 0
+  | endTime `diffUTCTime` startTime < fromInteger bufferTime = m
+  | otherwise = m * ((fromRational $ toRational $ endTime `diffUTCTime` startTime) / fromInteger bufferTime)
+
+-- 24 hours
+-- bufferTime = secondsToNominalDiffTime $ 24 * 60 * 60
+bufferTime :: Integer
+bufferTime = 24 * 60 * 60
+
+
+
+breakTypeToM :: Maybe BreakType -> Double
+breakTypeToM (Just BreakCorrectness)     = 25
+breakTypeToM (Just BreakCrash)           = 50
+breakTypeToM (Just BreakConfidentiality) = 100
+breakTypeToM (Just BreakIntegrity)       = 100
+breakTypeToM (Just BreakAvailability)    = 100
+breakTypeToM (Just BreakSecurity)        = 100
+breakTypeToM Nothing                     = error "breakTypeToM: unreachable"
+        
 

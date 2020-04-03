@@ -22,7 +22,7 @@ layout page content =
     uId <- requireAuthId
     defaultLayout $ do
         setTitle [shamlet|#{subtitle} - Profile|]
-        content' <- extractWidget $ content uId
+        let content' = content uId
         [whamlet|
             <div class="row">
                 <div class="col-md-12">

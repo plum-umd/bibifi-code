@@ -5,13 +5,18 @@ import Control.Exception.Enclosed
 -- import Control.Monad
 -- import Control.Monad.Trans.Class
 -- import Control.Monad.Trans.Reader
-import Problem
+import Core (keyToInt)
 import Data.Set (Set)
-import Score
+import Data.Text (Text)
+import qualified System.Directory as Directory
 -- import System.Timeout
 
 import Common
+import qualified Git
+import Problem
+import Problem.Shared
 import Queue
+import Score
 
 getJob :: ProblemRunner -> (ProblemRunner -> Job -> DatabaseM (Maybe (Bool, Maybe ContestRound))) -> MVar (Set TeamContestId) -> MVar (Queue Job) -> MVar Int -> DatabaseM ()
 getJob runner'@(ProblemRunner runner) f blockedTeams queue exiting = do
@@ -114,6 +119,10 @@ runJob opts (ProblemRunner r) (OracleJob os) = do
             return $ Just (success, Nothing)
 
 runJob opts (ProblemRunner r) (BuildJob bs) = do
+    -- Download commit.
+    downloadCommit opts (buildSubmissionTeam $ entityVal bs) (buildSubmissionCommitHash $ entityVal bs)
+    -- JP: We don't really need to save these to the filesystem anymore since we're loading them in the database...
+
     resM <- runBuildSubmission r opts bs
     case resM of
         Nothing ->
@@ -123,15 +132,30 @@ runJob opts (ProblemRunner r) (BuildJob bs) = do
             return $ Just (success, rescore)
 
 runJob opts (ProblemRunner r) (BreakJob bs) = do
-            resM <- runBreakSubmission r opts bs
-            case resM of 
-                Nothing ->
-                    return Nothing
-                Just (success, rescore') ->
-                    let rescore = if rescore' then Just ContestRoundBreak else Nothing in
-                    return $ Just (success, rescore)
+    -- Download commit.
+    downloadCommit opts (breakSubmissionTeam $ entityVal bs) (breakSubmissionCommitHash $ entityVal bs)
+    -- JP: We don't really need to save these to the filesystem anymore since we're loading them in the database...
+
+    resM <- runBreakSubmission r opts bs
+    case resM of 
+        Nothing ->
+            return Nothing
+        Just (success, rescore') ->
+            let rescore = if rescore' then Just ContestRoundBreak else Nothing in
+            return $ Just (success, rescore)
+  -- where
+  --   getBfs = runDB $ do
+  --       res <- selectFirst [BreakFixSubmissionBreak ==. entityKey bs]
+  --                          [Asc BreakFixSubmissionId]
+  --       case res of
+  --           Just it -> return it
+  --           Nothing -> error $ "getBfs: BreakFixSubmission does not exist" ++ show (entityKey bs)
 
 runJob opts (ProblemRunner r) (FixJob fs) = do
+    -- Download commit.
+    downloadCommit opts (fixSubmissionTeam $ entityVal fs) (fixSubmissionCommitHash $ entityVal fs)
+    -- JP: We don't really need to save these to the filesystem anymore since we're loading them in the database...
+
     resM <- runFixSubmission r opts fs
     case resM of
         Nothing ->
@@ -139,6 +163,57 @@ runJob opts (ProblemRunner r) (FixJob fs) = do
         Just (success, rescore') -> 
             let rescore = if rescore' then Just ContestRoundFix else Nothing in
             return $ Just (success, rescore)
+
+-- Download commit for team.
+downloadCommit :: RunnerOptions -> TeamContestId -> Text -> DatabaseM Bool
+downloadCommit opts tcId commit = catchAny download $ \e -> do
+    -- Unlock file.
+    releaseFileLock file fileLockSet
+    
+    -- Print error.
+    putLog $ show e
+    return False
+
+    where
+        gitConfig = runnerGitConfiguration opts
+        file = archiveLocation tcId commit opts
+        fileDir = archiveLocationDirectory tcId opts
+        fileLockSet = runnerFileLockSet opts
+
+        download :: DatabaseM Bool
+        download = do
+            -- Lock file.
+            acquireFileLock file fileLockSet
+
+            -- Check if file exists.
+            exists <- liftIO $ Directory.doesFileExist file
+
+            success <- if exists then
+                return True
+              else do
+                -- Get repository id.
+                repoIdM <- runDB $ get tcId
+
+                case repoIdM >>= teamContestGitRepositoryIdentifier of
+                    Nothing -> do
+                        putLog $ "Could not obtain repo id for team " <> show (keyToInt tcId)
+                        return False
+                    Just repoId -> do
+                        -- Create directory if it doesn't exist.
+                        liftIO $ Directory.createDirectoryIfMissing True fileDir
+
+                        -- Download archive from git API.
+                        Git.getFileArchive gitConfig repoId file
+
+                        return True
+                
+            
+            -- Unlock file.
+            releaseFileLock file fileLockSet
+            
+            -- Return whether successful.
+            return success
+
 
 -- getBuildTest blockedTeams = 
 --     -- Get next build-it test for non-blocked teams.

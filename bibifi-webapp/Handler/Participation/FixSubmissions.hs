@@ -11,10 +11,10 @@ getParticipationFixSubmissionsR :: TeamContestId -> Handler Html
 getParticipationFixSubmissionsR tcId = runLHandler $ 
     Participation.layout Participation.FixSubmissions tcId $ \_ _ contest _ -> do
         now <- getCurrentTime
-        if not development && now < (contestFixStart contest) then
+        if not development && now < (contestBreakFixStart contest) then
             [whamlet|
                 <p>
-                    The fix-it round has not started yet.
+                    The break-it round has not started yet.
             |]
         else do
             submissions <- handlerToWidget $ runDB $ selectList [FixSubmissionTeam ==. tcId] [Desc FixSubmissionId]
@@ -27,12 +27,12 @@ getParticipationFixSubmissionsR tcId = runLHandler $
                 _ ->
                     displayFixSubmissionsTable False submissions
 
-            [whamlet|
-                <h3>
-                    Break submissions
-                <p>
-                    You can find break submissions in <a href="/static/doc/#{contestUrl contest}/fix.zip">this file</a>. There is folder for each team, which contains the break tests submitted by that team. 
-            |]
+            -- [whamlet|
+            --     <h3>
+            --         Break submissions
+            --     <p>
+            --         You can find break submissions in <a href="/static/doc/#{contestUrl contest}/fix.zip">this file</a>. There is folder for each team, which contains the break tests submitted by that team. 
+            -- |]
             clickableDiv
 
 checkFixSubmissionTeam tcId fsId = do
@@ -45,7 +45,7 @@ getParticipationFixSubmissionR :: TeamContestId -> FixSubmissionId -> Handler Ht
 getParticipationFixSubmissionR tcId fsId = runLHandler $ do
     fs <- checkFixSubmissionTeam tcId fsId
     Participation.layout Participation.FixSubmissions tcId $ \userId _ contest team -> do
-        time <- lLift $ lift $ displayTime $ fixSubmissionTimestamp fs
+        time <- displayTime $ fixSubmissionTimestamp fs
         judgementW <- do
             judgementM <- handlerToWidget $ runDB $ getBy $ UniqueFixJudgement fsId
             return $ case judgementM of 
@@ -97,8 +97,8 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                 |]
         deleteW <- do
             now <- getCurrentTime
-            -- Check that it's during the fix it round.
-            if not development && (now < contestFixStart contest || now > contestFixEnd contest) then
+            -- Check that it's during the "fix it" round.
+            if not development && (now < contestBreakFixStart contest || now > contestFixEnd contest) then
                 return mempty
             else
                 -- Check if team leader.
@@ -155,12 +155,6 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
             <form class="form-horizontal">
                 <div class="form-group">
                     <label class="col-xs-3 control-label">
-                        Fix name
-                    <div class="col-xs-9">
-                        <p class="form-control-static">
-                            #{fixSubmissionName fs}
-                <div class="form-group">
-                    <label class="col-xs-3 control-label">
                         Submission hash
                     <div class="col-xs-9">
                         <p class="form-control-static">
@@ -190,12 +184,20 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                         <p class="form-control-static">
                             #{message}
                 ^{judgementW}
+            ^{breakFixesW fs}
             ^{buildOutputW}
             ^{deleteW}
-        |]
+        |] :: LWidget
+                -- <div class="form-group">
+                --     <label class="col-xs-3 control-label">
+                --         Fix name
+                --     <div class="col-xs-9">
+                --         <p class="form-control-static">
+                --             #{fixSubmissionName fs}
         
         -- Check if can rerun submission.
-        canRerun <- canRerunFixSubmission fs contest
+        -- canRerun <- canRerunFixSubmission fs contest
+        let canRerun = False -- JP: We need to be careful with rerunning fixes as this can cause race conditions. Maybe safe if we update timestamp.
         when canRerun $
             rerunW
 
@@ -211,6 +213,32 @@ getParticipationFixSubmissionR tcId fsId = runLHandler $ do
                         Rerun
             |]
 
+        breakFixesW fs = when (fixSubmissionResult fs == Just FixFixed) $ do
+            bfs <- handlerToWidget $ runDB $ [lsql| select BreakFixSubmission.result, BreakSubmission.* from BreakFixSubmission inner join BreakSubmission on BreakFixSubmission.break == BreakSubmission.id where (BreakFixSubmission.fix == #{Just fsId}) order by BreakSubmission.id desc|]
+            let rows = mconcat $ map breakFixesRow bfs
+            [whamlet|
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                Break
+                            <th>
+                                Break result
+                    <tbody>
+                        ^{rows}
+            |]
+
+        breakFixesRow (res', Entity bsId break) = 
+            let res = prettyBreakResultVictim res' in
+            [whamlet|
+                <tr>
+                    <td>
+                        <a href="@{ParticipationBreakSubmissionR tcId bsId}">
+                            #{breakSubmissionName break}
+                    <td>
+                        #{res}
+            |]
+            
 postParticipationFixSubmissionRerunR :: TeamContestId -> FixSubmissionId -> Handler Html
 postParticipationFixSubmissionRerunR tcId fsId = runLHandler $ do
     fs <- checkFixSubmissionTeam tcId fsId
@@ -252,6 +280,7 @@ deleteFixSubmissionForm = renderBootstrap3 (BootstrapInlineForm) $ DeleteForm
     <$> pure ()
     <* bootstrapSubmit (BootstrapSubmit ("Delete"::Text) "btn btn-danger" [])
 
+-- JP: Does it make sense to let them delete fixes now?
 postParticipationFixSubmissionDeleteR :: TeamContestId -> FixSubmissionId -> Handler Html
 postParticipationFixSubmissionDeleteR tcId fsId = runLHandler $ Participation.layout Participation.FixSubmissions tcId $ \userId teamContest contest team -> do
     ((res, widget), enctype) <- handlerToWidget $ runFormPost deleteFixSubmissionForm
@@ -269,9 +298,9 @@ postParticipationFixSubmissionDeleteR tcId fsId = runLHandler $ Participation.la
                     if ( fixSubmissionTeam fs) /= tcId then
                         failureHandler
                     else do
-                        -- Check that it's during the fix it round.
+                        -- Check that it's during the "fix it" round.
                         now <- getCurrentTime
-                        if not development && (now < contestFixStart contest || now > contestFixEnd contest) then
+                        if not development && (now < contestBreakFixStart contest || now > contestBreakEnd contest) then
                             failureHandler
                         else
                             -- Check if team leader.
@@ -284,7 +313,7 @@ postParticipationFixSubmissionDeleteR tcId fsId = runLHandler $ Participation.la
                                     failureHandler
                                 else do
                                     handlerToWidget $ runDB $ do
-                                        deleteWhere [FixSubmissionBugsFix ==. fsId]
+                                        deleteWhere [BreakFixSubmissionFix ==. Just fsId] -- [FixSubmissionBugsFix ==. fsId]
                                         delete fsId
                                     handlerToWidget $ rescoreFixRound $ teamContestContest teamContest
                                     setMessage [shamlet|
@@ -316,7 +345,7 @@ canRerunFixSubmission fs contest = do
             return True
         else do
             now <- getCurrentTime
-            return $ now <= contestFixEnd contest
+            return $ now <= contestBreakEnd contest
 
 data RerunFormData = RerunFormData ()
 

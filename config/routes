@@ -54,10 +54,12 @@
 /participation/#TeamContestId/buildsubmission/#BuildSubmissionId ParticipationBuildSubmissionR GET
 /participation/#TeamContestId/buildsubmission/#BuildSubmissionId/rerun ParticipationBuildSubmissionRerunR POST
 /participation/#TeamContestId/builderscode ParticipationBuildersCodeR GET
+/participation/#TeamContestId/builderscode/#TeamContestId/download ParticipationDownloadBuilderR GET
 /participation/#TeamContestId/breaksubmissions ParticipationBreakSubmissionsR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId ParticipationBreakSubmissionR GET
-/participation/#TeamContestId/breaksubmission/#BreakSubmissionId/delete ParticipationBreakSubmissionDeleteR POST
+/participation/#TeamContestId/breaksubmission/#BreakSubmissionId/withdraw ParticipationBreakSubmissionWithdrawR POST
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/dispute ParticipationBreakSubmissionDisputeR POST
+/participation/#TeamContestId/breaksubmission/#BreakSubmissionId/download ParticipationBreakSubmissionDownloadR GET
 /participation/#TeamContestId/breaksubmission/#BreakSubmissionId/rerun ParticipationBreakSubmissionRerunR POST
 /participation/#TeamContestId/fixsubmissions ParticipationFixSubmissionsR GET
 /participation/#TeamContestId/fixsubmission/#FixSubmissionId ParticipationFixSubmissionR GET
@@ -114,6 +116,7 @@
 
 /admin/team/#TeamId AdminTeamR GET
 /admin/team/#TeamId/member/#UserId AdminTeamMemberR GET POST
+/admin/team/#TeamId/addmember AdminTeamAddMemberR GET POST
 /admin/teams AdminTeamsR GET
 
 /admin/announcements AdminAnnouncementsR GET
@@ -130,3 +133,5 @@
 /judges/#Text/buildit/#BuildJudgementId JudgesBuildItR GET POST
 /judges/#Text/breakit/#BreakJudgementId JudgesBreakItR GET POST
 /judges/#Text/fixit/#FixJudgementId JudgesFixItR GET POST
+
+/webhook/gitlab/push/#TeamContestId/#Text WebhookGitlabPushR POST

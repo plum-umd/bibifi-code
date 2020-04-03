@@ -1,7 +1,10 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, InstanceSigs #-}
 module Import
     ( module Import
     , getCurrentTime
+    , whamlet
+    , whamlet'
+    , hamlet
     ) where
 
 import           Prelude              as Import hiding (head, init, last,
@@ -11,8 +14,13 @@ import           LYesod               as Import
 import           Control.Applicative  as Import (pure, (<$>), (<*>), (<*))
 import           Control.Monad        as Import
 import           Data.Either          as Import (isLeft)
+import           Data.Maybe           as Import (maybeToList)
 import           Data.Text            as Import (Text)
 import           Data.Time            as Import (UTCTime, addUTCTime, NominalDiffTime)
+import           Language.Haskell.TH
+import           Language.Haskell.TH.Quote
+import qualified Network.Mail.Mime    as Mail 
+import qualified Network.Mail.SMTP    as SMTP
 
 import           Foundation           as Import
 import           Foundation.App       as Import
@@ -24,10 +32,12 @@ import           Settings.StaticFiles as Import
 import           Config               as Import
 import           Contest              as Import
 import           Common               as Import
+import           Core.Git             as Import
 
 import           LMonad               as Import
 import           LMonad.Label.DisjunctionCategory as Import
-import           LMonad.Yesod         as Import
+import           LMonad.Yesod         as Import hiding (whamlet, hamlet)
+import qualified LMonad.Yesod
 import           TCB                  as Import
 
 import           Database.LPersist    as Import
@@ -35,7 +45,8 @@ import           Database.LEsqueleto  as Import
 
 import     Database.Persist.RateLimit as Import
 
-import          Yesod.Form.Bootstrap3 as Import
+import qualified Yesod as Yesod
+import           Yesod.Form.Bootstrap3 as Import
 
 import          RateLimit             as Import
 
@@ -70,3 +81,21 @@ runMultipleFormsPost ((FormAndHandler form handler):t) = do
             runMultipleFormsPost t
         _ ->
             handler res widget enctype
+
+sendMail m = liftIO $ 
+  if development then
+    print m
+  else do
+    SMTP.sendMail "localhost" m
+    -- renderSendMail
+
+initEmptyMail = do
+    domainName <- appDomainName <$> getYesod
+    return $ Mail.emptyMail $ Mail.Address (Just "Build it Break it Fix it") $ "noreply@" <> domainName
+
+instance ToLWidget (DCLabel Principal) App (HtmlUrl (Route App)) where
+    toLWidget = lLift . toWidget
+
+whamlet' = QuasiQuoter { quoteExp = \s -> quoteExp Yesod.whamlet s >>= return . (`SigE` (ConT ''Widget)) }
+whamlet = QuasiQuoter { quoteExp = \s -> quoteExp LMonad.Yesod.whamlet s >>= return . (`SigE` (ConT ''LWidget)) }
+hamlet = QuasiQuoter { quoteExp = \s -> quoteExp Yesod.hamlet s >>= return . (`SigE` (AppT (ConT ''HtmlUrl) (AppT (ConT ''Route) (ConT ''App)))) }

@@ -15,7 +15,7 @@ import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.List as List
-import Data.Monoid
+-- import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
@@ -30,29 +30,33 @@ import Common
 --import Core.Modular.Class
 import Problem.Class
 
-checkSubmissionRound2 :: ContestId -> Entity BreakSubmission -> ErrorT BreakError DatabaseM ()
-checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $ 
-    if submitteamid == targetteamid then
-        reject "Cannot break yourself."
-    else do
-        targetTeamM <- lift $ runDB $ get targetteamid
-        case targetTeamM of 
-            Nothing -> do
-                reject "Invalid target team. Doesn't exist."
-            Just tt | teamContestContest tt /= contestId -> do
-                reject "Invalid target team. Not in this contest."
-            Just _ -> do
-                validBreakTeam <- lift $ runDB $ do
-                    bsId <- selectFirst [BuildSubmissionTeam ==. targetteamid] [Desc BuildSubmissionId]
-                    case bsId of
-                        Just (Entity bsId _) -> do
-                            buildSubmissionPassesRequiredTests contestId bsId
-                        Nothing ->
-                            return False
-                if not validBreakTeam then
-                    reject "Invalid target team."
-                else
-                    return ()
+getValidBreaks teamId time = selectList [
+    BreakSubmissionValid ==. Just True
+  , BreakSubmissionTargetTeam ==. Just teamId
+  , BreakSubmissionTimestamp <=. time
+  ] [Asc BreakSubmissionTimestamp, Asc BreakSubmissionId]
+
+checkSubmissionRound2 :: Entity Contest -> Entity BreakSubmission -> ErrorT BreakError DatabaseM TeamContestId
+checkSubmissionRound2 contestE@(Entity contestId _) (Entity bsId bs) = checkSubmissionLimit $ case targetteamid of
+    Nothing ->
+        reject "Invalid target team. No target team given."
+    Just targetteamid ->
+        if submitteamid == targetteamid then
+            reject "Cannot break yourself."
+        else do
+            targetTeamM <- lift $ runDB $ get targetteamid
+            case targetTeamM of 
+                Nothing -> do
+                    reject "Invalid target team. Doesn't exist."
+                Just tt | teamContestContest tt /= contestId -> do
+                    reject "Invalid target team. Not in this contest."
+                Just _ -> do
+                    validBreakTeam <- lift $ runDB $ isQualifiedBuilderTeam contestE targetteamid
+                        
+                    if not validBreakTeam then
+                        reject "Invalid target team."
+                    else
+                        return targetteamid
 
     where
         submitteamid = breakSubmissionTeam bs
@@ -70,8 +74,18 @@ checkSubmissionRound2 contestId (Entity bsId bs) = checkSubmissionLimit $
             -- runDB $ update bsId [BreakSubmissionStatus =. BreakRejected, BreakSubmissionMessage =. Just msg]
             -- return False
 
-breakBaseFilters :: BreakSubmissionId -> Key TeamContest -> Key TeamContest -> [Filter BreakSubmission]
-breakBaseFilters bsId submitteamid targetteamid = [BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionTeam ==. submitteamid, BreakSubmissionTargetTeam ==. targetteamid, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionId !=. bsId, BreakSubmissionResult !=. Just BreakIncorrect]
+breakBaseFilters :: BreakSubmissionId -> Key TeamContest -> Maybe (Key TeamContest) -> [Filter BreakSubmission]
+breakBaseFilters bsId submitteamid targetteamid = [
+      BreakSubmissionStatus !=. BreakPullFail
+    , BreakSubmissionStatus !=. BreakRejected
+    , BreakSubmissionStatus !=. BreakPending
+    , BreakSubmissionTeam ==. submitteamid
+    , BreakSubmissionTargetTeam ==. targetteamid
+    , BreakSubmissionId !=. bsId
+    -- , BreakSubmissionResult !=. Just BreakIncorrect
+    , BreakSubmissionValid !=. Just False
+    ]
+-- breakBaseFilters bsId submitteamid targetteamid = [] -- FIXME [BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionStatus !=. BreakRejected, BreakSubmissionStatus !=. BreakPending, BreakSubmissionTeam ==. submitteamid, BreakSubmissionTargetTeam ==. targetteamid, BreakSubmissionStatus !=. BreakPullFail, BreakSubmissionId !=. bsId, BreakSubmissionResult !=. Just BreakIncorrect]
 
 checkIntegrityLimit :: () => Entity BreakSubmission -> ErrorT BreakError DatabaseM ()
 checkIntegrityLimit (Entity bsId bs) = do
@@ -105,28 +119,29 @@ loadBreakSubmissionJSON bsId location = do
         storeJSONandUpdateSubmissionType j t = lift $ runDB $ update bsId [BreakSubmissionJson =. Just (Text.decodeUtf8With Text.lenientDecode (BSL.toStrict j)), BreakSubmissionBreakType =. Just (breakTestToType t)]
             
 -- | Check that the break 'description.txt' exists. 
-checkForBreakDescription :: (MonadIO m) => BreakSubmission -> RunnerOptions -> ErrorT BreakError m ()
-checkForBreakDescription submission opts = do
-    let team = show $ keyToInt $ breakSubmissionTeam submission
-    let breakName = Text.unpack $ breakSubmissionName submission
-    let repoDir = runnerRepositoryPath opts
-    let loc' = FilePath.joinPath [repoDir, "repos", team, "break", breakName, "description"]
-    let loc = FilePath.addExtension loc' "txt"
-    exists <- liftIO $ Directory.doesFileExist loc
-    when (not exists) $ 
-        throwError $ BreakErrorRejected "description.txt not found"
+-- TODO: Do this VM-side.
+-- checkForBreakDescription :: (MonadIO m) => BreakSubmission -> RunnerOptions -> ErrorT BreakError m ()
+-- checkForBreakDescription submission opts = do
+--     let team = show $ keyToInt $ breakSubmissionTeam submission
+--     let breakName = Text.unpack $ breakSubmissionName submission
+--     let repoDir = runnerRepositoryPath opts
+--     let loc' = FilePath.joinPath [repoDir, "repos", team, "break", breakName, "description"]
+--     let loc = FilePath.addExtension loc' "txt"
+--     exists <- liftIO $ Directory.doesFileExist loc
+--     when (not exists) $ 
+--         throwError $ BreakErrorRejected "description.txt not found"
 
--- Check that the fix 'description.txt' exists.
-checkForFixDescription :: (MonadIO m) => FixSubmission -> RunnerOptions -> ErrorT FixError m ()
-checkForFixDescription submission opts = do
-    let team = show $ keyToInt $ fixSubmissionTeam submission
-    let fixName = Text.unpack $ fixSubmissionName submission
-    let repoDir = runnerRepositoryPath opts
-    let loc' = FilePath.joinPath [repoDir, "repos", team, "fix", fixName, "description"]
-    let loc = FilePath.addExtension loc' "txt"
-    exists <- liftIO $ Directory.doesFileExist loc
-    when (not exists) $
-        throwError $ FixErrorRejected "description.txt not found"
+-- -- Check that the fix 'description.txt' exists.
+-- checkForFixDescription :: (MonadIO m) => FixSubmission -> RunnerOptions -> ErrorT FixError m ()
+-- checkForFixDescription submission opts = do
+--     let team = show $ keyToInt $ fixSubmissionTeam submission
+--     let fixName = Text.unpack $ fixSubmissionName submission
+--     let repoDir = runnerRepositoryPath opts
+--     let loc' = FilePath.joinPath [repoDir, "repos", team, "fix", fixName, "description"]
+--     let loc = FilePath.addExtension loc' "txt"
+--     exists <- liftIO $ Directory.doesFileExist loc
+--     when (not exists) $
+--         throwError $ FixErrorRejected "description.txt not found"
 
 data BreakError = 
       BreakErrorSystem String
@@ -173,11 +188,6 @@ instance Error OracleErr where
 instance BackendError OracleErr where
     backendTimeout = OracleErrTimeout
 
-data BuildTest = 
-    BuildTestCore (Entity ContestCoreTest)
-  | BuildTestPerformance (Entity ContestPerformanceTest)
-  | BuildTestOptional (Entity ContestOptionalTest)
-
 buildTestName :: BuildTest -> Text
 buildTestName (BuildTestCore (Entity _ (ContestCoreTest{..}))) = contestCoreTestName
 buildTestName (BuildTestPerformance (Entity _ ContestPerformanceTest{..})) = contestPerformanceTestName
@@ -187,6 +197,7 @@ data JSONBreakTest =
     JSONBreakCorrectnessTest Aeson.Value
   | JSONBreakIntegrityTest Aeson.Value
   | JSONBreakConfidentialityTest Aeson.Value
+  | JSONBreakAvailabilityTest Aeson.Value
   | JSONBreakCrashTest Aeson.Value
   | JSONBreakSecurityTest Aeson.Value
 
@@ -194,23 +205,25 @@ instance ModularBreakTest JSONBreakTest where
     breakTestToType (JSONBreakCorrectnessTest _) = BreakCorrectness
     breakTestToType (JSONBreakIntegrityTest _) = BreakIntegrity
     breakTestToType (JSONBreakConfidentialityTest _) = BreakConfidentiality
+    breakTestToType (JSONBreakAvailabilityTest _) = BreakAvailability
     breakTestToType (JSONBreakCrashTest _) = BreakCrash
     breakTestToType (JSONBreakSecurityTest _) = BreakSecurity
 
 breakTestTypeToSuccessfulResult :: BreakType -> BreakSubmissionResult
-breakTestTypeToSuccessfulResult BreakCorrectness = BreakCorrect
-breakTestTypeToSuccessfulResult BreakCrash = BreakCorrect
-breakTestTypeToSuccessfulResult BreakIntegrity = BreakExploit
-breakTestTypeToSuccessfulResult BreakConfidentiality = BreakExploit
-breakTestTypeToSuccessfulResult BreakSecurity = BreakExploit
+breakTestTypeToSuccessfulResult BreakCorrectness = undefined --FIXME BreakCorrect
+breakTestTypeToSuccessfulResult BreakCrash = undefined --FIXME BreakCorrect
+breakTestTypeToSuccessfulResult BreakIntegrity = undefined --FIXME BreakExploit
+breakTestTypeToSuccessfulResult BreakConfidentiality = undefined --FIXME BreakExploit
+breakTestTypeToSuccessfulResult BreakSecurity = undefined --FIXME BreakExploit
 
-breakTestToJSONBreakTest :: (Error r, MonadError r m) => Entity BreakSubmission -> m (JSONBreakTest, BreakSubmission)
-breakTestToJSONBreakTest (Entity bsId bs) = do
+breakTestToJSONBreakTest :: (Error r, MonadError r m) => Entity BreakSubmission -> m (JSONBreakTest, Entity BreakSubmission)
+breakTestToJSONBreakTest bsE@(Entity bsId bs) = do
     constr <- case breakSubmissionBreakType bs of
             Just BreakCorrectness -> return JSONBreakCorrectnessTest
             Just BreakCrash -> return JSONBreakCrashTest
             Just BreakConfidentiality -> return JSONBreakConfidentialityTest
             Just BreakIntegrity -> return JSONBreakIntegrityTest
+            Just BreakAvailability -> return JSONBreakAvailabilityTest
             Just BreakSecurity -> return JSONBreakSecurityTest
             Nothing ->
                 throwError $ strMsg $ "Unknown break type for break submission: " ++ show (keyToInt bsId)
@@ -221,7 +234,7 @@ breakTestToJSONBreakTest (Entity bsId bs) = do
             Nothing -> 
                 throwError $ strMsg $ "Invalid JSON stored for break submission: " ++ show (keyToInt bsId)
             Just test -> 
-                return ( constr test, bs)
+                return ( constr test, bsE)
 
 instance FromJSON JSONBreakTest where
     parseJSON j@(Aeson.Object o) = do
@@ -237,18 +250,20 @@ instance FromJSON JSONBreakTest where
                 return $ JSONBreakCrashTest j
             "security" ->
                 return $ JSONBreakSecurityTest j
+            "availability" ->
+                return $ JSONBreakAvailabilityTest j
             _ ->
                 fail "Not a valid test type."
     parseJSON _ = fail "Not a JSON object."
 
 data BreakResult = BreakResult {
-    breakResult :: Maybe Bool
+    breakResult :: Bool -- Maybe 
   , breakResultMessage :: Maybe Text
   }
 
 instance FromJSON BreakResult where
     parseJSON (Aeson.Object o) = do
-        res <- o .:? "result"
+        res <- o .: "result"
         message <- o .:? "error"
         return $ BreakResult res message
 
@@ -435,28 +450,42 @@ runJSONBreakTest session targetDestFile oracleDestFile breakTest = do
           JSONBreakCrashTest v -> v
           JSONBreakSecurityTest v -> v
             
-verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
+-- verifyAndFilterBreaksForFix breaks' filterF = foldM helper [] breaks'
+--     where
+--         helper acc bsE@(Entity bsId bs) = undefined {-FIXME-} {-do
+--             fixes <- lift $ runDB $ E.select $ E.from $ \(fs `E.InnerJoin` fsb) -> do
+--                 E.on (fs E.^. FixSubmissionId E.==. fsb E.^. FixSubmissionBugsFix)
+--                 E.where_ (fsb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&. (fs E.^. FixSubmissionStatus E.!=. E.val FixRejected E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixBuildFail E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixInvalidBugId))
+--                 return fsb -- TODO: E.countRows
+--             when (List.length fixes > 1) $
+--                 throwError $ FixErrorRejected $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
+-- 
+--             -- Include if passes filter.
+--             if filterF bs then
+--                 return $ bsE:acc
+--             else
+--                 return acc -}
+archiveLocationDirectory :: TeamContestId -> RunnerOptions -> FilePath
+archiveLocationDirectory team' opts =
+    let repoDir = runnerRepositoryPath opts in
+    FilePath.joinPath [repoDir, "archives", team]
+
     where
-        helper acc bsE@(Entity bsId bs) = do
-            fixes <- lift $ runDB $ E.select $ E.from $ \(fs `E.InnerJoin` fsb) -> do
-                E.on (fs E.^. FixSubmissionId E.==. fsb E.^. FixSubmissionBugsFix)
-                E.where_ (fsb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&. (fs E.^. FixSubmissionStatus E.!=. E.val FixRejected E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixBuildFail E.&&. fs E.^. FixSubmissionStatus E.!=. E.val FixInvalidBugId))
-                return fsb -- TODO: E.countRows
-            when (List.length fixes > 1) $
-                throwError $ FixErrorRejected $ "Already fixed break '" <> Text.unpack (breakSubmissionName bs) <> "' (" <> show (keyToInt bsId) <> ")"
+        team = show $ keyToInt team'
 
-            -- Include if passes filter.
-            if filterF bs then
-                return $ bsE:acc
-            else
-                return acc
+archiveLocation :: TeamContestId -> Text -> RunnerOptions -> FilePath
+archiveLocation team hash' opts = 
+    let dir = archiveLocationDirectory team opts in
+    let loc'' = FilePath.joinPath [dir, hash] in
+    let loc' = FilePath.addExtension loc'' "tar" in
+    FilePath.addExtension loc' "gz"
 
-getArchiveLocation :: (MonadIO m, E.Error e) => String -> String -> RunnerOptions -> ErrorT e m FilePath
+    where
+        hash = Text.unpack hash'
+
+getArchiveLocation :: (MonadIO m, E.Error e) => TeamContestId -> Text -> RunnerOptions -> ErrorT e m FilePath
 getArchiveLocation team hash opts = ErrorT $ do
-    let repoDir = runnerRepositoryPath opts
-    let loc'' = FilePath.joinPath [repoDir, "archives", team, hash]
-    let loc' = FilePath.addExtension loc'' "tar"
-    let loc =  FilePath.addExtension loc' "gz"
+    let loc = archiveLocation team hash opts
     exists <- liftIO $ Directory.doesFileExist loc
     if exists then
         return $ Right loc
@@ -465,8 +494,8 @@ getArchiveLocation team hash opts = ErrorT $ do
 
 getBuildArchiveLocation :: (MonadIO m, E.Error e) => BuildSubmission -> RunnerOptions -> ErrorT e m FilePath
 getBuildArchiveLocation submission opts = 
-    let hash = Text.unpack $ buildSubmissionCommitHash submission in
-    let team = show $ keyToInt $ buildSubmissionTeam submission in
+    let hash = buildSubmissionCommitHash submission in
+    let team = buildSubmissionTeam submission in
     getArchiveLocation team hash opts
 
 getBreakArchiveLocation :: (MonadIO m, E.Error e) => BreakSubmission -> RunnerOptions -> ErrorT e m FilePath
@@ -488,8 +517,8 @@ getBreakArchiveLocation submission opts = do
 
 getFixArchiveLocation :: (MonadIO m, E.Error e) => FixSubmission -> RunnerOptions -> ErrorT e m FilePath
 getFixArchiveLocation submission opts = 
-    let hash = Text.unpack $ fixSubmissionCommitHash submission in
-    let team = show $ keyToInt $ fixSubmissionTeam submission in
+    let hash = fixSubmissionCommitHash submission in
+    let team = fixSubmissionTeam submission in
     getArchiveLocation team hash opts
 
 data OracleOutput = 
@@ -501,7 +530,7 @@ instance FromJSON OracleOutput where
         result <- o .: "result"
         if result then do
             (output' :: Value) <- o .: "output"
-            let prettyConf = Aeson.defConfig {Aeson.confIndent = 2}
+            let prettyConf = Aeson.defConfig {Aeson.confIndent = Aeson.Spaces 2}
             let output = Text.decodeUtf8With Text.lenientDecode $ BSL.toStrict $ Aeson.encodePretty' prettyConf output'
             return $ OracleOutputSuccess output
         else do
@@ -524,3 +553,8 @@ parseTestHelper getInput constr t@(Entity _ test) = ErrorT $
 
 class ModularBreakTest b where
     breakTestToType :: b -> BreakType
+
+-- teamSubmissionLocation :: RunnerOptions -> TeamContestId -> Text -> FilePath
+-- teamSubmissionLocation opts tcId hash = FilePath.addExtension (FilePath.joinPath pieces) "zip"
+--   where basePath = runnerRepositoryPath opts
+--         pieces = [basePath, "commits", show (keyToInt tcId), Text.unpack hash]

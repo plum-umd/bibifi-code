@@ -5,16 +5,20 @@ module Main where
 import Cloud
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.Error
 -- import Core.Modular
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Network.HTTP.Conduit as HTTP
 import System.Posix.Signals
 
 import Common
+import Git
 import Options
 import qualified Queue
 import Runner
 import Problem
+import Problem.Shared
 import Scorer
 import Scheduler
 
@@ -23,11 +27,11 @@ main = do
     -- Read EC2 configuration file. 
     ec2 <- loadCloudConfiguration "../config/cloud.yml" -- productionCloudYML
 
-    -- Create database pool and config.
-    db <- makeDatabaseConf productionDatabaseYML "Production" -- "config/postgresql.yml"
+    -- Read git configuration file.
+    git <- loadGitConfiguration "../config/git.yml"
 
     -- Read command line arguments. 
-    (Options count fsDir problemDir contest) <- runDatabaseM db parseOptions
+    (Options count fsDir problemDir contest db) <- parseOptions productionDatabaseYML
     
     -- Create exiting mvar. 
     exiting <- newEmptyMVar
@@ -38,12 +42,18 @@ main = do
     -- Create blocked teams set.
     blockedTeams <- newMVar $ Set.empty
 
+    -- Create file lock set.
+    fileLockSet <- LockSet <$> newMVar Map.empty
+
     -- Handle interupts and kills. 
     _ <- installHandler sigINT (sigHandler exiting count) Nothing
 
+    -- Load build-it tests.
+    buildTests <- runDatabaseM db $ loadBuildTests $ entityKey contest
+
     -- Set runner options.
     http <- liftIO $ cloudManagerSettings ec2 >>= HTTP.newManager
-    let runnerOptions = RunnerOptions fsDir ec2 http problemDir
+    let runnerOptions = RunnerOptions fsDir ec2 http problemDir buildTests git fileLockSet 
     let problemRunner = contestToProblemRunner contest
     let contestScorer = contestToScorer contest
 
@@ -63,6 +73,26 @@ main = do
     putLog "runner: Exiting..."
 
     where
+        -- Loads and parses all build tests into memory once. Performance tests are ordered by their primary keys.
+        loadBuildTests contestId = do
+            -- Retrieve tests from database.
+            coreTests' <- runDB $ selectList [ContestCoreTestContest ==. contestId] []
+            performanceTests' <- runDB $ selectList [ContestPerformanceTestContest ==. contestId] [Asc ContestPerformanceTestId]
+            optionalTests' <- runDB $ selectList [ContestOptionalTestContest ==. contestId] [Asc ContestOptionalTestId]
+
+            testsE <- runErrorT $ do
+                coreTests <- mapM parseCoreTest coreTests'
+                performanceTests <- mapM parsePerformanceTest performanceTests'
+                optionalTests <- mapM parseOptionalTest optionalTests'
+
+                return $ BuildTests coreTests performanceTests optionalTests
+
+            case testsE of
+                Left e ->
+                    exitWithError $ "Invalid build test: " <> e
+                Right tests ->
+                    return tests
+
         sigHandler exiting count = Catch $ do
             -- Change the handlers since we are now exiting. 
             _ <- installHandler sigINT sigHandlerExiting Nothing

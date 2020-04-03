@@ -11,7 +11,7 @@ import Yesod as Y hiding (widgetToPageContent, whamlet)
 import qualified Yesod
 import Yesod.Static
 import Yesod.Auth
-import Yesod.Auth.HashDB (authHashDB, getAuthIdHashDB, validateUser)
+import Yesod.Auth.HashDB (authHashDB, validateUser)
 --import Yesod.Auth.Email
 --import Yesod.Auth.BrowserId
 --import Yesod.Auth.GoogleEmail
@@ -283,6 +283,7 @@ customLayout d widget = do
 
         -- pc <- widgetToPageContent widget
             -- widget -- $(widgetFile "default-layout") -- $(hamletFile "templates/default-layout-wrapper.hamlet")
+        renderer <- lLift getUrlRenderParams
         layout <- widgetToPageContent $ do
             lLift $ do
     --            addStylesheet $ StaticR css_bootstrap_min_css
@@ -316,7 +317,6 @@ customLayout d widget = do
                         ga('create', 'UA-52699115-1', 'auto');
                         ga('send', 'pageview');
                     |]
-            widget' <- extractWidget widget
             [whamlet|
                 <div class="wrapper">
                     <noscript>
@@ -324,10 +324,10 @@ customLayout d widget = do
                             <div class="alert alert-warning">
                                 <strong>Warning!</strong> This web site requires javascript.
                     #{msg}
-                    ^{nav}
+                    ^{nav renderer}
                     <div id="main" role="main">
                         <div class="container">
-                            ^{widget'}
+                            ^{widget}
                     <div class="push container">
                 <footer>
                     <div class="container">
@@ -392,11 +392,11 @@ instance Yesod App where
 
     defaultLayout = runLHandler . customLayout Nothing . lLift
 
-    -- This is done to provide an optimization for serving static files from
-    -- a separate domain. Please see the staticRoot setting in Settings.hs
-    urlRenderOverride y (StaticR s) =
-        Just $ uncurry (joinPath y (Settings.staticRoot $ settings y)) $ renderRoute s
-    urlRenderOverride _ _ = Nothing
+    -- -- This is done to provide an optimization for serving static files from
+    -- -- a separate domain. Please see the staticRoot setting in Settings.hs
+    -- urlRenderOverride y (StaticR s) =
+    --     Just $ uncurry (joinPath y (Settings.staticRoot $ settings y)) $ renderRoute s
+    -- urlRenderOverride _ _ = Nothing
 
     -- The page to be redirected to when authentication is required.
     authRoute _ = Just $ AuthR LoginR
@@ -421,8 +421,8 @@ instance Yesod App where
 
     -- What messages should be logged. The following includes all messages when
     -- in development, and warnings and errors in production.
-    shouldLog _ _source level =
-        development || level == LevelWarn || level == LevelError
+    -- shouldLog _ _source level =
+    --     development || level == LevelWarn || level == LevelError
 
     makeLogger = return . appLogger
 
@@ -503,7 +503,7 @@ instance YesodAuth App where
                 tokenM <- lookupSession courseraSessionTokenKey
                 case (cIdM, tokenM) of
                     (Just courseraId, Just token) -> do
-                        _ <- Y.runDB $ Y.insertUnique $ CourseraUser courseraId uId token
+                        _ <- liftHandler $ Y.runDB $ Y.insertUnique $ CourseraUser courseraId uId token
                         return ()
                     _ ->
                         return ()
@@ -523,7 +523,7 @@ instance YesodAuth App where
     getAuthId (Creds "coursera" cId extra) = do
         -- Check if already authenticated. 
         idM <- maybeAuthId
-        userM <- Y.runDB $ Y.getBy $ UniqueCourseraId cId
+        userM <- liftHandler $ Y.runDB $ Y.getBy $ UniqueCourseraId cId
         case idM of
             -- Logged in.
             Just uId -> do
@@ -539,7 +539,7 @@ instance YesodAuth App where
                                 |]
                                 return Nothing
                             Just token -> do
-                                cIdM <- Y.runDB $ Y.insertUnique $ CourseraUser cId uId token
+                                cIdM <- liftHandler $ Y.runDB $ Y.insertUnique $ CourseraUser cId uId token
                                 case cIdM of
                                     Nothing -> do
                                         -- Coursera account is associated with another account. 
@@ -576,6 +576,9 @@ instance YesodAuth App where
                         updateToken cuId extra
                         return $ Just $ courseraUserUser cu
         where
+            updateToken :: (MonadHandler m, HandlerSite m ~ App)
+                => CourseraUserId -> [(Text, Text)] -> m ()
+                -- CourseraUserId -> [(Text, Text)] -> HandlerFor App ()
             updateToken cuId extra = case lookup "token" extra of
                 Nothing -> do
                     setMessage [shamlet|
@@ -584,7 +587,7 @@ instance YesodAuth App where
                                 Could not retrieve Coursera token.
                     |]
                 Just token -> do
-                    Y.runDB $ Y.update cuId [CourseraUserToken =. token]
+                    liftHandler $ Yesod.runDB $ Y.update cuId [CourseraUserToken =. token]
 
             getToken extra = case lookup "token" extra of
                 Nothing -> do
@@ -698,25 +701,26 @@ instance YesodAuth App where
             --   username (whatever it might be) to unique user ID.
             postLoginR = do
                 tm <- getRouteToParent
-                action <- lift $ getIPAddress >>= (return . RateLimitLoginAttempt)
-                allowed <- lift $ canPerformAction action
-                lift $ recordAction action
-                if not allowed then
-                    lift $ loginErrorMessage (tm LoginR) "Sorry, you cannot do that at this time. Please try again later."
-                else do
-                    (mu,mp) <- lift $ runInputPost $ (,)
-                        <$> iopt textField "username"
-                        <*> iopt textField "password"
-            
-                    isValid <- lift $ fromMaybe (return False) 
-                                 (validateUser <$> ((Just . UniqueUser) =<< mu) <*> mp)
-                    lift $ if isValid then do
-                        deleteRecordedAction action
-                        setCredsRedirect $ Creds "hashdb" (fromMaybe "" mu) []
+                liftHandler $ do
+                    action <- getIPAddress >>= (return . RateLimitLoginAttempt)
+                    allowed <- canPerformAction action
+                    recordAction action
+                    if not allowed then
+                        loginErrorMessage (tm LoginR) "Sorry, you cannot do that at this time. Please try again later."
                     else do
-                        loginErrorMessage (tm LoginR) "Invalid username/password"
+                        (mu,mp) <- runInputPost $ (,)
+                            <$> iopt textField "username"
+                            <*> iopt textField "password"
+            
+                        isValid <- fromMaybe (return False) 
+                                     (validateUser <$> ((Just . UniqueUser) =<< mu) <*> mp)
+                        if isValid then do
+                            deleteRecordedAction action
+                            setCredsRedirect $ Creds "hashdb" (fromMaybe "" mu) []
+                        else do
+                            loginErrorMessage (tm LoginR) "Invalid username/password"
 
-    authHttpManager = httpManager
+    -- authHttpManager = httpManager
 
     onLogin = 
         setMessage [shamlet|
@@ -739,6 +743,38 @@ instance YesodAuth App where
                     #{msg}
         |]
         redirect dest
+
+-- getAuthIdHashDB :: ( YesodAuth master, YesodPersist master
+--                    , HashDBUser user, PersistEntity user
+--                    , Key user ~ AuthId master
+--                    , b ~ YesodPersistBackend master
+--                    , PersistMonadBackend (b (HandlerT master IO)) ~ PersistEntityBackend user
+--                    , PersistUnique (b (HandlerT master IO))
+--                    )
+--                 => (AuthRoute -> Route master)   -- ^ your site's Auth Route
+--                 -> (Text -> Maybe (Unique user)) -- ^ gets user ID
+--                 -> Creds master                  -- ^ the creds argument
+--                 -> HandlerT master IO (Maybe (AuthId master))
+-- getAuthIdHashDB :: (MonadHandler m, HandlerSite m ~ App)
+--                 => (AuthRoute -> Route App)   -- ^ your site's Auth Route
+--                 -> (Text -> Maybe (Unique User)) -- ^ gets user ID
+--                 -> Creds App                     -- ^ the creds argument
+--                 -> m (Maybe (AuthId App))
+getAuthIdHashDB authR uniq creds = do
+    muid <- maybeAuthId
+    case muid of
+        -- user already authenticated
+        Just uid -> return $ Just uid
+        Nothing       -> do
+            x <- case uniq (credsIdent creds) of
+                   Nothing -> return Nothing
+                   Just u  -> liftHandler $ Yesod.runDB @App (Yesod.getBy u)
+            case x of
+                -- user exists
+                Just (Entity uid _) -> return $ Just uid
+                Nothing       -> do
+                                     _ <- loginErrorMessage (authR LoginR) "User not found"
+                                     return Nothing
         
 instance YesodAuthPersist App 
 

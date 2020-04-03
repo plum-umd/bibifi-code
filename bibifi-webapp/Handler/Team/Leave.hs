@@ -73,7 +73,7 @@ postTeamLeaveR tId = runLHandler $ Team.layout Team.Leave tId $ \uId team -> do
             now <- getCurrentTime
             cs <- handlerToWidget $ runDB [lsql| select Contest.* from TeamContest inner join Contest on TeamContest.contest == Contest.id where TeamContest.team == #{tId}|]
             mapM_ (\(Entity _ contest) ->
-                when (now >= contestBuildStart contest && now <= contestFixEnd contest) $ do
+                when (now >= contestBuildStart contest && now <= contestBreakEnd contest) $ do
                     setMessage [shamlet|
                         <div class="container">
                             <div class="alert alert-danger">
@@ -111,8 +111,9 @@ BIBIFI organizers
             let textPart = Part { 
                 partType = "text/plain; charset=utf-8",
                 partEncoding = None,
-                partFilename = Nothing,
-                partContent = text,
+                -- partFilename = Nothing,
+                partDisposition = DefaultDisposition,
+                partContent = PartContent text,
                 partHeaders = []
             }
             let html = renderHtml [shamlet|
@@ -128,11 +129,13 @@ BIBIFI organizers
             let htmlPart = Part { 
                 partType = "text/html; charset=utf-8",
                 partEncoding = None,
-                partFilename = Nothing,
-                partContent = html,
+                -- partFilename = Nothing,
+                partDisposition = DefaultDisposition,
+                partContent = PartContent html,
                 partHeaders = []
             }
-            lLift $ liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")
+            mail <- initEmptyMail
+            sendMail mail
                 {mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]]}
 
 

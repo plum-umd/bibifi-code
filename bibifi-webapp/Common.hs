@@ -1,6 +1,7 @@
 module Common (
       randomString
     , contestTimeZone
+    , constantCompareText
     , displayTime
     , displayError
     , listGroupStyle
@@ -18,7 +19,9 @@ import Core
 import Control.Monad.Random
 import Css
 import Prelude as P
+import Data.Bits
 import Data.Char
+import Data.Function (on)
 import Data.Text as T
 import Data.Time
 import Database.Persist.Types
@@ -33,20 +36,26 @@ randomString l = do
     values <- evalRandIO (sequence (P.replicate l (getRandomR (65,90))))
     return $ T.pack $ P.map chr values
 
+-- https://security.stackexchange.com/a/83671
+constantCompareText :: Text -> Text -> Bool
+constantCompareText a b = ((==) `on` T.length) a b && 0 == (P.foldl1 (.|.) joined)
+  where
+    joined = P.map (uncurry (xor `on` ord)) $ T.zip a b
+
 contestTimeZone :: IO TimeZone
 contestTimeZone = getCurrentTimeZone
 
 -- Displays and formats time to a string.
-displayTime :: UTCTime -> IO String
-displayTime t' = do
+displayTime :: MonadIO m => UTCTime -> m String
+displayTime t' = liftIO $ do
     tz <- contestTimeZone
     let t = utcToZonedTime tz t'
     return $ formatTime defaultTimeLocale "%Y.%m.%d %H:%M %Z" t
     --return $ formatTime defaultTimeLocale "%Y.%m.%d %H:%M %Z" t'
 
 -- Formats form error messages.
-displayError :: Text -> HtmlUrl url
-displayError s = [hamlet|$newline never
+displayError :: Text -> Html
+displayError s = [shamlet|$newline never
     <div class="text-danger">
         #{s}
 |]

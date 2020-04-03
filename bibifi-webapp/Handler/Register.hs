@@ -172,8 +172,8 @@ Thanks!
     textPart <- return $ Part { 
         partType = "text/plain; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = text,
+        partDisposition = DefaultDisposition,
+        partContent = PartContent text,
         partHeaders = []
     }
     html <- return $ renderHtml [shamlet|
@@ -185,11 +185,12 @@ Thanks!
     htmlPart <- return $ Part { 
         partType = "text/html; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = html,
+        partDisposition = DefaultDisposition,
+        partContent = PartContent html,
         partHeaders = []
     }
-    liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")
+    mail <- initEmptyMail
+    sendMail mail
         { mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]] }
 
 generateConfirmation :: UserId -> LHandler Text

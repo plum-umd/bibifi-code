@@ -33,8 +33,8 @@ generateHtml widget enctype msg state =
                                 #{err}
                 |]
             Valid invitation name -> do
-                header <- return $ T.append "Join team: " $ name
-                msgH <- return $ mconcat $ I.map displayError msg
+                let header = T.append "Join team: " $ name
+                let msgH = mconcat $ I.map displayError msg
                 [whamlet|
                     <div class="row">
                         <div class="col-md-12">
@@ -96,7 +96,7 @@ postTeamInvitationR invitation = runLHandler $ do
                             else do
                                 -- Check if user can join team by checking user and team against all contests that have not finished yet.
                                 now <- getCurrentTime
-                                contests <- runDB $ selectList [ContestFixEnd >=. now] []
+                                contests <- runDB $ selectList [ContestBreakEnd >=. now] []
                                 join <- foldM (\acc contest@(Entity contestId _) -> case acc of
                                     Left _ ->
                                         return acc

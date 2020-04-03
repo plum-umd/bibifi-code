@@ -4,6 +4,7 @@ import qualified Database.Esqueleto as E
 import Database.Esqueleto.Internal.Sql (SqlSelect)
 
 import Import
+import PostDependencyType
 
 -- getLatestBreakSubmissions :: ( MonadResource m, SqlSelect a r, E.MonadSqlPersist m) => 
 --     ContestId -> 
@@ -33,11 +34,11 @@ import Import
 --     E.limit 1
 --     f t tc bs tct tt
     
-getBothTeams :: MonadIO m => BreakSubmissionId -> (Entity Team -> Entity TeamContest -> Entity BreakSubmission -> Entity TeamContest -> Entity Team -> a) -> (ReaderT SqlBackend m) (Maybe a)
+getBothTeams :: MonadIO m => BreakSubmissionId -> (Entity Team -> Entity TeamContest -> Entity BreakSubmission -> Maybe (Entity TeamContest) -> Maybe (Entity Team) -> a) -> (ReaderT SqlBackend m) (Maybe a)
 getBothTeams bsId f = do
-    res <- E.select $ E.from $ \( E.InnerJoin t (E.InnerJoin tc (E.InnerJoin bs (E.InnerJoin tct tt)))) -> do
-        E.on ( tct E.^. TeamContestTeam E.==. tt E.^. TeamId)
-        E.on ( bs E.^. BreakSubmissionTargetTeam E.==. tct E.^. TeamContestId)
+    res <- E.select $ E.from $ \( E.InnerJoin t (E.InnerJoin tc (E.LeftOuterJoin bs (E.InnerJoin tct tt)))) -> do
+        E.on ( tct E.?. TeamContestTeam E.==. tt E.?. TeamId)
+        E.on ( bs E.^. BreakSubmissionTargetTeam E.==. tct E.?. TeamContestId)
         E.on ( bs E.^. BreakSubmissionTeam E.==. tc E.^. TeamContestId)
         E.on ( tc E.^. TeamContestTeam E.==. t E.^. TeamId)
         E.where_ ( bs E.^. BreakSubmissionId E.==. E.val bsId)
@@ -49,3 +50,17 @@ getBothTeams bsId f = do
         _ -> 
             return Nothing
     
+checkBreakSubmissionTeam tcId bsId = do
+    bs <- runDB $ get404 bsId
+    when (breakSubmissionTeam bs /= tcId && breakSubmissionTargetTeam bs /= Just tcId) $
+        notFound
+
+    return bs
+
+withdrawBreakSubmission bsId =
+    update bsId [ BreakSubmissionValid =. Just False
+                , BreakSubmissionMessage =. Just "Break resubmitted" 
+                , BreakSubmissionStatus =. BreakRejected
+                , BreakSubmissionWithdrawn =. True
+                ]
+                -- JP: Update status too?

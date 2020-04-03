@@ -1,6 +1,8 @@
 Contest Problem API
 ===================
 
+*TODO: This is slightly out of date. A few new fields have been added.*
+
 You can integrate your own problem specifications into the BIBIFI infrastructure by using this Contest Problem API. 
 Contest problems require a Docker Swarm or AWS EC2 virtual machine image and a grading script that can run oracle submissions, build-it submissions, and break-it submissions. 
 The grading script must accept JSON input and output as described in this document. 
@@ -128,8 +130,7 @@ Here is an example input file:
 	}
 
 Output from `grader` must be provided as JSON to stdout.
-The output JSON must have the optional `result` key set to the boolean value of whether the break test demonstrated a violation. 
-If the `result` key is omitted, the grader script indicates that it cannot automatically evaluate the break test, so it should be marked for manual judgement. 
+The output JSON must have the `result` key set to the boolean value of whether the break test demonstrated a violation. 
 The `error` key is an optional string that can be used to provide an error message for the breaker when `result` is false. 
 
 	{

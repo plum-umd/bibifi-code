@@ -56,6 +56,8 @@ library
                      , Core
                      , Core.DatabaseM
                      , Core.Database
+                     , Core.Git
+                     , Core.Git.Gitlab
                      , Model
                      , PostDependencyType
                      , Score
@@ -87,6 +89,7 @@ library
                      , bytestring
                      , containers
                      , esqueleto
+                     , gitlab-haskell
                      , lmonad
                      , lmonad-yesod >= 1.0.0.0
                      , persistent
@@ -95,6 +98,7 @@ library
                      , text
                      , time
                      , transformers
+                     , unliftio-core
                      , yaml
                      , yesod
                      , yesod-core

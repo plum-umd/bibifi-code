@@ -166,7 +166,7 @@ contestTemplate contest page content =
     in
     let contestName = generateContestTitle contest in
     do
-    content'' <- extractWidget content'
+    -- content'' <- extractWidget content'
     [whamlet|$newline never
         <div class="row">
             <div class="col-md-12">
@@ -175,6 +175,6 @@ contestTemplate contest page content =
                         #{page} 
                         <small>
                             #{contestName}
-        ^{content''}
+        ^{content'}
     |]
 

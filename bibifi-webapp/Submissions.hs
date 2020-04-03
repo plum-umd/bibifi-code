@@ -2,18 +2,19 @@ module Submissions where
 
 import qualified Database.Esqueleto as E
 
+import BuildSubmissions (isActiveBreak)
 import Import
 import PostDependencyType
 
 displayFixSubmissionsTable details submissions = do
-    rows <- mapM row submissions
+    let rows = map row submissions
     [whamlet|
         <table class="table table-hover">
             <thead>
                 <tr>
                     ^{teamHeader}
                     <th>
-                        Fix name
+                        Fix commit
                     <th>
                         Timestamp
                     <th>
@@ -37,19 +38,19 @@ displayFixSubmissionsTable details submissions = do
         row (Entity sId s) = do
             let status = prettyFixStatus $ fixSubmissionStatus s
             let result = prettyFixResult $ fixSubmissionResult s
-            time <- lLift $ lift $ displayTime $ fixSubmissionTimestamp s
+            time <- displayTime $ fixSubmissionTimestamp s
             let team = if details then
-                    [whamlet'|
+                    [shamlet|
                         <td>
                             #{keyToInt $ fixSubmissionTeam s}
                     |]
                   else
                     mempty
-            return $ [whamlet'|
+            [whamlet|
               <tr .clickable href="@{ParticipationFixSubmissionR (fixSubmissionTeam s) sId}">
                   ^{team}
                   <td>
-                      #{fixSubmissionName s}
+                      #{fixSubmissionCommitHash s}
                   <td>
                       #{time}
                   <td>
@@ -57,14 +58,15 @@ displayFixSubmissionsTable details submissions = do
                   <td>
                       #{result}
             |]
-
+              
+-- displayBuildSubmissionsTable :: a -> b -> LMonadT l (WidgetT site IO) ()
 displayBuildSubmissionsTable details submissions = do
     let rows = mconcat $ map row submissions
     [whamlet|
         <table class="table table-hover">
             <thead>
                 <tr>
-                    ^{teamHeader}
+                    #{teamHeader}
                     <th>
                         Submission hash
                     <th>
@@ -73,12 +75,12 @@ displayBuildSubmissionsTable details submissions = do
                         Status
             <tbody>
                 ^{rows}
-    |]
+    |] :: LWidget
     clickableDiv
 
     where
         teamHeader = if details then
-                [whamlet'|
+                [shamlet|
                     <th>
                         Team
                 |]
@@ -87,25 +89,25 @@ displayBuildSubmissionsTable details submissions = do
 
         row (Entity sId s) = do
             let status = prettyBuildStatus $ buildSubmissionStatus s
-            time <- lift $ displayTime $ buildSubmissionTimestamp s
+            time <- displayTime $ buildSubmissionTimestamp s
             -- TODO: Show team name? XXX
             let team = if details then
-                    [whamlet'|
+                    [shamlet|
                         <td>
                             #{keyToInt $ buildSubmissionTeam s}
                     |]
                   else
                     mempty
-            [whamlet'|
+            [whamlet|
                 <tr class="clickable" href="@{ParticipationBuildSubmissionR (buildSubmissionTeam s) sId}">
-                    ^{team}
+                    #{team}
                     <td>
                         #{buildSubmissionCommitHash s}
                     <td>
                         #{time}
                     <td>
                         #{status}
-            |]
+            |] :: LWidget
 
 data BreakSubmissionViewer = 
       BreakSubmissionAdmin
@@ -126,20 +128,23 @@ displayBreakSubmissionsTable contest viewer submissions = do
 
     where
         -- row :: BreakSubmissionViewer -> (Entity BreakSubmission, Text) -> LWidget
-        row BreakSubmissionVictim (Entity sId s, attacker) = do
+        row BreakSubmissionVictim (Entity sId s, attackerM) = do
             let status = prettyBreakStatusVictim $ breakSubmissionStatus s
-            let result = prettyBreakResultVictim $ breakSubmissionResult s
+            let result = prettyBreakValidVictim $ breakSubmissionValid s
             let bType = maybe dash prettyBreakType $ breakSubmissionBreakType s
-            fixStatus <- prettyFixStatus sId
-            time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
+            let (Just targetTeamId) = breakSubmissionTargetTeam s
+            let attacker = maybe dash toHtml attackerM
+            fixStatus <- prettyFixStatus sId s
+            time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             now <- getCurrentTime
-            let name = 
-                  if now > contestBreakEnd contest then 
-                      toHtml $ breakSubmissionName s 
-                  else
-                      dash
+            -- let name = 
+            --       if now > contestBreakEnd contest then 
+            --           toHtml $ breakSubmissionName s 
+            --       else
+            --           dash
+            let name = breakSubmissionName s
             return [whamlet'|
-              <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTargetTeam s) sId}">
+              <tr .clickable href="@{ParticipationBreakSubmissionR targetTeamId sId}">
                   <td>
                       #{name} (#{keyToInt sId})
                   <td>
@@ -156,10 +161,11 @@ displayBreakSubmissionsTable contest viewer submissions = do
                       #{fixStatus}
             |]
 
-        row BreakSubmissionAttacker (Entity sId s, target) = do
+        row BreakSubmissionAttacker (Entity sId s, targetM) = do
             let status = prettyBreakStatus $ breakSubmissionStatus s
-            let result = prettyBreakResult $ breakSubmissionResult s
-            time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
+            let result = prettyBreakValid $ breakSubmissionValid s
+            let target = maybe dash toHtml targetM
+            time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             return [whamlet'|
                 <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTeam s) sId}">
                     <td>
@@ -174,10 +180,11 @@ displayBreakSubmissionsTable contest viewer submissions = do
                         #{result}
             |]
 
-        row BreakSubmissionAdmin (Entity sId s, target) = do
+        row BreakSubmissionAdmin (Entity sId s, targetM) = do
             let status = prettyBreakStatus $ breakSubmissionStatus s
-            let result = prettyBreakResult $ breakSubmissionResult s
-            time <- lLift $ lift $ displayTime $ breakSubmissionTimestamp s
+            let result = prettyBreakValid $ breakSubmissionValid s
+            let target = maybe dash toHtml targetM
+            time <- liftIO $ displayTime $ breakSubmissionTimestamp s
             return [whamlet'|
                 <tr .clickable href="@{ParticipationBreakSubmissionR (breakSubmissionTeam s) sId}">
                     <td>
@@ -239,7 +246,7 @@ displayBreakSubmissionsTable contest viewer submissions = do
                     Result
             |]
         
-        prettyFixStatus bsId = handlerToWidget $ do
+        prettyFixStatus bsId bs = handlerToWidget $ do
             disputeM <- runDB $ getBy $ UniqueBreakDispute bsId
             case disputeM of
                 Just _ ->
@@ -247,19 +254,33 @@ displayBreakSubmissionsTable contest viewer submissions = do
                         <span>
                             Disputed
                     |]
-                Nothing -> do
-                    -- Check if a non pending/rejected fix exists.
-                    fixs <- runDB $ E.select $ E.from $ \(E.InnerJoin f fb) -> do
-                        E.on (f E.^. FixSubmissionId E.==. fb E.^. FixSubmissionBugsFix)
-                        E.where_ (fb E.^. FixSubmissionBugsBugId E.==. E.val bsId E.&&.
-                            (f E.^. FixSubmissionStatus E.==. E.val FixBuilt E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudging E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudged))
-                        return fb
-                    case fixs of
-                        [_a] ->
+                Nothing ->
+                    if breakSubmissionValid bs /= Just True then
+                        return dash
+                    else do
+                        active <- runDB $ isActiveBreak bsId
+                        if active then
                             return [shamlet|
-                                <span>
-                                    Submitted
+                                <span .text-danger>
+                                    Active
                             |]
-                        _ ->
-                            return dash
+                        else
+                            return [shamlet|
+                                <span .text-success>
+                                    Fixed
+                            |]
 
+                    -- -- Check if a non pending/rejected fix exists.
+                    -- fixs <- runDB $ E.select $ E.from $ \(E.InnerJoin f bf) -> do
+                    --     E.on (E.just (f E.^. FixSubmissionId) E.==. bf E.^. BreakFixSubmissionFix)
+                    --     E.where_ (bf E.^. BreakFixSubmissionBreak E.==. E.val bsId E.&&.
+                    --         (f E.^. FixSubmissionStatus E.==. E.val FixBuilt E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudging E.||. f E.^. FixSubmissionStatus E.==. E.val FixJudged))
+                    --     return bf
+                    -- case fixs of
+                    --     [_a] ->
+                    --         return [shamlet|
+                    --             <span>
+                    --                 Submitted
+                    --         |]
+                    --     _ ->
+                    --         return dash

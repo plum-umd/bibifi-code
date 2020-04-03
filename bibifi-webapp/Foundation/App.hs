@@ -1,5 +1,6 @@
 module Foundation.App where
 
+import Core.Git
 import Database.LPersist as LP
 import Database.Persist.Sql (SqlBackend)
 import Data.Text (Text)
@@ -31,6 +32,8 @@ data App = App
     , httpManager :: Manager
     , persistConfig :: Settings.PersistConf
     , appLogger :: Logger
+    , appDomainName :: Text -- Domain name (or IP)
+    , appGitConfig :: GitConfiguration
     }
 
 -- Set up i18n messages. See the message folder.

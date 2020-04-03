@@ -16,22 +16,25 @@ form team =
     let url = teamContestGitUrl team in
     let professional = teamContestProfessional team in
     let language = teamContestLanguages team in
-    let gitSettings = bootstrapify $ addAttribute "Git URL" "placeholder" "git@domain.com:user/repo.git" in 
+    -- let gitSettings = bootstrapify $ addAttribute "Git URL" "placeholder" "git@domain.com:user/repo.git" in 
     let languageSettings = bootstrapify $ addAttribute "Languages" "placeholder" "Best guess if currently unsure" in
     renderBootstrap3 layout $ TeamContest
         <$> pure tId
         <*> pure cId
-        <*> areq gitField gitSettings (Just url) -- TODO: change type to some sort of git url parsing?? urlField??
+        <*> pure url
+        -- <*> areq gitField gitSettings (Just url) -- TODO: change type to some sort of git url parsing?? urlField??
         <*> areq programmingLanguageField languageSettings (Just language) -- TODO: change to special language field?
         <*> pure professional
+        <*> pure (teamContestGithookNonce team)
+        <*> pure (teamContestGitRepositoryIdentifier team)
 
     where
-        gitField = check (\t -> 
-                if Text.take 15 t == "git@gitlab.com:" || Text.take 18 t == "git@bitbucket.org:" || Text.take 15 t == "git@github.com:" then
-                    Right t
-                else
-                    Left ("Must be a git ssh url from gitlab, bitbucket, or github (ie, git@domain.com:user/repo.git)." :: Text)
-            ) textField
+    --     gitField = check (\t -> 
+    --             if Text.take 15 t == "git@gitlab.com:" || Text.take 18 t == "git@bitbucket.org:" || Text.take 15 t == "git@github.com:" then
+    --                 Right t
+    --             else
+    --                 Left ("Must be a git ssh url from gitlab, bitbucket, or github (ie, git@domain.com:user/repo.git)." :: Text)
+    --         ) textField
 
         layout = BootstrapHorizontalForm (ColXs 0) (ColXs 2) (ColXs 0) (ColXs 10)
 
@@ -75,6 +78,13 @@ generateHtml contest team tcId tc uId widget enctype widgetU enctypeU msg = do
                 <div class="col-sm-10">
                     <p class="form-control-static">
                         #{teamName team}
+            <div class="form-group">
+                <label class="col-sm-2 control-label">
+                    Git URL
+                <div class="col-sm-10">
+                    <p class="form-control-static">
+                        #{teamContestGitUrl tc}
+            ^{githookWidget tcId tc}
             ^{widget}
             <div class="form-group">
                 <div class="col-sm-offset-2 col-sm-10">
@@ -82,6 +92,18 @@ generateHtml contest team tcId tc uId widget enctype widgetU enctypeU msg = do
                         Submit
         ^{unregisterW}
     |]
+
+githookWidget tcId tc = do
+    user <- handlerToWidget requireAuth
+    when (userAdmin $ entityVal user) 
+        [whamlet|
+            <div class="form-group">
+                <label class="col-sm-2 control-label">
+                    Webhook
+                <div class="col-sm-10">
+                    <p class="form-control-static">
+                        @{WebhookGitlabPushR tcId (teamContestGithookNonce tc)}
+        |]
 
 getParticipationInformationR :: TeamContestId -> Handler Html
 getParticipationInformationR tcId = runLHandler $ 
@@ -114,6 +136,7 @@ getParticipationInformationR tcId = runLHandler $
                             <div class="col-sm-10">
                                 <p class="form-control-static">
                                     #{teamContestGitUrl tc}
+                        ^{githookWidget tcId tc}
                     <p class="col-sm-offset-2">
                         Note: Only the team leader can change this information.
                 |]
@@ -218,8 +241,9 @@ BIBIFI organizers
             let textPart = Part {
                 partType = "text/plain; charset=utf-8",
                 partEncoding = None,
-                partFilename = Nothing,
-                partContent = text,
+                -- partFilename = Nothing,
+                partDisposition = DefaultDisposition,
+                partContent = PartContent text,
                 partHeaders = []
             }
             let html = renderHtml [shamlet|
@@ -235,11 +259,13 @@ BIBIFI organizers
             let htmlPart = Part { 
                 partType = "text/html; charset=utf-8",
                 partEncoding = None,
-                partFilename = Nothing,
-                partContent = html,
+                -- partFilename = Nothing,
+                partDisposition = DefaultDisposition,
+                partContent = PartContent html,
                 partHeaders = []
             }
-            lLift $ liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")
+            mail <- initEmptyMail
+            sendMail mail
                 {mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]]}
 
                 

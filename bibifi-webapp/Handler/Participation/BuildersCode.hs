@@ -11,9 +11,9 @@ import qualified Participation
 getParticipationBuildersCodeR :: TeamContestId -> Handler Html
 getParticipationBuildersCodeR tcId = runLHandler $ 
     Participation.layout Participation.BuilderCode tcId $ \uId tc contest team -> do
-        -- Check if break-it round has started.
+        -- Check if break/fix-it round has started.
         now <- getCurrentTime
-        if now < contestBreakStart contest then
+        if now < contestBreakFixStart contest then
             notFound
         else
             do
@@ -75,7 +75,7 @@ getParticipationBuildersCodeR tcId = runLHandler $
                           [whamlet'|
                               <tr>
                                   <td>
-                                    #{name} (<a href="/static/doc/code/#{contestUrl contest}/#{teamId}.zip">code</a>)
+                                    #{name} (<a href="@{ParticipationDownloadBuilderR tcId tId}">code</a>)
                                   <td>
                                     #{teamId}
                                   <td>
@@ -87,6 +87,7 @@ getParticipationBuildersCodeR tcId = runLHandler $
                                   <td>
                                     #{vulns}
                           |]
+                                    -- #{name} (<a href="#{teamContestGitUrl tc}">code</a>)
                     in
                     mconcat $ map disp cachedResults
             [whamlet|
@@ -106,7 +107,7 @@ getParticipationBuildersCodeR tcId = runLHandler $
                         ^{rows}
                 <p .text-muted>
                     Note: This table updates periodically.
-            |]
+            |] :: LWidget
             -- Styling
             toWidget [lucius|
                 .clickable:hover {

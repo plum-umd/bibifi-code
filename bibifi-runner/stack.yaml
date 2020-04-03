@@ -1,35 +1,69 @@
 # For more information, see: https://github.com/commercialhaskell/stack/blob/release/doc/yaml_configuration.md
 
 # Specifies the GHC version and set of packages available (e.g., lts-3.5, nightly-2015-09-21, ghc-7.10.2)
-resolver: lts-5.18
+resolver: lts-14.15
 # lts-7.19
 
 # Local packages, usually specified by relative directory name
 packages:
 - '../bibifi-core'
-- '../dependencies/aws-sdk'
+# - '../dependencies/aws-sdk'
 - '../dependencies/simplessh'
 # - '../dependencies/docker-hs-streaming' # TODO: remove this once the new library is released
 - '.'
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
-- aws-sdk-0.12.4
-- lmonad-0.1.0.0
-- lmonad-yesod-1.0.0.0
-- aws-sdk-text-converter-0.4.1
-- aws-sdk-xml-unordered-0.3.1
-- ec2-signature-3.1
-- simple-config-1.2.2.1
-- strptime-1.0.10
-- pipes-http-1.0.2
-- directory-1.2.7.1
-- docker-0.4.0.1
-# - esqueleto-2.5.1
-- http-client-0.4.31.2
-# - hashmap-1.3.1.1
-# - esqueleto-2.4.3
-# - docker-0.3.0.1
+# <<<<<<< HEAD
+# #- aws-sdk-0.12.4
+# - lmonad-0.1.0.0
+# - lmonad-yesod-1.0.0.0
+# - aws-sdk-text-converter-0.4.1
+# - aws-sdk-xml-unordered-0.3.1
+# - ec2-signature-3.1
+# - simple-config-1.2.2.1
+# - strptime-1.0.10
+# - pipes-http-1.0.2
+# - directory-1.2.7.1
+# - docker-0.4.0.1
+# # - esqueleto-2.5.1
+# - http-client-0.4.31.2
+# # - hashmap-1.3.1.1
+# # - esqueleto-2.4.3
+# # - docker-0.3.0.1
+# - process-1.6.7.0
+# 
+# =======
+- git: https://github.com/jprider63/LMonad.git
+  commit: 3949c62aa82c5b8184b3c03cdcb105f86d0eb844
+- git: https://github.com/jprider63/LMonad-Yesod.git
+  commit: f3469f6175e12ea3b5b08629265986921db90c4e
+# - aws-sdk-text-converter-0.4.1
+# - aws-sdk-xml-unordered-0.3.1
+- docker-0.6.0.2
+- gitlab-haskell-0.1.5
+# - ec2-signature-3.1
+# - lmonad-0.1.0.0
+# - lmonad-yesod-1.0.0.0
+# - simple-config-1.2.2.1
+# - strptime-1.0.10
+# - aws-sdk-0.12.4
+# - lmonad-0.1.0.0
+# - lmonad-yesod-1.0.0.0
+# - aws-sdk-text-converter-0.4.1
+# - aws-sdk-xml-unordered-0.3.1
+# - ec2-signature-3.1
+# - simple-config-1.2.2.1
+# - strptime-1.0.10
+# - pipes-http-1.0.2
+# - directory-1.2.7.1
+# - docker-0.4.0.1
+# # - esqueleto-2.5.1
+# - http-client-0.4.31.2
+# # - hashmap-1.3.1.1
+# # - esqueleto-2.4.3
+# # - docker-0.3.0.1
+# >>>>>>> gitlab-webhook-phil
 
 # Override default flag values for local packages and extra-deps
 flags: {}
@@ -48,6 +82,12 @@ extra-package-dbs: []
 # arch: i386
 # arch: x86_64
 
+allow-newer: true
+
 # Extra directories used by stack for building
 # extra-include-dirs: [/path/to/dir]
 # extra-lib-dirs: [/path/to/dir]
+
+#extra-deps:
+#- git: https://gitlab.com/philnguyen/gitlab-haskell.git
+#  commit: 11f8da35124fd1757e4a1b8ce6c5a22ff294c4cd

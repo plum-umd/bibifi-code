@@ -22,8 +22,8 @@ You have received a team invitation to participate in the Build it Break it Fix 
     let textPart = Part { 
         partType = "text/plain; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = text,
+        partDisposition = DefaultDisposition,
+        partContent = PartContent text,
         partHeaders = []
     }
     let html = renderHtml [shamlet|
@@ -34,11 +34,12 @@ You have received a team invitation to participate in the Build it Break it Fix 
     let htmlPart = Part { 
         partType = "text/html; charset=utf-8",
         partEncoding = None,
-        partFilename = Nothing,
-        partContent = html,
+        partDisposition = DefaultDisposition,
+        partContent = PartContent html,
         partHeaders = []
     }
-    liftIO $ renderSendMail (emptyMail $ Address (Just "Build it Break it Fix it") "noreply@builditbreakit.org")
+    mail <- initEmptyMail
+    sendMail mail
                 { mailTo = to, mailHeaders = head, mailParts = [[textPart, htmlPart]] }
 
 inviteTeam :: TeamId -> [Text] -> LHandler ()
@@ -147,21 +148,20 @@ layout page tId content =
                 <li class="#{addMembersActive}">
                     <a href="@{TeamAddMembersR tId}">
                         Add Members
-            |]
+            |] :: LWidget
         else
             mempty
     let leave = if uId /= teamLeader team then
-            [whamlet'|
+            [whamlet|
                 <li class="#{leaveActive}">
                     <a href="@{TeamLeaveR tId}">
                         Leave Team
-            |]
+            |] :: LWidget
           else
             mempty
     defaultLayout $ do
         setTitle [shamlet|#{subtitle} - Team|]
-        content' <- extractWidget $ content uId team
-        addMembers' <- extractWidget addMembers
+        let content' = content uId team
         [whamlet|
             <div class="row">
                 <div class="col-md-12">
@@ -179,7 +179,7 @@ layout page tId content =
                         <li class="#{contestActive}">
                             <a href="@{TeamParticipationR tId}">
                                 Contest Participation
-                        ^{addMembers'}
+                        ^{addMembers}
                         ^{leave}
                 <div class="col-md-9">
                     ^{content'}

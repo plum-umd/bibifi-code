@@ -9,8 +9,8 @@ render c =
     let Entity _ contest = c in 
     let url = contestUrl contest in
     lLift $ do
-        start <- lift $ displayTime $ contestBuildStart contest
-        end <- lift $ displayTime $ contestFixEnd contest
+        start <- displayTime $ contestBuildStart contest
+        end <- displayTime $ contestBreakEnd contest
         return $ [hamlet|$newline never
             <div>
                 <div>

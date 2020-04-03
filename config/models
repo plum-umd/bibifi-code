@@ -67,9 +67,8 @@ Contest json
     title Text
     buildStart UTCTime
     buildEnd UTCTime
-    breakStart UTCTime
+    breakFixStart UTCTime
     breakEnd UTCTime
-    fixStart UTCTime
     fixEnd UTCTime
     UniqueContest url
 
@@ -146,6 +145,8 @@ TeamContest json
     -- languages Text default='' <Const Admin || Id, Id, _>
     UniqueTeamContest team contest
     professional Bool default=false
+    githookNonce Text
+    gitRepositoryIdentifier RepositoryIdentifier Maybe default=null
  --     permutationMap PermutationMapId
  --  -- submission BuildCommitId
  --     UniquePermutationMap permutationMap
@@ -238,36 +239,66 @@ BreakOracleSubmission json
 
 BreakSubmission json
     team TeamContestId
-    targetTeam TeamContestId
+    targetTeam TeamContestId Maybe
     timestamp UTCTime
     commitHash Text
-    status BreakSubmissionStatus
-    result BreakSubmissionResult Maybe
-    fixed Bool default=FALSE
-    bayesianScore Double Maybe default=null
     name Text default=''
+    status BreakSubmissionStatus
     breakType BreakType Maybe
     message String Maybe
     json Text Maybe default=null
     stdout Textarea Maybe default=null
     stderr Textarea Maybe default=null
+    valid Bool Maybe -- If this break submission is valid/accepted. It should be marked as valid as long as the first run demonstrates a successful break. 
+    withdrawn Bool default=FALSE
+--     fixed Bool default=FALSE
+--     bayesianScore Double Maybe default=null
+
+BreakFixSubmission json
+    break BreakSubmissionId
+    fix FixSubmissionId Maybe -- If this is Nothing, this run is against the latest build submission.
+    result BreakSubmissionResult -- Maybe
+
+-- JP: Maybe this shouldn't be stored in the database, but computed on the fly.
+-- Invariant: Intervals should not overlap.
+-- BreakTimeline json
+--     break BreakSubmissionId
+--     brokenFix FixSubmissionId Maybe -- If Nothing, break targets latest build submission.
+--     fixedFix FixSubmissionId Maybe  -- If Nothing, break has not been fixed yet. 
 
 FixSubmission json
     team TeamContestId
     timestamp UTCTime
     commitHash Text
-    diffSize Int
     status FixSubmissionStatus
     result FixSubmissionResult Maybe
-    name Text default=''
+    -- name Text default=''
     message String Maybe
     stdout Textarea Maybe default=null
     stderr Textarea Maybe default=null
-    UniqueFixSubmissionName team name
+    -- UniqueFixSubmissionName team name
 
-FixSubmissionBugs json
+-- FixSubmissionBugs json
+--     fix FixSubmissionId
+--     bugId BreakSubmissionId
+
+-- File of a break submission (tar.gz)
+BreakSubmissionFile
+    break BreakSubmissionId
+    file ByteString
+    UniqueBreakSubmissionFile break
+
+-- File of a build submission (tar.gz)
+BuildSubmissionFile
+    team TeamContestId
+    file ByteString
+    UniqueBuildSubmissionFile team
+
+-- File of a fix submission (tar.gz)
+FixSubmissionFile
     fix FixSubmissionId
-    bugId BreakSubmissionId
+    file ByteString
+    UniqueFixSubmissionFile fix
 
 BuildCoreResult json
     submission BuildSubmissionId
@@ -291,6 +322,30 @@ BuildOptionalResult json
     pass Bool
     message Text Maybe
     UniqueBuildOptionalSubmission submission test
+    deriving Show Eq
+
+FixCoreResult json
+    submission FixSubmissionId
+    test ContestCoreTestId
+    pass Bool
+    message Text Maybe
+    UniqueFixCoreSubmission submission test
+    deriving Show Eq
+
+FixPerformanceResult json
+    submission FixSubmissionId
+    test ContestPerformanceTestId
+    time Double Maybe -- pass is implicitly false when Nothing
+    message Text Maybe
+    UniqueFixPerformanceSubmission submission test
+    deriving Show Eq
+
+FixOptionalResult json
+    submission FixSubmissionId
+    test ContestOptionalTestId
+    pass Bool
+    message Text Maybe
+    UniqueFixOptionalSubmission submission test
     deriving Show Eq
 
     

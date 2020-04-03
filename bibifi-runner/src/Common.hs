@@ -6,6 +6,9 @@ module Common (
       , Job(..)
       , lockTeam
       , unlockTeam
+      , LockSet(..)
+      , acquireFileLock
+      , releaseFileLock
       , pushQueue
       , popQueue
       , runComputation
@@ -25,6 +28,8 @@ import Control.Monad.Trans.Control
 import Core.DatabaseM as Export
 -- import qualified Data.List as List
 import qualified Data.ByteString.Lazy as BSL
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Database.Persist as Export
@@ -54,10 +59,44 @@ data Job =
       | FixJob (Entity FixSubmission)
 
 lockTeam :: MonadIO m => TeamContestId -> MVar (Set TeamContestId) -> m ()
-lockTeam tcId = updateMVar $ Set.insert tcId
+lockTeam = updateMVar . Set.insert
 
 unlockTeam :: MonadIO m => TeamContestId -> MVar (Set TeamContestId) -> m ()
-unlockTeam tcId = updateMVar $ Set.delete tcId
+unlockTeam = updateMVar . Set.delete
+    
+
+data LockSet a = LockSet (MVar (Map a (MVar (), Int)))
+
+acquireFileLock :: MonadIO m => FilePath -> LockSet FilePath -> m ()
+acquireFileLock f (LockSet ls) = liftIO $ do
+    -- Get (and possible create) lock for file.
+    l <- modifyMVar ls $ \m -> case Map.lookup f m of
+        Nothing -> do
+            -- Create and insert lock.
+            l <- newMVar ()
+            
+            -- Insert lock and update count.
+            let m' = Map.insert f (l, 1) m
+
+            return (m', l)
+        Just (l, c) ->
+            -- Update count.
+            let m' = Map.insert f (l, c+1) m in
+
+            return (m', l)
+
+    -- Block on lock acquire.
+    takeMVar l
+
+releaseFileLock :: MonadIO m => FilePath -> LockSet FilePath -> m ()
+releaseFileLock f (LockSet ls) = liftIO $ modifyMVar_ ls $ \m -> case Map.lookup f m of
+    Nothing ->
+        error "releaseFileLock: Error: file lock released too many times."
+    Just (_, 1) ->
+        return $ Map.delete f m
+    Just (l, c) -> do
+        putMVar l ()
+        return $ Map.insert f (l, c-1) m
     
 updateMVar :: MonadIO m => (a -> a) -> MVar a -> m ()
 updateMVar f mvar = liftIO $ modifyMVar_ mvar $ return . f

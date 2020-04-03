@@ -17,7 +17,7 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Char as Char
 import qualified Data.IORef.Lifted as IO
 import qualified Data.List as List
-import Data.Monoid
+-- import Data.Monoid
 -- import Data.String (IsString)
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -36,7 +36,7 @@ import Yesod.Form.Fields (Textarea(..))
 import Cloud
 import Common
 import Core.Score
-import Problem.Class
+import Problem.Class hiding (BuildTest)
 import Problem.Shared (getBuildArchiveLocation, getFixArchiveLocation, OracleErr(..), BuildError(..), BreakError(..), FixError(..))
 import Scorer.Class
 
@@ -48,10 +48,10 @@ foldr' = foldr
 instance ExtractContest ArtGallery where
     extractContest (ArtGallery c) = c
 
-instance ScorerClass ArtGallery where
-    scoreContestBuild (ArtGallery (Entity cId _)) _ = defaultScoreBuildRound cId
-    scoreContestBreak (ArtGallery (Entity cId _)) _ = defaultScoreBreakRound cId
-    scoreContestFix (ArtGallery (Entity cId _)) _ = defaultScoreFixRound cId
+-- instance ScorerClass ArtGallery where
+--     scoreContestBuild (ArtGallery (Entity cId _)) _ = defaultScoreBuildRound cId
+--     scoreContestBreak (ArtGallery (Entity cId _)) _ = defaultScoreBreakRound cId
+--     scoreContestFix (ArtGallery (Entity cId _)) _ = defaultScoreFixRound cId
 
 instance ProblemRunnerClass ArtGallery where
     runOracleSubmission (ArtGallery _contest) opts (Entity submissionId submission) = 
@@ -157,7 +157,7 @@ instance ProblemRunnerClass ArtGallery where
             -- Start EC2. 
             let ec2 = runnerCloudConfiguration opts
             let manager = runnerHttpManager opts
-            launchOneInstanceWithTimeout ec2 manager (4 * 60) $ \_inst session -> do
+            launchOneInstanceWithTimeout ec2 manager 60 $ \_inst session -> do
                 -- Block outgoing.
                 -- setupFirewall session
 
@@ -243,7 +243,7 @@ instance ProblemRunnerClass ArtGallery where
                 maybeUploadBatchScript session user submissionId batchM
 
                 -- Run script.
-                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo bash /home/ubuntu/script.sh"
+                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo timeout 3601 bash /home/ubuntu/script.sh"
 
                 -- Parse results. 
                 timeM <- parseTestResults user session testIOs
@@ -270,7 +270,7 @@ instance ProblemRunnerClass ArtGallery where
                 maybeUploadBatchScript session user submissionId batchM
 
                 -- Run script.
-                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo bash /home/ubuntu/script.sh"
+                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo timeout 3601 bash /home/ubuntu/script.sh"
 
                 -- Parse results. 
                 timeM <- parseTestResults user session testIOs
@@ -327,7 +327,7 @@ instance ProblemRunnerClass ArtGallery where
                 maybeUploadBatchScript session user submissionId batchM
 
                 -- Run script.
-                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo bash /home/ubuntu/script.sh"
+                _ <- runSSH (strMsg "Could not run test script") $ execCommand session $ "sudo timeout 3601 bash /home/ubuntu/script.sh"
 
                 -- Parse results. 
                 timeM <- parseTestResults user session testIOs
@@ -358,7 +358,7 @@ instance ProblemRunnerClass ArtGallery where
                     Just _ ->
                         return $ Right ()
 
-    runBreakSubmission (ArtGallery (Entity _contestId _contest)) opts (Entity submissionId submission) = do
+    runBreakSubmission (ArtGallery (Entity _contestId _contest)) opts (Entity submissionId submission) = undefined {-FIXME-} {-do
         -- Load input json. 
         breakJSONE <- safeReadFileLazy breakFilePath
         case breakJSONE of
@@ -811,8 +811,9 @@ instance ProblemRunnerClass ArtGallery where
             --             return $ Left $ const err
             --         (Left err, Nothing) -> 
             --             return $ Left $ const err
+-}
 
-    runFixSubmission (ArtGallery (Entity contestId _contest)) opts (Entity fixId fix) = do
+    runFixSubmission (ArtGallery (Entity contestId _contest)) opts (Entity fixId fix) = undefined {-FIXME-} {-do
         -- TODO: Read and parse json.
         --      Handle case for invalid breaks?
 
@@ -1045,7 +1046,7 @@ instance ProblemRunnerClass ArtGallery where
                         return ()
             
             runTest _ _ _ = 
-                throwError $ FixErrorSystem "Invalid fix type."
+                throwError $ FixErrorSystem "Invalid fix type." -}
 
 safeReadFileLazyReject f  = do
     contentsE <- safeReadFileLazy f
@@ -1174,9 +1175,9 @@ instance FromJSON BreakTest where
                 return $ BreakTestCorrectness commands batchM
             "crash" -> do
                 batchM <- o .:? "batch"
-                return $ BreakTestCorrectness commands batchM
+                -- return $ BreakTestCorrectness commands batchM
                 -- XXX: Temporary to run lowered crashes.
-                -- return $ BreakTestCrash commands batchM
+                return $ BreakTestCrash commands batchM
                 -- XXX
             "integrity" -> do
                 log <- o .: "logfile"

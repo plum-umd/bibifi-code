@@ -70,7 +70,7 @@ getAdminContestJudgementsR url = runLHandler $ do
                             left outer join BreakDispute on BreakDispute.break == BreakSubmission.id
                             where TeamContest.contest == #{cId}
                                 and (BreakSubmission.status == #{BreakJudging} or BreakSubmission.status == #{BreakJudged} or BreakDispute.id is not null)
-                        |]
+                        |] 
                     -- getLatestBreakSubmissions cId $ \tc bs -> do
                     --     E.where_ ( bs E.^. BreakSubmissionStatus E.==. E.val BreakJudging E.||. 
                     --         bs E.^. BreakSubmissionStatus E.==. E.val BreakJudged)
@@ -119,7 +119,7 @@ getAdminContestJudgementsR url = runLHandler $ do
                             return $ [whamlet'|
                                 <tr .clickable href="@{AdminContestJudgementsAssignFixR url fsId}">
                                     <td>
-                                        #{fixSubmissionName fs}
+                                        #{fixSubmissionCommitHash fs}
                                     <td>
                                         #{lang}
                                     <td>

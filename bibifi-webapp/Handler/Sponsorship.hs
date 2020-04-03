@@ -13,10 +13,11 @@ getSponsorshipR = runLHandler $ defaultLayout $ lLift $ do
                         Sponsorship Opportunities
                 <p class="lead">
                     Are you interested in sponsoring the contest? 
-                    Sponsors are featured on our website and cost $1,000 for one year. 
+                    <a href="@{StaticR doc_sponsorship_pdf}">This document</a> describes various sponsorship opportunities for organizations and corporations. 
                     Contact us at #{emailLink} if you'd like to learn more! 
     |]
 --                     Are you interested in sponsoring the contest? 
+--                     Sponsors are featured on our website and cost $1,000 for one year. 
 --                     <a href="@{StaticR doc_sponsorship_pdf}">This document</a> describes various sponsorship opportunities for organizations and corporations. 
 --                     If you are interested in participating in the break-it round as a professional team, see <a href="@{StaticR doc_professional_breaker_pdf}">here</a> for details. 
 --                     We are also looking for judges for the contest. 

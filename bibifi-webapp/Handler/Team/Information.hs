@@ -6,19 +6,19 @@ import qualified Team
 
 getTeamInformationR :: TeamId -> Handler Html
 getTeamInformationR tId = runLHandler $ Team.layout Team.Information tId $ \_uId team -> do
-        leaderW <- do
+        let leaderW = do
             mLeader <- handlerToWidget $ runDB $ get $ teamLeader team
-            return $ case mLeader of
+            case mLeader of
                 Nothing ->
                     mempty
                 Just leader ->
-                    [whamlet'|
+                    [whamlet|
                         <label class="col-sm-2 control-label">
                             Leader
                         <div class="col-sm-10">
                             <p class="form-control-static">
                                 #{userIdent leader}
-                    |]
+                    |] :: LWidget
         membersH <- do
             members <- handlerToWidget $ runDB $ [lsql| select User.ident from TeamMember inner join User on TeamMember.user == User.id where TeamMember.team == #{tId}|]
             -- $ E.select $ E.from $ \(E.InnerJoin tm u) -> do

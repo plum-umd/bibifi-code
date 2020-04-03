@@ -145,10 +145,10 @@ getScoresR cUrl = runLHandler $ do
         Nothing ->
             returnJson $ object []
         Just (Entity cId c) -> 
-            let end' = addUTCTime (60*30) (contestFixEnd c) in
+            let end' = addUTCTime (60*30) (contestBreakEnd c) in
             do
             now <- getCurrentTime
-            teams <- if now > (contestFixEnd c) then 
+            teams <- if now > (contestBreakEnd c) then 
                     runDB [lsql| select TeamContest.id, Team.name, TeamContest.professional from Team inner join TeamContest on Team.id == TeamContest.team where TeamContest.contest == #{cId} and TeamContest.gitUrl != #{""}|]
                 else
                     runDB [lsql| select TeamContest.id, Team.name, TeamContest.professional from Team inner join TeamContest on Team.id == TeamContest.team where TeamContest.contest == #{cId} |]

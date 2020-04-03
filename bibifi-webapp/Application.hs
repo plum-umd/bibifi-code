@@ -17,6 +17,7 @@ import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import qualified Database.Persist
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import Database.Persist.Sql (runMigration) -- (runMigration, printMigration)
 import Network.HTTP.Client.Conduit (newManager)
 import Data.Default (def)
@@ -59,6 +60,7 @@ import Handler.Admin.Contest.Tests.Optional
 import Handler.Admin.Contest.Tests.Performance
 -- import Handler.Admin.Contest.OracleBreaks.Edit
 import Handler.Admin.Team
+import Handler.Admin.Team.AddMember
 import Handler.Admin.Team.Member
 import Handler.Admin.Teams
 import Handler.Admin.Users
@@ -87,6 +89,8 @@ import Handler.Participation.OracleSubmissions.Create
 import Handler.Participation.BuildSubmissions
 import Handler.Participation.BuildersCode
 import Handler.Participation.BreakSubmissions
+import Handler.Participation.BreakSubmissions.Download
+import Handler.Participation.DownloadBuilder
 import Handler.Participation.FixSubmissions
 import Handler.PasswordReset
 import Handler.Profile
@@ -116,6 +120,7 @@ import Handler.Admin.Contests
 import Handler.Admin.Contest
 import Handler.Admin.Contest.MakeDefault
 import Handler.Todo
+import Handler.Webhook.Gitlab.Push
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -144,6 +149,7 @@ makeApplication conf = do
     let app' = logWare app''
 
     -- Force domain name.
+    let domainName = Text.encodeUtf8 $ appDomainName foundation
     let app = if development then
             app'
           else
@@ -157,13 +163,6 @@ makeApplication conf = do
 --               ) app'
 -- >>>>>>> da8e7b6e184073bad29969392b915bb67a9eadb5
     return app
-
-    where
-        domainName = case (URI.parseURI $ Text.unpack $ appRoot conf) >>= URI.uriAuthority of
-            Nothing ->
-                error $ "Could not parse domain name: " <> Text.unpack (appRoot conf)
-            Just uri ->
-                BSC.pack $ URI.uriRegName uri
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
@@ -192,8 +191,14 @@ makeFoundation conf = do
             updateLoop
     _ <- forkIO updateLoop
 
+    -- Load git configuration.
+    gitConfig <- loadGitConfiguration "../config/git.yml" >>= \case
+        Left e -> error e
+        Right c -> return c
+
+
     let logger = Yesod.Core.Types.Logger loggerSet' getter
-    let foundation = App conf s p manager dbconf logger
+    let foundation = App conf s p manager dbconf logger domainName gitConfig
 
     -- Perform database migration using our application's logging settings.
     runLoggingT
@@ -201,6 +206,13 @@ makeFoundation conf = do
         (messageLoggerSource foundation logger)
 
     return foundation
+
+    where
+        domainName = case (URI.parseURI $ Text.unpack $ appRoot conf) >>= URI.uriAuthority of
+            Nothing ->
+                error $ "Could not parse domain name: " <> Text.unpack (appRoot conf)
+            Just uri ->
+                Text.pack $ URI.uriRegName uri
 
 -- for yesod devel
 getApplicationDev :: IO (Int, Application)

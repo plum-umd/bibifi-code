@@ -1,8 +1,10 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 module PostDependencyType where
 
+import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.TH as Aeson
 import Data.Text (Text)
+import qualified Data.Text as Text
 import Database.Persist.TH
 import Prelude
 import Yesod
@@ -45,16 +47,16 @@ data BuildSubmissionStatus = BuildPullFail | BuildPending | BuildBuilding | Buil
 derivePersistField "BuildSubmissionStatus"
 Aeson.deriveJSON Aeson.defaultOptions ''BuildSubmissionStatus
 
-data BreakSubmissionStatus = BreakPullFail | BreakPending | BreakTesting | BreakTested | BreakRejected | BreakJudging | BreakJudged | BreakTimeout
+data BreakSubmissionStatus = BreakPullFail | BreakPending | BreakTesting
+    | BreakTested | BreakRejected | BreakTimeout
+    | BreakJudging | BreakJudged -- JP: These should probably be pulled out into a separate field.
     deriving (Show, Read, Eq)
 derivePersistField "BreakSubmissionStatus"
 Aeson.deriveJSON Aeson.defaultOptions ''BreakSubmissionStatus
 
--- TODO: Collapse to a boolean. 
 data BreakSubmissionResult = 
-      BreakCorrect -- Valid bug
-    | BreakIncorrect -- Invalid, correct behavior
-    | BreakExploit -- Valid exploit
+      BreakSucceeded
+    | BreakFailed
         deriving (Show, Read, Eq)
 derivePersistField "BreakSubmissionResult"
 Aeson.deriveJSON Aeson.defaultOptions ''BreakSubmissionResult
@@ -64,18 +66,39 @@ data BreakType =
     | BreakCrash
     | BreakConfidentiality
     | BreakIntegrity
+    | BreakAvailability
     | BreakSecurity
         deriving (Show, Read, Eq)
 derivePersistField "BreakType"
-Aeson.deriveJSON Aeson.defaultOptions ''BreakType
+-- Aeson.deriveJSON Aeson.defaultOptions ''BreakType
+
+instance ToJSON BreakType where
+    toJSON BreakCorrectness = "correctness"
+    toJSON BreakCrash = "crash"
+    toJSON BreakConfidentiality = "confidentiality"
+    toJSON BreakIntegrity = "integrity"
+    toJSON BreakAvailability = "availability"
+    toJSON BreakSecurity = "security"
+
+instance FromJSON BreakType where
+    parseJSON (Aeson.String t) = case Text.toLower t of
+        "correctness" -> return BreakCorrectness
+        "crash" -> return BreakCrash
+        "confidentiality" -> return BreakConfidentiality
+        "integrity" -> return BreakIntegrity
+        "availability" -> return BreakAvailability
+        "security" -> return BreakSecurity
+        _ -> fail "Invalid BreakType"
+    parseJSON _ = fail "Invalid BreakType"
 
 data FixSubmissionStatus = FixPending | FixBuilding | FixBuilt | FixJudging | FixJudged | FixTimeout | FixRejected
-    | FixBuildFail | FixPullFail | FixInvalidBugId -- Deprecated.
+    -- | FixBuildFail | FixPullFail | FixInvalidBugId -- Deprecated.
     deriving (Show, Read, Eq)
 derivePersistField "FixSubmissionStatus"
 Aeson.deriveJSON Aeson.defaultOptions ''FixSubmissionStatus
 
-data FixSubmissionResult = FixFixed | FixNotFixed | FixDisqualified
+data FixSubmissionResult = FixFixed | FixNotFixed 
+    -- | FixDisqualified -- TODO: Set the message as disqualified instead.
     deriving (Show, Read, Eq)
 derivePersistField "FixSubmissionResult"
 Aeson.deriveJSON Aeson.defaultOptions ''FixSubmissionResult
@@ -194,64 +217,80 @@ prettyBreakStatusVictim s =
             #{txt}
     |]
         
-prettyBreakResult :: Maybe BreakSubmissionResult -> Html
+prettyBreakResult :: BreakSubmissionResult -> Html
 prettyBreakResult s = case s of
-    Nothing ->
+    -- Nothing ->
+    --     [shamlet|
+    --         <span>
+    --             &#8212;
+    --     |]
+    BreakSucceeded ->
         [shamlet|
-            <span>
-                &#8212;
+            <span class="text-success">
+                Break succeeded
         |]
-    Just BreakIncorrect ->
+    BreakFailed ->
         [shamlet|
             <span class="text-danger">
-                Normal behavior
-        |]
-    Just BreakCorrect ->
-        [shamlet|
-            <span class="text-success">
-                Bug
-        |]
-    Just BreakExploit ->
-        [shamlet|
-            <span class="text-success">
-                Exploit
+                Break failed
         |]
         
-prettyBreakResultVictim :: Maybe BreakSubmissionResult -> Html
+prettyBreakResultVictim :: BreakSubmissionResult -> Html
 prettyBreakResultVictim s = case s of
+    -- Nothing ->
+    --     [shamlet|
+    --         <span>
+    --             &#8212;
+    --     |]
+    BreakSucceeded ->
+        [shamlet|
+            <span class="text-danger">
+                Break succeeded
+        |]
+    BreakFailed ->
+        [shamlet|
+            <span class="text-success">
+                Break failed
+        |]
+        
+prettyBreakValid :: Maybe Bool -> Html
+prettyBreakValid s = case s of
     Nothing ->
         [shamlet|
             <span>
                 &#8212;
         |]
-    Just BreakIncorrect ->
+    Just True ->
         [shamlet|
             <span class="text-success">
-                Normal behavior
+                Break valid
         |]
-    Just BreakCorrect ->
+    Just False ->
         [shamlet|
             <span class="text-danger">
-                Bug
+                Break invalid
         |]
-    Just BreakExploit ->
+
+prettyBreakValidVictim :: Maybe Bool -> Html
+prettyBreakValidVictim s = case s of
+    Nothing ->
+        [shamlet|
+            <span>
+                &#8212;
+        |]
+    Just True ->
         [shamlet|
             <span class="text-danger">
-                Exploit
+                Break valid
         |]
-        
+    Just False ->
+        [shamlet|
+            <span class="text-success">
+                Break invalid
+        |]
+
 prettyFixStatus :: FixSubmissionStatus -> Html
 prettyFixStatus s = case s of 
-    FixPullFail ->
-        [shamlet|
-            <span class="text-danger">
-                Pull failed
-        |]
-    FixInvalidBugId ->
-        [shamlet|
-            <span class="text-danger">
-                Invalid bug fixed
-        |]
     FixPending ->
         [shamlet|
             <span>
@@ -271,11 +310,6 @@ prettyFixStatus s = case s of
         [shamlet|
             <span class="text-danger">
                 Fix rejected
-        |]
-    FixBuildFail ->
-        [shamlet|
-            <span class="text-danger">
-                Build failed
         |]
     FixBuilt ->
         [shamlet|
@@ -310,11 +344,11 @@ prettyFixResult r = case r of
             <span class="text-danger">
                 Not fixed
         |]
-    Just FixDisqualified ->
-        [shamlet|
-            <span class="text-danger">
-                Disqualified
-        |]
+--     Just FixDisqualified ->
+--         [shamlet|
+--             <span class="text-danger">
+--                 Disqualified
+--         |]
 
 prettyBreakType :: BreakType -> Html
 prettyBreakType BreakCorrectness = [shamlet|
@@ -328,6 +362,10 @@ prettyBreakType BreakCrash = [shamlet|
 prettyBreakType BreakIntegrity = [shamlet|
         <span>
             Integrity
+    |]
+prettyBreakType BreakAvailability = [shamlet|
+        <span>
+            Availability
     |]
 prettyBreakType BreakConfidentiality = [shamlet|
         <span>

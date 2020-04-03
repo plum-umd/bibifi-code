@@ -16,6 +16,7 @@ getAdminTeamR tId = runLHandler $ Admin.layout Admin.Teams $ do
     toWidget listGroupStyle
     contestsWidget
     membersWidget team
+    addMembersWidget team
 
     where
         membersWidget team = do
@@ -78,5 +79,12 @@ getAdminTeamR tId = runLHandler $ Admin.layout Admin.Teams $ do
         contestWidget (tcId, cName) = [whamlet'|
                 <a href="@{ParticipationInformationR tcId}" .list-group-item>
                     #{cName}
+            |]
+
+        addMembersWidget team = do
+            [whamlet|
+                <h3>
+                    Add Members
+                <p><a href="@{AdminTeamAddMemberR tId}">Add team members</a>.
             |]
 

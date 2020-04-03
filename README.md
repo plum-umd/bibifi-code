@@ -1,7 +1,7 @@
 Overview
 ========
 
-This is the codebase for Build-it Break-it Fix-it (BIBIFI). 
+This is the codebase for [Build-it Break-it Fix-it (BIBIFI)](http://builditbreakit.org/). 
 We have run the contest on RHEL and Ubuntu systems. 
 VMs can be provisioned via Docker Swarm or AWS EC2. 
 
@@ -60,6 +60,7 @@ Finish configuring the database:
 	# CONNECT TO bibifi AS bibifi;
 	REVOKE ALL ON DATABASE bibifi FROM public;
 	SET timezone='UTC';
+	SET bytea_output = 'escape';
 
 You'll need to update the `config/postgresql.yml` configuration file with your database's `username`, `password`, `host`, and `port` information.
 
@@ -87,8 +88,6 @@ Run executable:
 
 	stack exec -- bibifi Production --port YOURPORT
 
-To create a contest, visit `/admin/contests/create` and fill out the form. 
-
 Runner
 ------
 
@@ -102,6 +101,7 @@ Contest Problems
 Contest problems are composed of:
 
 - A problem specification that describes the programs contestants are expected to implement. The specification should include instructions for how to make submissions and how submissions will be graded. 
+- An oracle program that demonstrates how the problem specification should be implemented. Throughout the contest, participants can query the oracle's behavior against various inputs. The oracle is also useful for automatically grading break-it submissions. 
 - A suite of tests that include correctness, performance, and optional tests. 
 - A virtual machine image that is used to test submissions. 
 - A grading script that can run on the virtual machine to run tests, oracle submissions, and break-it tests.
@@ -117,10 +117,73 @@ If you would like to integrate your own problem specifications into the infrastr
 Running Contests
 ================
 
-TODO...
+To run a contest, you will need an administrator account on the contest website. 
+Visit `/register` to create an account. 
+The first account created on the website will automatically be made an administrator.
+You can make other users administrators by visiting the `/admin/users` page.
 
+Contest Setup
+-------------
+
+Before setting up your contest, make sure all the resources for your contest problem is ready. 
+
+To create a contest, visit `/admin/contests/create` and fill out the form. 
+"Contest Name" is the title of your contest, and "Contest URL" is a unique text identifier for your contest that is used in URLs. 
+
+You can create multiple contests via this form on the website. 
+There is a notion of a "default contest" which the website gives special priority to. 
+For example, links on the homepage will automatically link to the default contest's announcements and scoreboard pages. 
+When you create a new contest, it automatically becomes the default. 
+You can change the default through the `/admin/contests` page.
+
+You need to insert build-it tests into the website's database. 
+You can add correctness, performance, and optional tests by navigating through the `/admin/contests` page. 
+Be careful not to make the test scripts in the database too large. 
+This could cause the `runner` to crash from running out of memory. 
+
+Before running your contest live, I recommend creating a test contest where you test the oracle through the website and the functionality of each round. 
+
+
+Build-It
+--------
+
+To prepare for build-it, you should create a directory on the filesystem for your problem. 
+Typically this contains the oracle executable, but its structure might vary depending on your problem. 
+
+You should also create a backend directory. 
+This directory will contain clones of the repos used for contest submissions (in the `repos` subdirectory). 
+Logs and other contest relevant files will placed here as well. 
+
+When the build-it round begins, you should start the periodic and runner programs. 
+We typically leave them running inside a `screen` so that they keep running during the entire round. 
+Make sure that the linux user running `periodic` and `runner` has permission to clone from your git account via ssh. 
+
+Warning: The periodic script currently can sometimes be finicky. You may need to restart it if it gets stuck. 
+
+Break-it
+--------
+
+To prepare for break-it, you need to zip up the final build-it submissions for passing teams and place them in the `round2` subdirectory of the backend directory. 
 You can zip up build submissions by running the following in the `repos` directory:
 
     for D in *; do zip -r $D.zip $D -x *.git*; done;
 		mv *.zip ../round2/
+
+This process might vary depending on your problem. 
+
+Once break-it starts, you will again need to run `periodic` and `runner` for the duration of the round. 
+
+When the round ends, you may need to manually judge some breaks. 
+To make a user a judge, select your contest on the `/admin/contests` page and go to the "Add judge" page. 
+Once you have selected your judges, you need to assign judgements to your judges. 
+You can do this manually, or you can distribute the judgements evenly by going to the "View judgements" page and clicking "Distribute judgements". 
+Judges can see their assigned judgments on the `/judges` page.
+
+Fix-it
+------
+
+Running fix-it is similar. 
+Make sure `periodic` and `runner` are running during the round. 
+
+Fixes are judged in a manner similar to breaks. 
 

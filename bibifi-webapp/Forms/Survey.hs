@@ -1,8 +1,26 @@
+{-# LANGUAGE NoTemplateHaskell #-}
+{-# LANGUAGE NoCPP #-}
+{-# LANGUAGE NoMultiParamTypeClasses #-}
+{-# LANGUAGE NoTypeApplications #-}
+{-# LANGUAGE NoTypeFamilies #-}
+{-# LANGUAGE NoGADTs #-}
+{-# LANGUAGE NoGeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoFlexibleContexts #-}
+{-# LANGUAGE NoEmptyDataDecls #-}
+{-# LANGUAGE MonomorphismRestriction #-}
+{-# LANGUAGE NoDeriveDataTypeable #-}
+{-# LANGUAGE NoDoAndIfThenElse #-}
+{-# LANGUAGE NoRecordWildCards #-}
+{-# LANGUAGE NoScopedTypeVariables #-}
+{-# LANGUAGE NoViewPatterns #-}
+{-# LANGUAGE NoTypeSynonymInstances #-}
+{-# LANGUAGE NoFlexibleInstances #-}
+
 module Forms.Survey where
 
 import Import
 import Forms
-import Yesod.Form.Bootstrap3
+-- import Yesod.Form.Bootstrap3
 
 data SurveyFormData = SurveyFormData {
     -- formLanguage :: Text,
@@ -139,13 +157,12 @@ surveyForm render formM = SurveyFormData
     <*> aopt genderField (bfs' "Gender") (f formGender)
     <*> aopt countryField (bfs' "Nationality") (f formNationality)
     <*> areq boolField' "Would you like us to make your CV available to companies who have sponsored our research, so they can contact you about future employment and internship opportunities?" (formResumePermission <$> formM)
-    -- <*> areq boolField' "Would you like to participate in the research study? You will need to read, sign, and submit an agreement to participate in the study. In addition, you will need to upload your CV before the contest begins." (Just True)
     <*> areq (checkBoxField' $ [hamlet|I agree to participate in the research study and the terms in this <a href="@{StaticR doc_consent_form_pdf}" target="_blank">consent form</a>|] render) "We ask that you allow us to use data gathered from your performance in this contest as part of a research study that aims to better understand how to build secure systems. Your identity will be held in strict confidence (unless you opt to share your information)." (Just $ maybe True formResumePermission formM)
-    -- <*> areq (checkBoxField' "I agree") "I understand that I will need to read, sign, and submit an agreement to participate in this contest. In addition, I will upload my CV before the contest begins." Nothing
+    -- TODO
+    -- <*> areq (checkBoxField' ( "I agree to participate in the research study" :: Text)) "We ask that you allow us to use data gathered from your performance in this contest as part of a research study that aims to better understand how to build secure systems. Your identity will be held in strict confidence (unless you opt to share your information)." (Just $ maybe True formResumePermission formM)
     where
         degrees = [("Undergraduate"::Text, "Undergraduate"), ("Masters","Masters"),("Doctorate","Doctorate"), ("High school","High school"),("None","None")]
 
         f :: (SurveyFormData -> Maybe a) -> Maybe (Maybe a)
         f g = fmap (g) formM
-
 

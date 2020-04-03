@@ -75,6 +75,7 @@ library
                      Handler.Admin.Contest.Tests.Optional
                      Handler.Admin.Contest.Tests.Performance
                      Handler.Admin.Team
+                     Handler.Admin.Team.AddMember
                      Handler.Admin.Team.Member
                      Handler.Admin.Teams
                      Handler.Admin.Users
@@ -100,6 +101,8 @@ library
                      Handler.Participation.BuildSubmissions
                      Handler.Participation.BuildersCode
                      Handler.Participation.BreakSubmissions
+                     Handler.Participation.BreakSubmissions.Download
+                     Handler.Participation.DownloadBuilder
                      Handler.Participation.FixSubmissions
                      Handler.PasswordReset
                      Handler.PerformanceRankings
@@ -122,6 +125,7 @@ library
                      Handler.Support
                      Handler.Feedback
                      Handler.Todo
+                     Handler.Webhook.Gitlab.Push
                      Network.Wai.Middleware.ForceDomain
                      Test
                      Forms.Survey
@@ -138,7 +142,9 @@ library
                 OverloadedStrings
                 NoImplicitPrelude
                 CPP
+                LambdaCase
                 MultiParamTypeClasses
+                TypeApplications
                 TypeFamilies
                 GADTs
                 GeneralizedNewtypeDeriving
@@ -164,6 +170,7 @@ library
                  , vector
                  , bytestring                     
                  , data-textual
+                 , gitlab-haskell
                  , network                       
                  , network-ip
                  , network-uri
@@ -175,7 +182,7 @@ library
                  , text                          
                  , transformers
                  , enclosed-exceptions
-                 , hamlet                        
+--                  , hamlet                        
                  , hashable                      
                  , hashmap                       
                  , http-client
@@ -209,6 +216,7 @@ library
                  , blaze-markup
                  , blaze-html
                  , mime-mail
+                 , smtp-mail
                  , containers
                  , hoauth2 > 0.4.3
                  , yesod-auth-oauth2
@@ -221,6 +229,7 @@ library
                  , bibifi-core
 
                  , http-types
+                 , aeson
 
 executable         bibifi
     if flag(library-only)

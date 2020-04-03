@@ -2,14 +2,14 @@ module Scheduler (scheduler) where
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Database.Esqueleto hiding ((=.), (==.))
+import Database.Esqueleto hiding (update, count, (!=.), (=.), (==.), (<=.))
 import qualified Database.Esqueleto as E
 
 import Common
 import Queue
 
 scheduler :: MVar (Queue Job) -> MVar Int -> MVar (Set TeamContestId) -> Entity Contest -> DatabaseM ()
-scheduler queue exiting lockedTeams (Entity contestId _) = loopUntilExit $ do
+scheduler queue exiting lockedTeams (Entity contestId contest) = loopUntilExit $ do
     -- Get available teams.
     availableTeams <- getAvailableTeams contestId lockedTeams
     
@@ -27,7 +27,7 @@ scheduler queue exiting lockedTeams (Entity contestId _) = loopUntilExit $ do
             pushQueue (OracleJob oracle) queue
         Nothing -> do
             -- Get next build-it submission for available teams.
-            buildM <- getBuildSubmission availableTeams
+            buildM <- getBuildSubmission availableTeams contest
             case buildM of 
                 Just build -> do
                     -- Lock team.
@@ -117,26 +117,47 @@ getOracleSubmission availableTeams = do
         return os
     return $ maybeList submissions
 
-getBuildSubmission :: [TeamContestId] -> DatabaseM (Maybe (Entity BuildSubmission))
-getBuildSubmission availableTeams = do
+getBuildSubmission :: [TeamContestId] -> Contest -> DatabaseM (Maybe (Entity BuildSubmission))
+getBuildSubmission availableTeams contest = do
     -- Get next pending build submission for available teams.
     submissions <- runDB $ select $ from $ \bs -> do
         where_ $
             bs ^. BuildSubmissionStatus E.==. val BuildPending
             &&. bs ^. BuildSubmissionTeam `in_` valList availableTeams
-        orderBy [asc $ bs ^. BuildSubmissionTimestamp]
+        orderBy [asc $ bs ^. BuildSubmissionTimestamp, asc $ bs ^. BuildSubmissionId]
         limit 1
         return bs
-    return $ maybeList submissions
+    case maybeList submissions of
+        Nothing -> 
+            return Nothing
+        submissionM@(Just (Entity bsId bs)) -> do
+            -- Check if the team has a newer pending submission.
+            c <- runDB $ count [
+                  BuildSubmissionTeam ==. buildSubmissionTeam bs
+                , BuildSubmissionId !=. bsId
+                , BuildSubmissionStatus ==. BuildPending
+                , BuildSubmissionTimestamp <=. contestBuildEnd contest
+                ]
+            if c > 0 then do
+                -- Skip test.
+                runDB $ update bsId [
+                    BuildSubmissionStatus =. BuildBuildFail
+                  , BuildSubmissionStdout =. Just "Skipped build submission." -- Should really have a message field..
+                  ]
+
+                return Nothing
+            else
+                return submissionM
 
 getBreakSubmission :: [TeamContestId] -> DatabaseM (Maybe (Entity BreakSubmission))
 getBreakSubmission availableTeams = do
     -- Get next pending.
     ss <- runDB $ select $ from $ \bs -> do
-        where_ $
-            bs ^. BreakSubmissionStatus E.==. val BreakPending
+        where_ $ 
+                bs ^. BreakSubmissionStatus E.==. val BreakPending
             &&. bs ^. BreakSubmissionTeam `in_` valList availableTeams
-        orderBy [asc $ bs ^. BreakSubmissionTimestamp]
+            -- &&. bs ^. BreakSubmissionWithdrawn E.==. val False
+        orderBy [asc $ bs ^. BreakSubmissionTimestamp, asc $ bs ^. BreakSubmissionId]
         limit 1
         return bs
     return $ maybeList ss
@@ -147,7 +168,7 @@ getFixSubmission availableTeams = do
         where_ $ 
             fs ^. FixSubmissionStatus E.==. val FixPending
             &&. fs ^. FixSubmissionTeam `in_` valList availableTeams
-        orderBy [asc $ fs ^. FixSubmissionTimestamp]
+        orderBy [asc $ fs ^. FixSubmissionTimestamp, asc $ fs ^. FixSubmissionId]
         limit 1
         return fs
     return $ maybeList ss

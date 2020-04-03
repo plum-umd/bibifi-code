@@ -93,7 +93,7 @@ postParticipationBuildSubmissionRerunR tcId bsId = runLHandler $ do
                 if not canRerun then
                     errorHandler
                 else do
-                    handlerToWidget $ runDB $ update bsId [BuildSubmissionStatus =. BuildPending]
+                    handlerToWidget $ runDB $ update bsId [BuildSubmissionStatus =. BuildPending, BuildSubmissionStdout =. Nothing, BuildSubmissionStderr =. Nothing]
 
                     setMessage [shamlet|
                         <div .container>

@@ -22,17 +22,17 @@ getPerformanceRankingsR url = runLHandler $ do
                     <div class="row">
                         <div class="col-md-12">
                             The contest has not started yet.
-                |]
+                |] :: LWidget
             else do
                 -- Get list of performance tests for this contest.
                 tests <- handlerToWidget $ runDB $ selectList [ContestPerformanceTestContest ==. cId] [Asc ContestPerformanceTestId]
                 let rows = 
                       let row (Entity tId t) = 
-                            [whamlet'|
+                            [hamlet|
                                 <tr href="@{SpecificPerformanceRankingsR url tId}" .clickable>
                                     <td>
                                         #{contestPerformanceTestName t}
-                            |]
+                            |] :: HtmlUrl (Route App)
                       in
                       mconcat $ map row tests
                 [whamlet|
@@ -97,14 +97,14 @@ getSpecificPerformanceRankingsR url ptId = runLHandler $ do
                                       Nothing -> dash
                                       Just t -> [shamlet|#{t}|]
                                 in
-                                [whamlet'|
+                                [hamlet|
                                     <tr>
                                         <td>
                                             #{team}
                                         <td>
                                             #{p}
                                             
-                                |]
+                                |] :: HtmlUrl (Route App)
                               ) $ sortBy (\p1 p2 -> case ( snd p1, snd p2) of
                                     (Just t1, Just t2) -> compare t1 t2
                                     (Just _, Nothing) -> LT
