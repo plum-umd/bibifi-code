@@ -1,8 +1,6 @@
 Contest Problem API
 ===================
 
-*TODO: This is slightly out of date. A few new fields have been added.*
-
 You can integrate your own problem specifications into the BIBIFI infrastructure by using this Contest Problem API. 
 Contest problems require a Docker Swarm or AWS EC2 virtual machine image and a grading script that can run oracle submissions, build-it submissions, and break-it submissions. 
 The grading script must accept JSON input and output as described in this document. 
@@ -120,13 +118,21 @@ The `type` key in the JSON file has the string value `"break"`.
 The `classification` key has the string values `"correctness"`, `"integrity"`, `"confidentiality"`, `"crash"`, or `"security"` depending on the kind of the break test.
 The `port` key provides a unique unused port in case your tests need to open ports. 
 The `test` key is the JSON break test submitted by the breaker. 
+The `passed_tests` key is the list of optional build-it test names passed by the target team. 
+This can be used to choose which oracle to run depending on which optional features are implemented by the target team. 
+The `user` key is the name of the user on the VM that should execute the test. 
+This is used to isolate multiple break tests that are run on the same VM. 
+The `break_directory` key specifies the remote directory to run the break test from on the VM.
 Here is an example input file: 
 
 	{
 		"type": "break",
 		"classification": "confidentiality",
 		"port": 6300,
-		"test": ["some","break","test"]
+		"test": ["some","break","test"],
+		"passed_tests": ["names","of","passed","optional","tests"],
+		"user": "ubuntu",
+		"break_directory": "/some/directory/for/this/break"
 	}
 
 Output from `grader` must be provided as JSON to stdout.
