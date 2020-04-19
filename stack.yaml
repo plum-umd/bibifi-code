@@ -3,7 +3,7 @@ resolver: lts-14.15
 packages:
 # - '../../lmonad'
 # - '../../lmonad-yesod'
-- 'dependencies/simplessh'
+# - 'dependencies/simplessh'
 - 'bibifi-core'
 - 'bibifi-webapp'
 - 'bibifi-runner'
@@ -20,6 +20,8 @@ extra-deps:
   commit: bb502ecc1192b2ca6a7668e3ae636670bd0588e9
 - git: https://github.com/jprider63/persistent-ratelimit.git
   commit: 4f3f9afc748453fb2beda00d339fc3a30ad6e7a3
+- git: https://github.com/jprider63/simplessh.git
+  commit: c29f6ec0e642570c44266f580fe9b23518fd2b80
 - smtp-mail-0.2.0.0
 - gitlab-haskell-0.1.5
 - docker-0.6.0.2
