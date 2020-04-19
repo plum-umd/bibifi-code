@@ -21,7 +21,7 @@ extra-deps:
 - git: https://github.com/jprider63/persistent-ratelimit.git
   commit: 4f3f9afc748453fb2beda00d339fc3a30ad6e7a3
 - git: https://github.com/jprider63/simplessh.git
-  commit: c29f6ec0e642570c44266f580fe9b23518fd2b80
+  commit: c5fc4710369324ef6e4080694ba2c537480b5bc9
 - smtp-mail-0.2.0.0
 - gitlab-haskell-0.1.5
 - docker-0.6.0.2
