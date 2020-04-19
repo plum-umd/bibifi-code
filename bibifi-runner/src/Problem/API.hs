@@ -166,20 +166,20 @@ instance ProblemRunnerClass APIProblem where
 
                 -- Continue running optional tests.
                 -- We stop once any optional test fails, so they must be inserted in the DB in correct order.
-                mapM_ (\test -> do
-                    result <- runBuildTest session portRef test 
-                    (recordBuildResult submissionId) result
-                  ) optTests
-                -- foldM_ (\prevRes test -> 
-                --     if prevRes then do
-                --       result@(_,res) <- runBuildTest session portRef test 
-                --       recordBuildResult submissionId result
-                --       return $ buildResult res
-                --     else do
-                --       let result = BuildResult False (Just "A previous optional test did not pass.") Nothing
-                --       recordBuildResult submissionId (fst test, result)
-                --       return False
-                --   ) True optTests
+                -- mapM_ (\test -> do
+                --     result <- runBuildTest session portRef test 
+                --     (recordBuildResult submissionId) result
+                --   ) optTests
+                foldM_ (\prevRes test -> 
+                    if prevRes then do
+                      result@(_,res) <- runBuildTest session portRef test 
+                      recordBuildResult submissionId result
+                      return $ buildResult res
+                    else do
+                      let result = BuildResult False (Just "A previous optional test did not pass.") Nothing
+                      recordBuildResult submissionId (fst test, result)
+                      return False
+                  ) True optTests
 
 
 
@@ -222,9 +222,9 @@ instance ProblemRunnerClass APIProblem where
         resultE <- runErrorT $ do
             targetTeamId <- checkSubmissionRound2 contestE bsE
 
-            -- Disallow correctness...
-            when (breakSubmissionBreakType bs == Just BreakCorrectness) $ 
-                throwError $ BreakErrorRejected "Correctness bugs are not allowed."
+            -- -- Disallow correctness...
+            -- when (breakSubmissionBreakType bs == Just BreakCorrectness) $ 
+            --     throwError $ BreakErrorRejected "Correctness bugs are not allowed."
 
             when (isNothing $ breakSubmissionBreakType bs) $ 
                 throwError $ BreakErrorRejected "Unknown break type."
