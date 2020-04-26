@@ -19,8 +19,8 @@ import Network.Mail.Mime
 data FormData = FormData {
     formIdent :: Text,
     formPassword :: Text,
-    formEmail :: Text,
-    formSurvey :: SurveyFormData
+    formEmail :: Text
+    -- formSurvey :: SurveyFormData
     }
 
 userForm :: (Route App -> [(Text,Text)] -> Text) -> Form FormData
@@ -29,7 +29,7 @@ userForm render = do
         <$> areq identityField (bfs' "Username") Nothing
         <*> areq passwordConfirmField (bfs' "Password") Nothing
         <*> areq emailField (bfs' "Email") Nothing
-        <*> surveyForm render Nothing
+        -- <*> surveyForm render Nothing
         <* bootstrapSubmit (BootstrapSubmit ("Register"::Text) "btn-primary" [])
     
 -- userForm :: Form User
@@ -57,8 +57,8 @@ getUser dat = do
 
 storeInformation :: UserId -> FormData -> LHandler ()
 storeInformation uId dat = do
-    let info = surveyFormToUserInformation uId $ formSurvey dat
-    runDB $ insert_ info
+    -- let info = surveyFormToUserInformation uId $ formSurvey dat
+    -- runDB $ insert_ info
     return ()
 
 checkDeadline :: LHandler ()
