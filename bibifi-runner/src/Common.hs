@@ -143,6 +143,7 @@ removeIfExists fileName = liftIO $ removeFile fileName `catch` handleExists
 
 class (Error e) => BackendError e where
     backendTimeout :: e
+    rejectionWithMessage :: String -> e
 
 data KeyFiles = KeyFiles {
       keyFilesPrivateKey :: String

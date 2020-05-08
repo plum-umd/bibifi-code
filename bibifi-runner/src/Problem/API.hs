@@ -935,14 +935,14 @@ extractAndFilterSubmission filename filterF = catchAny (do
     -- Recompress tar.gz.
     return $ BSL.toStrict $ GZip.compress $ Tar.write entries
   ) $ \e -> 
-    fail $ "Error recompressing break submission" <> show e
+    fail $ "Error recompressing submission" <> show e
 
   where
     filterEntries Done = return []
     filterEntries (Next e es) 
       | filterF (Tar.entryPath e) = filterEntries es >>= return . (e:)
       | otherwise             = filterEntries es
-    filterEntries (Fail e) = fail $ "Error decompressing break submission" <> show e
+    filterEntries (Fail e) = throwError $ rejectionWithMessage $ "Error decompressing submission: " <> show e
 
 retrievePassedOptionalTests targetId = do
     -- Get latest submission.
