@@ -160,12 +160,14 @@ instance Error FixError where
 
 instance BackendError FixError where
     backendTimeout = FixErrorTimeout
+    rejectionWithMessage = FixErrorRejected
 
 instance Error BreakError where
     strMsg = BreakErrorSystem
 
 instance BackendError BreakError where
     backendTimeout = BreakErrorTimeout
+    rejectionWithMessage = BreakErrorRejected
 
 data BuildError = 
       BuildError String -- Error logged. 
@@ -177,6 +179,7 @@ instance Error BuildError where
 
 instance BackendError BuildError where
     backendTimeout = BuildErrorTimeout
+    rejectionWithMessage s = BuildFail (BS8.pack s) mempty
 
 data OracleErr = 
       OracleErr String
@@ -187,6 +190,7 @@ instance Error OracleErr where
 
 instance BackendError OracleErr where
     backendTimeout = OracleErrTimeout
+    rejectionWithMessage = OracleErr
 
 buildTestName :: BuildTest -> Text
 buildTestName (BuildTestCore (Entity _ (ContestCoreTest{..}))) = contestCoreTestName
