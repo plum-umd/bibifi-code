@@ -9,6 +9,8 @@ import qualified Participation
 
 getParticipationDownloadBuilderR :: TeamContestId -> TeamContestId -> Handler TypedContent
 getParticipationDownloadBuilderR dlId tcId = runLHandler $ do
+    raiseTeamLabel
+    raiseGroupLabel
     (_, _, contest, _) <- Participation.checkCreds dlId
 
     -- Check if break/fix-it round has started.
