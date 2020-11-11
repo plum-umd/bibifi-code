@@ -66,7 +66,7 @@ jumbotronWidget = do
                         The Build it Break it Fix it contest for fall 2015 is complete. Congratulations to the winners! Check out the <a href="@{SpecificScoreboardR "fall2015"}">scoreboard</a> for the results. 
                     */
                     <p>
-                        If you are interested in the scientific results from this research project, check out a <a href="http://arxiv.org/abs/1606.01881">pre-print of our paper</a>.
+                        If you are interested in the scientific results from this research project, check our <a href="https://arxiv.org/abs/1907.01679">TOPS paper</a> and our <a href="https://www.usenix.org/conference/usenixsecurity20/presentation/votipka-understanding">USENIX paper</a>.
                     <p>
                         There are currently no public contests planned at this time. 
                     <p>
